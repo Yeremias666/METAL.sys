@@ -110,7 +110,7 @@ input, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: 0;
   perspective: 1400px;
 }
 
@@ -119,7 +119,6 @@ input, textarea {
   position: relative;
   width: 100%;
   height: 100%;
-  max-width: 1400px;
   background: var(--bg-deep);
   border-radius: var(--curve-radius);
   overflow: hidden;
@@ -226,18 +225,20 @@ input, textarea {
     );
 }
 
-/* Glass highlight — top-left sheen */
+/* Glass highlight — top-left sheen + inner frame over scrollbar */
 .crt-glass {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 103;
+  border-radius: var(--curve-radius);
   background:
     radial-gradient(
       ellipse 60% 50% at 30% 10%,
       rgba(255, 255, 255, 0.06) 0%,
       transparent 60%
     );
+  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.82);
 }
 
 /* ===========================================================
@@ -420,6 +421,25 @@ input, textarea {
 }
 .panel-hd .dots { letter-spacing: 2px; }
 .panel-body { padding: 14px 16px; }
+
+.cat-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: rgba(0,0,0,0.45);
+  border: 1.5px solid rgba(0,0,0,0.55);
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.cat-upload-btn:hover {
+  background: rgba(0,0,0,0.7);
+  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
 
 /* Hero / welcome */
 .hero h2 {
@@ -942,7 +962,7 @@ input, textarea {
   border-bottom: 2px solid var(--fg-primary);
 }
 .file-card-thumb img {
-  width: 100%; height: 100%; object-fit: cover;
+  width: 100%; height: 100%; object-fit: contain;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -1156,7 +1176,8 @@ input, textarea {
 }
 
 .deck-screen {
-  height: 280px;
+  max-height: 280px;
+  min-height: 60px;
   background: #000;
   border: 2px solid var(--fg-accent);
   box-shadow: inset 0 0 20px rgba(255,59,59,0.4), 0 0 18px rgba(255,59,59,0.5);
@@ -1167,7 +1188,11 @@ input, textarea {
   justify-content: center;
 }
 .deck-screen img {
-  width: 100%; height: 100%; object-fit: contain;
+  max-width: 100%;
+  max-height: 280px;
+  width: auto;
+  height: auto;
+  display: block;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
@@ -2088,7 +2113,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .bar-chart .bar-lbl { font-size: 9px; }
   .player-deck { grid-template-columns: 60px 1fr 60px; gap: 8px; padding: 12px; }
   .deck-reel { width: 60px; height: 60px; }
-  .deck-screen { height: 180px; }
+  .deck-screen { max-height: 180px; }
+  .deck-screen img { max-height: 180px; }
   .track-title { font-size: 17px; }
   .specs { grid-template-columns: 1fr; }
   .search-filters { grid-template-columns: 1fr 1fr; }

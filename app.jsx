@@ -661,11 +661,11 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
 }
 
 // ─── PAGE: SUBIR ───────────────────────────────────────────────
-function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat }) {
+function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat, prefillCat }) {
   const [file, setFile] = useState(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
-  const [cat, setCat] = useState(allCats[0] || 'OTROS');
+  const [cat, setCat] = useState(() => prefillCat && allCats.includes(prefillCat) ? prefillCat : (allCats[0] || 'OTROS'));
   const [thumb, setThumb] = useState(null); // data URL
   const [drag, setDrag] = useState(false);
   const [err, setErr] = useState("");
@@ -833,7 +833,20 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">{cat} <span className="dots">/// {list.length} ARCHIVO{list.length===1?'':'S'}</span></div>
+        <div className="panel-hd">
+          <span style={{display:'flex', alignItems:'center', gap:8}}>
+            <button className="cat-upload-btn" title={`Subir a ${cat}`}
+              onClick={() => onNav({ page: 'SUBIR', prefillCat: cat })}>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="miter">
+                <line x1="1" y1="2" x2="11" y2="2" strokeLinecap="square"/>
+                <line x1="6" y1="4" x2="6" y2="11"/>
+                <polyline points="3,7 6,4 9,7"/>
+              </svg>
+            </button>
+            {cat}
+          </span>
+          <span className="dots">/// {list.length} ARCHIVO{list.length===1?'':'S'}</span>
+        </div>
         <div className="panel-body">
           <div className="cat-header">
             <CategoryGlyph cat={cat} size={56} />
@@ -2257,7 +2270,8 @@ function App() {
                 )}
                 {route.page === 'SUBIR' && (
                   <UploadPage allCats={allCats} vault={files}
-                              onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat} />
+                              onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
+                              prefillCat={route.prefillCat} />
                 )}
                 {route.page === 'UPLOAD_PROGRESS' && (
                   <UploadProgressPage progress={uploadProgress} />
