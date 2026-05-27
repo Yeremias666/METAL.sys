@@ -44,7 +44,10 @@ const MARQUEE_LINES = [
 function loadVault() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
 function saveVault(f) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(f)); return true; } catch { return false; } }
 function loadCats() {
-  try { const c = JSON.parse(localStorage.getItem(CATS_KEY) || '[]'); return c; } catch { return []; }
+  try {
+    const c = JSON.parse(localStorage.getItem(CATS_KEY) || '[]');
+    return c.map(x => typeof x === 'string' ? { name: x, icon: 'default' } : x);
+  } catch { return []; }
 }
 function saveCats(c) { try { localStorage.setItem(CATS_KEY, JSON.stringify(c)); } catch {} }
 function loadLog() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } }
@@ -273,6 +276,9 @@ async function readID3(dataURL) {
   } catch { return {}; }
 }
 
+let _catIconRegistry = {};
+function getCatIcon(cat) { return _catIconRegistry[cat] || null; }
+
 // ─── ICONS ─────────────────────────────────────────────────────
 // ─── ICONS ────────────────────────────────────
 function CameraGlyph({ size = 48 }) {
@@ -288,6 +294,164 @@ function CameraGlyph({ size = 48 }) {
       <rect x="30" y="14" width="3" height="2" {...f} />
     </svg>
   );
+}
+
+const ICON_LIBRARY = [
+  { id:'codigo',       label:'CÓDIGO',     group:'TECH' },
+  { id:'terminal',     label:'TERMINAL',   group:'TECH' },
+  { id:'database',     label:'DATABASE',   group:'TECH' },
+  { id:'server',       label:'SERVIDOR',   group:'TECH' },
+  { id:'wifi',         label:'WIFI',       group:'TECH' },
+  { id:'cpu',          label:'CPU',        group:'TECH' },
+  { id:'disco',        label:'DISCO',      group:'TECH' },
+  { id:'monitor',      label:'MONITOR',    group:'TECH' },
+  { id:'nube',         label:'NUBE',       group:'TECH' },
+  { id:'buscar',       label:'BUSCAR',     group:'TECH' },
+  { id:'configuracion',label:'CONFIG',     group:'TECH' },
+  { id:'descarga',     label:'DESCARGA',   group:'TECH' },
+  { id:'retro',        label:'RETRO',      group:'JUEGOS' },
+  { id:'cartas',       label:'CARTAS',     group:'JUEGOS' },
+  { id:'dados',        label:'DADOS',      group:'JUEGOS' },
+  { id:'trofeo',       label:'TROFEO',     group:'JUEGOS' },
+  { id:'espada',       label:'ESPADA',     group:'JUEGOS' },
+  { id:'joystick',     label:'JOYSTICK',   group:'JUEGOS' },
+  { id:'vinyl',        label:'VINYL',      group:'MÚSICA' },
+  { id:'cassette',     label:'CASSETTE',   group:'MÚSICA' },
+  { id:'guitarra',     label:'GUITARRA',   group:'MÚSICA' },
+  { id:'piano',        label:'PIANO',      group:'MÚSICA' },
+  { id:'auriculares',  label:'AURICULAR',  group:'MÚSICA' },
+  { id:'microfono',    label:'MICRO',      group:'MÚSICA' },
+  { id:'nota',         label:'NOTA',       group:'MÚSICA' },
+  { id:'camara',       label:'CÁMARA',     group:'MEDIA' },
+  { id:'pelicula',     label:'PELÍCULA',   group:'MEDIA' },
+  { id:'claqueta',     label:'CLAQUETA',   group:'MEDIA' },
+  { id:'libro',        label:'LIBRO',      group:'DOCS' },
+  { id:'sobre',        label:'SOBRE',      group:'DOCS' },
+  { id:'recibo',       label:'RECIBO',     group:'DOCS' },
+  { id:'notepad',      label:'NOTAS',      group:'DOCS' },
+  { id:'archivo',      label:'CARPETA',    group:'DOCS' },
+  { id:'paleta',       label:'PALETA',     group:'ARTE' },
+  { id:'pincel',       label:'PINCEL',     group:'ARTE' },
+  { id:'atomo',        label:'ÁTOMO',      group:'CIENCIA' },
+  { id:'cohete',       label:'COHETE',     group:'CIENCIA' },
+  { id:'tubo',         label:'TUBO',       group:'CIENCIA' },
+  { id:'microscopio',  label:'MICROSCOPIO',group:'CIENCIA' },
+  { id:'planta',       label:'PLANTA',     group:'NATURE' },
+  { id:'fuego',        label:'FUEGO',      group:'NATURE' },
+  { id:'agua',         label:'AGUA',       group:'NATURE' },
+  { id:'montaña',      label:'MONTAÑA',    group:'NATURE' },
+  { id:'llave',        label:'LLAVE',      group:'OBJETOS' },
+  { id:'candado',      label:'CANDADO',    group:'OBJETOS' },
+  { id:'engranaje',    label:'ENGRANAJE',  group:'OBJETOS' },
+  { id:'herramienta',  label:'WRENCH',     group:'OBJETOS' },
+  { id:'mochila',      label:'MOCHILA',    group:'OBJETOS' },
+  { id:'corona',       label:'CORONA',     group:'OBJETOS' },
+  { id:'maletin',      label:'MALETÍN',    group:'OBJETOS' },
+  { id:'dinero',       label:'DINERO',     group:'OBJETOS' },
+  { id:'usuario',      label:'USUARIO',    group:'PERSONAS' },
+  { id:'grupo',        label:'GRUPO',      group:'PERSONAS' },
+  { id:'privado',      label:'PRIVADO',    group:'PERSONAS' },
+  { id:'mail',         label:'MAIL',       group:'COM' },
+  { id:'chat',         label:'CHAT',       group:'COM' },
+  { id:'megafono',     label:'MEGÁFONO',   group:'COM' },
+  { id:'campana',      label:'CAMPANA',    group:'COM' },
+  { id:'compartir',    label:'COMPARTIR',  group:'COM' },
+  { id:'avion',        label:'AVIÓN',      group:'VIAJE' },
+  { id:'carro',        label:'CARRO',      group:'VIAJE' },
+  { id:'mapa',         label:'MAPA',       group:'VIAJE' },
+  { id:'grafico',      label:'GRÁFICO',    group:'DATOS' },
+  { id:'calendario',   label:'CALENDAR',   group:'DATOS' },
+  { id:'reloj',        label:'RELOJ',      group:'DATOS' },
+  { id:'calavera',     label:'CALAVERA',   group:'ESPECIAL' },
+  { id:'estrella',     label:'ESTRELLA',   group:'ESPECIAL' },
+  { id:'corazon',      label:'CORAZÓN',    group:'ESPECIAL' },
+  { id:'rayo',         label:'RAYO',       group:'ESPECIAL' },
+  { id:'bomba',        label:'BOMBA',      group:'ESPECIAL' },
+  { id:'alien',        label:'ALIEN',      group:'ESPECIAL' },
+  { id:'flag',         label:'BANDERA',    group:'ESPECIAL' },
+  { id:'tag',          label:'ETIQUETA',   group:'ESPECIAL' },
+];
+
+function IconGlyph({ iconId, size = 40 }) {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinejoin: 'miter' };
+  const f = { fill: 'currentColor', stroke: 'none' };
+  const p = { width: size, height: size, viewBox: '0 0 40 40' };
+  switch (iconId) {
+    case 'codigo':    return <svg {...p}><polyline points="14,10 6,20 14,30" {...s}/><polyline points="26,10 34,20 26,30" {...s}/></svg>;
+    case 'terminal':  return <svg {...p}><rect x="4" y="8" width="32" height="24" rx="2" {...s}/><polyline points="10,18 16,22 10,26" {...s}/><line x1="18" y1="26" x2="28" y2="26" {...s}/></svg>;
+    case 'database':  return <svg {...p}><ellipse cx="20" cy="10" rx="12" ry="4" {...s}/><path d="M8 10 V26 Q8 30 20 30 Q32 30 32 26 V10" {...s}/><path d="M8 18 Q8 22 20 22 Q32 22 32 18" {...s}/></svg>;
+    case 'server':    return <svg {...p}><rect x="6" y="6" width="28" height="8" rx="1" {...s}/><rect x="6" y="16" width="28" height="8" rx="1" {...s}/><rect x="6" y="26" width="28" height="8" rx="1" {...s}/><circle cx="29" cy="10" r="1.5" {...f}/><circle cx="29" cy="20" r="1.5" {...f}/><circle cx="29" cy="30" r="1.5" {...f}/></svg>;
+    case 'wifi':      return <svg {...p}><path d="M4 18 Q20 6 36 18" {...s}/><path d="M9 23 Q20 14 31 23" {...s}/><path d="M14 28 Q20 22 26 28" {...s}/><circle cx="20" cy="32" r="2" {...f}/></svg>;
+    case 'cpu':       return <svg {...p}><rect x="12" y="12" width="16" height="16" {...s}/><rect x="15" y="15" width="10" height="10" {...s}/><line x1="15" y1="4" x2="15" y2="12" {...s}/><line x1="20" y1="4" x2="20" y2="12" {...s}/><line x1="25" y1="4" x2="25" y2="12" {...s}/><line x1="15" y1="28" x2="15" y2="36" {...s}/><line x1="20" y1="28" x2="20" y2="36" {...s}/><line x1="25" y1="28" x2="25" y2="36" {...s}/><line x1="4" y1="15" x2="12" y2="15" {...s}/><line x1="4" y1="20" x2="12" y2="20" {...s}/><line x1="4" y1="25" x2="12" y2="25" {...s}/><line x1="28" y1="15" x2="36" y2="15" {...s}/><line x1="28" y1="20" x2="36" y2="20" {...s}/><line x1="28" y1="25" x2="36" y2="25" {...s}/></svg>;
+    case 'disco':     return <svg {...p}><rect x="6" y="4" width="28" height="32" rx="2" {...s}/><rect x="12" y="4" width="12" height="10" {...s}/><rect x="14" y="6" width="4" height="6" {...f}/><rect x="10" y="20" width="20" height="12" rx="1" {...s}/><line x1="14" y1="24" x2="26" y2="24" {...s}/></svg>;
+    case 'monitor':   return <svg {...p}><rect x="4" y="6" width="32" height="22" rx="2" {...s}/><line x1="4" y1="22" x2="36" y2="22" {...s}/><path d="M16 28 L15 34 L25 34 L24 28" {...s}/><line x1="12" y1="34" x2="28" y2="34" {...s}/></svg>;
+    case 'nube':      return <svg {...p}><path d="M8 28 Q4 28 4 22 Q4 16 10 16 Q10 8 18 8 Q26 8 28 16 Q34 14 36 20 Q38 28 30 28 Z" {...s}/></svg>;
+    case 'buscar':    return <svg {...p}><circle cx="16" cy="16" r="10" {...s}/><line x1="24" y1="24" x2="34" y2="34" stroke="currentColor" strokeWidth="3.5" strokeLinecap="square"/></svg>;
+    case 'configuracion': return <svg {...p}><line x1="4" y1="10" x2="36" y2="10" {...s}/><line x1="4" y1="20" x2="36" y2="20" {...s}/><line x1="4" y1="30" x2="36" y2="30" {...s}/><circle cx="14" cy="10" r="3" fill="none" stroke="currentColor" strokeWidth="2.5"/><circle cx="26" cy="20" r="3" fill="none" stroke="currentColor" strokeWidth="2.5"/><circle cx="18" cy="30" r="3" fill="none" stroke="currentColor" strokeWidth="2.5"/></svg>;
+    case 'descarga':  return <svg {...p}><line x1="20" y1="4" x2="20" y2="26" {...s}/><polyline points="12,18 20,26 28,18" {...s}/><line x1="8" y1="34" x2="32" y2="34" {...s}/></svg>;
+    case 'retro':     return <svg {...p}><rect x="8" y="6" width="24" height="30" rx="2" {...s}/><rect x="14" y="6" width="12" height="8" {...s}/><rect x="12" y="18" width="16" height="12" rx="1" {...s}/><line x1="16" y1="22" x2="24" y2="22" {...s}/><line x1="16" y1="26" x2="24" y2="26" {...s}/></svg>;
+    case 'cartas':    return <svg {...p}><rect x="6" y="8" width="18" height="24" rx="2" {...s}/><rect x="14" y="10" width="18" height="24" rx="2" {...s}/><line x1="18" y1="18" x2="28" y2="18" {...s}/><line x1="18" y1="24" x2="26" y2="24" {...s}/></svg>;
+    case 'dados':     return <svg {...p}><rect x="4" y="4" width="18" height="18" rx="3" {...s}/><circle cx="9" cy="9" r="1.5" {...f}/><circle cx="17" cy="17" r="1.5" {...f}/><rect x="16" y="18" width="18" height="18" rx="3" {...s}/><circle cx="20" cy="22" r="1.5" {...f}/><circle cx="30" cy="22" r="1.5" {...f}/><circle cx="20" cy="30" r="1.5" {...f}/><circle cx="30" cy="30" r="1.5" {...f}/></svg>;
+    case 'trofeo':    return <svg {...p}><path d="M12 4 H28 V18 Q28 28 20 30 Q12 28 12 18 Z" {...s}/><path d="M12 10 Q6 10 6 16 Q6 22 12 22" {...s}/><path d="M28 10 Q34 10 34 16 Q34 22 28 22" {...s}/><line x1="20" y1="30" x2="20" y2="34" {...s}/><line x1="13" y1="34" x2="27" y2="34" {...s}/></svg>;
+    case 'espada':    return <svg {...p}><line x1="20" y1="4" x2="20" y2="30" {...s}/><polyline points="14,22 20,28 26,22" {...s}/><line x1="12" y1="18" x2="28" y2="18" {...s}/><rect x="17" y="28" width="6" height="8" rx="1" {...s}/></svg>;
+    case 'joystick':  return <svg {...p}><circle cx="20" cy="10" r="6" {...s}/><line x1="20" y1="16" x2="20" y2="28" {...s}/><ellipse cx="20" cy="32" rx="12" ry="4" {...s}/><circle cx="20" cy="10" r="2" {...f}/></svg>;
+    case 'vinyl':     return <svg {...p}><circle cx="20" cy="20" r="15" {...s}/><circle cx="20" cy="20" r="6" {...s}/><circle cx="20" cy="20" r="2" {...f}/></svg>;
+    case 'cassette':  return <svg {...p}><rect x="4" y="10" width="32" height="20" rx="3" {...s}/><circle cx="13" cy="20" r="4" {...s}/><circle cx="27" cy="20" r="4" {...s}/><circle cx="13" cy="20" r="1.5" {...f}/><circle cx="27" cy="20" r="1.5" {...f}/><path d="M17 20 Q20 17 23 20" {...s}/></svg>;
+    case 'guitarra':  return <svg {...p}><ellipse cx="20" cy="28" rx="10" ry="8" {...s}/><circle cx="20" cy="28" r="2" {...f}/><line x1="20" y1="20" x2="20" y2="6" {...s}/><line x1="14" y1="10" x2="26" y2="10" {...s}/><line x1="14" y1="24" x2="26" y2="24" {...s}/><circle cx="20" cy="6" r="3" {...s}/></svg>;
+    case 'piano':     return <svg {...p}><rect x="4" y="10" width="32" height="20" rx="2" {...s}/><line x1="4" y1="24" x2="36" y2="24" {...s}/><rect x="9" y="10" width="4" height="10" rx="1" {...f}/><rect x="17" y="10" width="4" height="10" rx="1" {...f}/><rect x="23" y="10" width="4" height="10" rx="1" {...f}/><rect x="31" y="10" width="4" height="10" rx="1" {...f}/></svg>;
+    case 'auriculares': return <svg {...p}><path d="M8 20 Q8 6 20 6 Q32 6 32 20" {...s}/><rect x="6" y="18" width="6" height="10" rx="3" {...s}/><rect x="28" y="18" width="6" height="10" rx="3" {...s}/></svg>;
+    case 'microfono': return <svg {...p}><rect x="14" y="4" width="12" height="18" rx="6" {...s}/><path d="M8 20 Q8 30 20 30 Q32 30 32 20" {...s}/><line x1="20" y1="30" x2="20" y2="36" {...s}/><line x1="14" y1="36" x2="26" y2="36" {...s}/></svg>;
+    case 'nota':      return <svg {...p}><ellipse cx="13" cy="30" rx="6" ry="4" transform="rotate(-10 13 30)" {...s}/><ellipse cx="27" cy="26" rx="6" ry="4" transform="rotate(-10 27 26)" {...s}/><line x1="18" y1="29" x2="18" y2="10" {...s}/><line x1="32" y1="25" x2="32" y2="6" {...s}/><line x1="18" y1="10" x2="32" y2="6" {...s}/></svg>;
+    case 'camara':    return <svg {...p}><path d="M12 12 L15 7 L25 7 L28 12" {...s}/><rect x="3" y="12" width="34" height="22" {...s}/><circle cx="20" cy="23" r="7" {...s}/><circle cx="20" cy="23" r="2.5" {...f}/></svg>;
+    case 'pelicula':  return <svg {...p}><rect x="4" y="8" width="32" height="24" {...s}/><rect x="4" y="8" width="6" height="24" {...s}/><rect x="30" y="8" width="6" height="24" {...s}/><rect x="6" y="10" width="2" height="4" {...f}/><rect x="6" y="18" width="2" height="4" {...f}/><rect x="6" y="26" width="2" height="4" {...f}/><rect x="32" y="10" width="2" height="4" {...f}/><rect x="32" y="18" width="2" height="4" {...f}/><rect x="32" y="26" width="2" height="4" {...f}/></svg>;
+    case 'claqueta':  return <svg {...p}><rect x="4" y="14" width="32" height="22" {...s}/><rect x="4" y="6" width="32" height="8" {...s}/><line x1="10" y1="6" x2="14" y2="14" {...s}/><line x1="18" y1="6" x2="22" y2="14" {...s}/><line x1="26" y1="6" x2="30" y2="14" {...s}/></svg>;
+    case 'libro':     return <svg {...p}><path d="M6 4 H26 Q30 4 30 8 V34 Q30 38 26 38 H6 V4 Z" {...s}/><line x1="6" y1="4" x2="6" y2="38" {...s}/><line x1="10" y1="14" x2="26" y2="14" {...s}/><line x1="10" y1="20" x2="26" y2="20" {...s}/><line x1="10" y1="26" x2="20" y2="26" {...s}/></svg>;
+    case 'sobre':     return <svg {...p}><rect x="4" y="10" width="32" height="22" rx="2" {...s}/><polyline points="4,12 20,22 36,12" {...s}/></svg>;
+    case 'recibo':    return <svg {...p}><path d="M6 4 V36 L10 32 L14 36 L18 32 L22 36 L26 32 L30 36 L34 32 L34 4 Z" {...s}/><line x1="12" y1="14" x2="28" y2="14" {...s}/><line x1="12" y1="20" x2="28" y2="20" {...s}/><line x1="12" y1="26" x2="22" y2="26" {...s}/></svg>;
+    case 'notepad':   return <svg {...p}><rect x="8" y="6" width="24" height="30" rx="2" {...s}/><line x1="14" y1="14" x2="26" y2="14" {...s}/><line x1="14" y1="20" x2="26" y2="20" {...s}/><line x1="14" y1="26" x2="22" y2="26" {...s}/><line x1="14" y1="6" x2="14" y2="2" stroke="currentColor" strokeWidth="3"/><line x1="20" y1="6" x2="20" y2="2" stroke="currentColor" strokeWidth="3"/><line x1="26" y1="6" x2="26" y2="2" stroke="currentColor" strokeWidth="3"/></svg>;
+    case 'archivo':   return <svg {...p}><path d="M4 10 H14 L18 6 H36 V32 H4 Z" {...s}/><line x1="4" y1="18" x2="36" y2="18" {...s}/></svg>;
+    case 'paleta':    return <svg {...p}><path d="M20 4 Q32 4 36 16 Q40 28 30 34 Q26 36 22 32 Q18 28 14 30 Q8 32 6 26 Q2 18 8 10 Q12 4 20 4 Z" {...s}/><circle cx="14" cy="12" r="2.5" {...f}/><circle cx="22" cy="8" r="2.5" {...f}/><circle cx="30" cy="12" r="2.5" {...f}/><circle cx="32" cy="22" r="2.5" {...f}/></svg>;
+    case 'pincel':    return <svg {...p}><line x1="8" y1="6" x2="26" y2="24" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><path d="M26 24 L32 30 Q36 36 28 36 Q22 36 22 30 Z" {...s}/></svg>;
+    case 'atomo':     return <svg {...p}><circle cx="20" cy="20" r="3" {...f}/><ellipse cx="20" cy="20" rx="16" ry="6" {...s}/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(60 20 20)" {...s}/><ellipse cx="20" cy="20" rx="16" ry="6" transform="rotate(-60 20 20)" {...s}/></svg>;
+    case 'cohete':    return <svg {...p}><path d="M20 4 Q28 8 30 20 L30 28 L20 34 L10 28 L10 20 Q12 8 20 4 Z" {...s}/><circle cx="20" cy="18" r="4" {...s}/><path d="M10 26 L6 34 L14 30" {...f}/><path d="M30 26 L34 34 L26 30" {...f}/></svg>;
+    case 'tubo':      return <svg {...p}><path d="M14 4 L14 28 Q14 36 20 36 Q26 36 26 28 L26 4" {...s}/><line x1="12" y1="8" x2="28" y2="8" {...s}/><line x1="14" y1="22" x2="26" y2="22" {...s}/></svg>;
+    case 'microscopio': return <svg {...p}><line x1="20" y1="34" x2="32" y2="34" {...s}/><line x1="26" y1="34" x2="26" y2="28" {...s}/><ellipse cx="18" cy="26" rx="8" ry="3" {...s}/><rect x="14" y="10" width="8" height="16" rx="2" {...s}/><rect x="16" y="4" width="4" height="6" rx="1" {...s}/><path d="M8 28 Q6 22 10 16" {...s}/></svg>;
+    case 'planta':    return <svg {...p}><line x1="20" y1="36" x2="20" y2="18" {...s}/><path d="M20 26 Q14 20 8 22 Q12 14 20 18 Z" {...f}/><path d="M20 22 Q26 14 34 16 Q30 24 20 22 Z" {...f}/><ellipse cx="20" cy="36" rx="6" ry="2" {...s}/></svg>;
+    case 'fuego':     return <svg {...p}><path d="M20 36 Q8 28 10 18 Q12 10 18 8 Q16 14 20 16 Q20 10 24 6 Q30 12 28 20 Q32 16 30 12 Q36 20 32 28 Q30 36 20 36 Z" {...s}/><path d="M20 36 Q14 28 16 22 Q18 18 20 20 Q22 18 24 22 Q26 28 20 36 Z" {...f}/></svg>;
+    case 'agua':      return <svg {...p}><path d="M4 14 Q8 8 12 14 Q16 20 20 14 Q24 8 28 14 Q32 20 36 14" {...s}/><path d="M4 22 Q8 16 12 22 Q16 28 20 22 Q24 16 28 22 Q32 28 36 22" {...s}/><path d="M4 30 Q8 24 12 30 Q16 36 20 30 Q24 24 28 30 Q32 36 36 30" {...s}/></svg>;
+    case 'montaña':   return <svg {...p}><polygon points="20,6 36,34 4,34" {...s}/><polygon points="14,22 20,10 26,22" fill="currentColor" stroke="none" opacity="0.5"/></svg>;
+    case 'llave':     return <svg {...p}><circle cx="12" cy="18" r="8" {...s}/><circle cx="12" cy="18" r="3.5" {...s}/><line x1="20" y1="18" x2="36" y2="18" {...s}/><line x1="32" y1="18" x2="32" y2="24" {...s}/><line x1="28" y1="18" x2="28" y2="22" {...s}/></svg>;
+    case 'candado':   return <svg {...p}><rect x="8" y="18" width="24" height="18" rx="3" {...s}/><path d="M13 18 V12 Q13 4 20 4 Q27 4 27 12 V18" {...s}/><circle cx="20" cy="27" r="3" {...s}/><line x1="20" y1="30" x2="20" y2="33" {...s}/></svg>;
+    case 'engranaje': return <svg {...p}><circle cx="20" cy="20" r="8" {...s}/><circle cx="20" cy="20" r="3" {...f}/><rect x="18" y="4" width="4" height="7" {...f}/><rect x="18" y="29" width="4" height="7" {...f}/><rect x="4" y="18" width="7" height="4" {...f}/><rect x="29" y="18" width="7" height="4" {...f}/></svg>;
+    case 'herramienta': return <svg {...p}><path d="M8 32 L24 16 Q26 8 34 8 Q30 12 32 16 Q36 20 28 24 Q24 26 20 22 L6 36 Z" {...s}/></svg>;
+    case 'mochila':   return <svg {...p}><rect x="8" y="12" width="24" height="24" rx="4" {...s}/><path d="M14 12 Q14 6 20 6 Q26 6 26 12" {...s}/><line x1="8" y1="20" x2="32" y2="20" {...s}/><rect x="16" y="20" width="8" height="6" rx="1" {...s}/></svg>;
+    case 'corona':    return <svg {...p}><polygon points="4,28 4,16 12,22 20,8 28,22 36,16 36,28" {...s}/><line x1="4" y1="28" x2="36" y2="28" {...s}/><circle cx="12" cy="24" r="2" {...f}/><circle cx="20" cy="20" r="2" {...f}/><circle cx="28" cy="24" r="2" {...f}/></svg>;
+    case 'maletin':   return <svg {...p}><rect x="4" y="14" width="32" height="22" rx="3" {...s}/><path d="M14 14 V10 Q14 6 20 6 Q26 6 26 10 V14" {...s}/><line x1="4" y1="24" x2="36" y2="24" {...s}/></svg>;
+    case 'dinero':    return <svg {...p}><circle cx="20" cy="20" r="14" {...s}/><line x1="20" y1="10" x2="20" y2="30" {...s}/><path d="M14 14 Q20 12 24 16 Q26 20 24 24 Q20 28 14 26" {...s}/></svg>;
+    case 'usuario':   return <svg {...p}><circle cx="20" cy="12" r="7" {...s}/><path d="M6 36 Q6 24 20 24 Q34 24 34 36" {...s}/></svg>;
+    case 'grupo':     return <svg {...p}><circle cx="13" cy="12" r="5" {...s}/><path d="M3 30 Q3 22 13 22 Q19 22 21 26" {...s}/><circle cx="27" cy="12" r="5" {...s}/><path d="M37 30 Q37 22 27 22 Q21 22 19 26" {...s}/></svg>;
+    case 'privado':   return <svg {...p}><path d="M20 4 L34 10 V22 Q34 32 20 36 Q6 32 6 22 V10 Z" {...s}/><polyline points="14,20 18,25 27,14" stroke="currentColor" strokeWidth="2.5" fill="none"/></svg>;
+    case 'mail':      return <svg {...p}><circle cx="20" cy="20" r="7" {...s}/><path d="M27 20 Q27 28 20 28 Q10 28 10 20 Q10 10 20 10 Q30 10 30 20 L30 24" {...s}/></svg>;
+    case 'chat':      return <svg {...p}><path d="M6 6 H34 Q36 6 36 8 V24 Q36 26 34 26 H18 L10 34 L12 26 H6 Q4 26 4 24 V8 Q4 6 6 6 Z" {...s}/><line x1="12" y1="14" x2="28" y2="14" {...s}/><line x1="12" y1="20" x2="22" y2="20" {...s}/></svg>;
+    case 'megafono':  return <svg {...p}><path d="M8 14 L8 26 L18 26 L34 34 L34 6 L18 14 Z" {...s}/><path d="M8 26 L6 34" {...s}/></svg>;
+    case 'campana':   return <svg {...p}><path d="M20 4 Q12 4 10 14 L8 28 H32 L30 14 Q28 4 20 4 Z" {...s}/><path d="M16 28 Q16 34 20 34 Q24 34 24 28" {...s}/></svg>;
+    case 'compartir': return <svg {...p}><circle cx="32" cy="8" r="4" {...s}/><circle cx="32" cy="32" r="4" {...s}/><circle cx="8" cy="20" r="4" {...s}/><line x1="12" y1="20" x2="28" y2="10" {...s}/><line x1="12" y1="20" x2="28" y2="30" {...s}/></svg>;
+    case 'avion':     return <svg {...p}><path d="M20 4 L34 24 L24 22 L22 34 L20 28 L18 34 L16 22 L6 24 Z" {...s}/></svg>;
+    case 'carro':     return <svg {...p}><path d="M4 22 L10 14 H30 L36 22 V30 H4 Z" {...s}/><circle cx="11" cy="30" r="4" {...s}/><circle cx="29" cy="30" r="4" {...s}/><circle cx="11" cy="30" r="1.5" {...f}/><circle cx="29" cy="30" r="1.5" {...f}/><path d="M13 14 L11 20 H29 L27 14" {...s}/></svg>;
+    case 'mapa':      return <svg {...p}><polygon points="4,8 14,4 26,10 36,6 36,32 26,36 14,30 4,34" {...s}/><line x1="14" y1="4" x2="14" y2="30" {...s}/><line x1="26" y1="10" x2="26" y2="36" {...s}/></svg>;
+    case 'grafico':   return <svg {...p}><rect x="6" y="20" width="6" height="14" {...s}/><rect x="15" y="12" width="6" height="22" {...s}/><rect x="24" y="6" width="6" height="28" {...s}/><line x1="4" y1="34" x2="36" y2="34" {...s}/><line x1="4" y1="34" x2="4" y2="4" {...s}/></svg>;
+    case 'calendario': return <svg {...p}><rect x="4" y="8" width="32" height="28" rx="2" {...s}/><line x1="4" y1="16" x2="36" y2="16" {...s}/><line x1="13" y1="4" x2="13" y2="12" stroke="currentColor" strokeWidth="3"/><line x1="27" y1="4" x2="27" y2="12" stroke="currentColor" strokeWidth="3"/><rect x="10" y="20" width="4" height="4" {...f}/><rect x="18" y="20" width="4" height="4" {...f}/><rect x="26" y="20" width="4" height="4" {...f}/><rect x="10" y="28" width="4" height="4" {...f}/><rect x="18" y="28" width="4" height="4" {...f}/></svg>;
+    case 'reloj':     return <svg {...p}><circle cx="20" cy="20" r="15" {...s}/><line x1="20" y1="20" x2="20" y2="10" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"/><line x1="20" y1="20" x2="28" y2="24" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square"/><circle cx="20" cy="20" r="2" {...f}/></svg>;
+    case 'calavera':  return <svg {...p}><path d="M10 22 Q6 16 8 10 Q10 4 20 4 Q30 4 32 10 Q34 16 30 22 L30 28 H10 Z" {...s}/><rect x="12" y="28" width="16" height="8" rx="2" {...s}/><line x1="16" y1="28" x2="16" y2="36" {...s}/><line x1="20" y1="28" x2="20" y2="36" {...s}/><line x1="24" y1="28" x2="24" y2="36" {...s}/><circle cx="14" cy="16" r="4" {...s}/><circle cx="26" cy="16" r="4" {...s}/></svg>;
+    case 'estrella':  return <svg {...p}><polygon points="20,4 24,14 36,14 26,22 30,34 20,26 10,34 14,22 4,14 16,14" {...s}/></svg>;
+    case 'corazon':   return <svg {...p}><path d="M20 34 Q4 22 4 14 Q4 6 12 6 Q16 6 20 10 Q24 6 28 6 Q36 6 36 14 Q36 22 20 34 Z" {...s}/></svg>;
+    case 'rayo':      return <svg {...p}><polygon points="22,4 12,22 20,22 18,36 28,18 20,18" {...s}/></svg>;
+    case 'bomba':     return <svg {...p}><circle cx="18" cy="24" r="12" {...s}/><line x1="28" y1="14" x2="34" y2="8" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/><circle cx="32" cy="6" r="2" {...f}/></svg>;
+    case 'alien':     return <svg {...p}><ellipse cx="20" cy="18" rx="12" ry="14" {...s}/><ellipse cx="14" cy="14" rx="4" ry="5" {...f}/><ellipse cx="26" cy="14" rx="4" ry="5" {...f}/><line x1="14" y1="6" x2="12" y2="2" {...s}/><line x1="26" y1="6" x2="28" y2="2" {...s}/><path d="M14 24 Q20 28 26 24" {...s}/></svg>;
+    case 'flag':      return <svg {...p}><line x1="8" y1="4" x2="8" y2="36" {...s}/><polygon points="8,6 34,14 8,22" {...s}/></svg>;
+    case 'tag':       return <svg {...p}><path d="M6 6 H22 L36 20 L22 34 H6 Z" {...s}/><circle cx="14" cy="14" r="3" {...f}/></svg>;
+    default:          return <svg {...p}><polygon points="20,4 36,14 36,28 20,38 4,28 4,14" {...s}/><circle cx="20" cy="21" r="5" {...f}/></svg>;
+  }
 }
 
 function CategoryGlyph({ cat, size = 40 }) {
@@ -307,8 +471,11 @@ function CategoryGlyph({ cat, size = 40 }) {
       return <svg {...props}><rect x="4" y="10" width="22" height="20" {...s}/><polygon points="26,16 36,10 36,30 26,24" {...f}/></svg>;
     case 'OTROS':
       return <svg {...props}><circle cx="20" cy="20" r="14" {...s}/><text x="20" y="26" textAnchor="middle" fill="currentColor" fontSize="14" fontFamily="monospace">?</text></svg>;
-    default:
+    default: {
+      const iconId = getCatIcon(cat);
+      if (iconId && iconId !== 'default') return <IconGlyph iconId={iconId} size={size} />;
       return <svg {...props}><polygon points="20,4 36,14 36,28 20,38 4,28 4,14" {...s}/><circle cx="20" cy="21" r="5" {...f}/></svg>;
+    }
   }
 }
 function NavGlyph({ kind }) {
@@ -375,7 +542,7 @@ function Nav({ current, onNav, customCats, onCreateCat }) {
     { key: 'IMÁGENES',   glyph: 'IMÁGENES' },
     { key: 'VIDEOS',     glyph: 'VIDEOS' },
     { key: 'OTROS',      glyph: 'OTROS' },
-    ...customCats.map((c) => ({ key: c, glyph: null, custom: true })),
+    ...customCats.map((c) => ({ key: c.name, glyph: null, custom: true, iconId: c.icon })),
   ];
   return (
     <nav className="nav">
@@ -388,7 +555,11 @@ function Nav({ current, onNav, customCats, onCreateCat }) {
                   if (it.key === 'INICIO' || it.key === 'SUBIR') onNav({ page: it.key });
                   else onNav({ page: 'CAT', cat: it.key });
                 }}>
-          {it.glyph && <NavGlyph kind={it.glyph} />}
+          {it.glyph
+            ? <NavGlyph kind={it.glyph} />
+            : it.custom
+              ? <span style={{display:'inline-block',width:14,height:14,verticalAlign:'-2px',marginRight:6,flexShrink:0,lineHeight:0}}><IconGlyph iconId={it.iconId||'default'} size={14}/></span>
+              : null}
           {it.key}
         </button>
       ))}
@@ -744,21 +915,33 @@ function FileCard({ file, onClick }) {
 }
 
 // ─── MODAL: CREATE CATEGORY ────────────────────────────────────
+const ICON_GROUPS = ['TODOS','TECH','JUEGOS','MÚSICA','MEDIA','DOCS','ARTE','CIENCIA','NATURE','OBJETOS','PERSONAS','COM','VIAJE','DATOS','ESPECIAL'];
+
 function CreateCategoryModal({ onClose, onSubmit, existing }) {
   const [name, setName] = useState("");
   const [err, setErr] = useState("");
+  const [selectedIcon, setSelectedIcon] = useState('default');
+  const [iconGroup, setIconGroup] = useState('TODOS');
+
+  const visibleIcons = iconGroup === 'TODOS' ? ICON_LIBRARY : ICON_LIBRARY.filter(i => i.group === iconGroup);
+
   const submit = () => {
     const v = name.trim().toUpperCase();
     if (!v) { setErr("Escribe un nombre"); return; }
     if (v.length > 20) { setErr("Máximo 20 caracteres"); return; }
     if (existing.includes(v)) { setErr("Esa categoría ya existe"); return; }
-    onSubmit(v);
+    onSubmit({ name: v, icon: selectedIcon });
   };
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  const selectedLabel = selectedIcon === 'default'
+    ? 'SIN ICONO'
+    : (ICON_LIBRARY.find(i => i.id === selectedIcon) || {label: selectedIcon}).label;
+
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -773,10 +956,61 @@ function CreateCategoryModal({ onClose, onSubmit, existing }) {
                  onKeyDown={(e) => { if (e.key === 'Enter') submit(); }}
                  placeholder="EJ. CHEATS, ROMS, FANZINES..."
                  maxLength={20} autoFocus />
-          <div style={{marginTop: 12, fontSize: 18, color: 'var(--fg-dim)'}}>
-            Se añadirá a la barra de navegación y al selector al subir archivos.
-            Las letras se convierten en mayúsculas.
+
+          <div style={{marginTop: 14}}>
+            <div className="field-label" style={{marginBottom: 6}}>ICONO DE CATEGORÍA</div>
+
+            <div style={{display:'flex', alignItems:'center', gap:10, marginBottom:8}}>
+              <div style={{
+                width:52, height:52, display:'flex', alignItems:'center', justifyContent:'center',
+                border:'1.5px solid var(--fg-primary)', flexShrink:0,
+              }}>
+                <IconGlyph iconId={selectedIcon} size={36}/>
+              </div>
+              <div style={{fontSize:13, color:'var(--fg-dim)', fontFamily:'var(--mono)', letterSpacing:1}}>
+                {selectedLabel}
+              </div>
+            </div>
+
+            <div style={{display:'flex', flexWrap:'wrap', gap:3, marginBottom:6}}>
+              {ICON_GROUPS.map(g => (
+                <button key={g} onClick={() => setIconGroup(g)}
+                  style={{
+                    fontSize: 9, fontFamily: 'var(--pixel)',
+                    padding: '2px 5px', lineHeight: 1.3,
+                    background: iconGroup === g ? 'var(--fg-primary)' : 'transparent',
+                    color: iconGroup === g ? 'var(--bg)' : 'var(--fg-dim)',
+                    border: '1px solid ' + (iconGroup === g ? 'var(--fg-primary)' : 'var(--fg-dim)'),
+                    cursor: 'pointer',
+                  }}>
+                  {g}
+                </button>
+              ))}
+            </div>
+
+            <div style={{
+              display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(54px, 1fr))',
+              gap:4, maxHeight:220, overflowY:'auto',
+              border:'1px solid var(--fg-dim)', padding:4,
+            }}>
+              {visibleIcons.map(icon => (
+                <button key={icon.id} onClick={() => setSelectedIcon(icon.id)}
+                  title={icon.label}
+                  style={{
+                    display:'flex', flexDirection:'column', alignItems:'center', gap:2,
+                    padding:'5px 2px',
+                    background: selectedIcon === icon.id ? 'var(--fg-primary)' : 'transparent',
+                    color: selectedIcon === icon.id ? 'var(--bg)' : 'var(--fg-primary)',
+                    border: selectedIcon === icon.id ? '1px solid var(--fg-primary)' : '1px solid transparent',
+                    cursor:'pointer',
+                  }}>
+                  <IconGlyph iconId={icon.id} size={22}/>
+                  <span style={{fontSize:7, fontFamily:'var(--pixel)', lineHeight:1, textAlign:'center', maxWidth:50, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{icon.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
           {err && <div className="dz-err" style={{marginTop: 14}}>! {err}</div>}
           <div className="form-actions">
             <button className="big-btn" onClick={submit}>✓ CREAR CATEGORÍA</button>
@@ -1725,7 +1959,11 @@ function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const [route, setRoute] = useState({ page: 'INICIO' });
   const [files, setFiles] = useState(loadVault);
-  const [customCats, setCustomCats] = useState(loadCats);
+  const [customCats, setCustomCats] = useState(() => {
+    const cats = loadCats();
+    _catIconRegistry = Object.fromEntries(cats.map(c => [c.name, c.icon]));
+    return cats;
+  });
   const [log, setLog] = useState(loadLog);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -1748,6 +1986,9 @@ function App() {
 
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
+  useEffect(() => {
+    _catIconRegistry = Object.fromEntries(customCats.map(c => [c.name, c.icon]));
+  }, [customCats]);
   useEffect(() => { saveLog(log); }, [log]);
 
   useEffect(() => {
@@ -1783,7 +2024,7 @@ function App() {
   }, [currentTrackId]);
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
-  const allCats = [...DEFAULT_CATS, ...customCats];
+  const allCats = [...DEFAULT_CATS, ...customCats.map(c => c.name)];
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
 
@@ -1877,8 +2118,8 @@ function App() {
     setFiles((prev) => prev.map((x) => x.id === f.id ? f : x));
   };
   const handleCreateCat = () => setShowCreateModal(true);
-  const submitCreateCat = (name) => {
-    setCustomCats((p) => [...p, name]);
+  const submitCreateCat = ({ name, icon }) => {
+    setCustomCats((p) => [...p, { name, icon }]);
     setShowCreateModal(false);
     setRoute({ page: 'CAT', cat: name });
   };

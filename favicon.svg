@@ -1,6 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" shape-rendering="crispEdges" width="16" height="16">
   
-  <rect width="16" height="16" fill="#050203"></rect>
 
   
   <g fill="#3a0606">
@@ -92,14 +91,4 @@
   </g>
 
   
-  <g fill="#000" opacity="0.32">
-    <rect y="1" width="16" height="1"></rect>
-    <rect y="3" width="16" height="1"></rect>
-    <rect y="5" width="16" height="1"></rect>
-    <rect y="7" width="16" height="1"></rect>
-    <rect y="9" width="16" height="1"></rect>
-    <rect y="11" width="16" height="1"></rect>
-    <rect y="13" width="16" height="1"></rect>
-    <rect y="15" width="16" height="1"></rect>
-  </g>
 </svg>
