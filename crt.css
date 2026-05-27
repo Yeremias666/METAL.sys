@@ -110,7 +110,7 @@ input, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
+  padding: 24px;
   perspective: 1400px;
 }
 
@@ -119,6 +119,7 @@ input, textarea {
   position: relative;
   width: 100%;
   height: 100%;
+  max-width: 1400px;
   background: var(--bg-deep);
   border-radius: var(--curve-radius);
   overflow: hidden;
@@ -225,20 +226,18 @@ input, textarea {
     );
 }
 
-/* Glass highlight — top-left sheen + inner frame over scrollbar */
+/* Glass highlight — top-left sheen */
 .crt-glass {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 103;
-  border-radius: var(--curve-radius);
   background:
     radial-gradient(
       ellipse 60% 50% at 30% 10%,
       rgba(255, 255, 255, 0.06) 0%,
       transparent 60%
     );
-  box-shadow: inset 0 0 0 4px rgba(0, 0, 0, 0.82);
 }
 
 /* ===========================================================
