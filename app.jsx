@@ -1212,32 +1212,65 @@ function MarkdownPreview({ file }) {
 }
 
 function AudioInfo({ file, tags, onPlay, isPlaying }) {
+  const vuHeights = [30,55,80,60,90,45,70,95,50,75,40,65];
   return (
-    <div className="media-view audio-info">
-      <div className="audio-card">
-        <div className="audio-cover">
-          {tags && tags.coverArt
-            ? <img src={tags.coverArt} alt="cover" />
-            : file.thumbnail
-              ? <img src={file.thumbnail} alt="cover" />
-              : <div className="audio-cover-empty"><CategoryGlyph cat="MÚSICA" size={80} /></div>}
+    <div className="radio-body">
+      {/* Frequency display */}
+      <div className="radio-top">
+        <div className="radio-band-label">AM·FM·SW</div>
+        <div className="radio-freq-display">
+          <span className="radio-freq-artist">{(tags && tags.artist) || '— SIN METADATOS —'}</span>
+          <div className="radio-freq-title">{(tags && tags.title) || file.name}</div>
         </div>
-        <div className="audio-meta">
-          <div className="audio-title">{(tags && tags.title) || file.name}</div>
-          {tags && tags.artist && <div className="audio-artist">▸ {tags.artist}</div>}
-          {tags && tags.album && <div className="audio-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</div>}
-          {tags && tags.genre && <div className="audio-genre">{tags.genre}</div>}
-          <div className="audio-buttons">
-            <button className="big-btn" onClick={onPlay}>
-              {isPlaying ? "❚❚ PAUSAR" : "▶ REPRODUCIR"}
-            </button>
+        <div className="radio-vu">
+          {vuHeights.map((h, i) => (
+            <div key={i} className={"radio-vu-bar" + (isPlaying ? " active" : "")}
+                 style={{animationDelay: (i * 0.09) + 's', animationDuration: (0.5 + (i % 4) * 0.15) + 's'}}></div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main body: speakers + cover */}
+      <div className="radio-mid">
+        <div className="radio-grille">
+          <div className="radio-knobs">
+            <div className="radio-knob"></div>
+            <div className="radio-knob small"></div>
+          </div>
+        </div>
+
+        <div className="radio-window">
+          <div className="radio-cover-frame">
+            {tags && tags.coverArt
+              ? <img src={tags.coverArt} alt="cover" />
+              : file.thumbnail
+                ? <img src={file.thumbnail} alt="cover" />
+                : <div className="radio-cover-empty"><CategoryGlyph cat="MÚSICA" size={72} /></div>}
+            <div className="radio-cover-scanlines"></div>
+          </div>
+          <button className="radio-play-btn" onClick={onPlay} title={isPlaying ? 'Pausar' : 'Reproducir'}>
+            <span>{isPlaying ? "❚❚" : "▶"}</span>
+          </button>
+        </div>
+
+        <div className="radio-grille">
+          <div className="radio-knobs right">
+            <div className="radio-knob small"></div>
+            <div className="radio-knob"></div>
           </div>
         </div>
       </div>
-      <audio src={file.fileData} controls className="audio-fallback" preload="metadata"></audio>
-      <div className="media-meta">
-        ◆ {file.fileType || 'audio'} · {fmtBytes(file.fileSize)}
+
+      {/* Bottom info strip */}
+      <div className="radio-info-strip">
+        {tags && tags.album && (
+          <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
+        )}
+        {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
+        <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
       </div>
+
+      <audio src={file.fileData} controls className="radio-native" preload="metadata"></audio>
     </div>
   );
 }
@@ -1418,12 +1451,10 @@ function StatsPanel({ files, allCats }) {
   const total = files.reduce((a, f) => a + f.fileSize, 0);
   const pct = Math.min(100, (total / VAULT_CAP) * 100);
   const dl = files.reduce((a, f) => a + (f.downloads || 0), 0);
-  // By category
   const byCat = allCats.map((c) => {
     const fs = files.filter((f) => f.category === c);
     return { cat: c, count: fs.length, size: fs.reduce((a, f) => a + f.fileSize, 0) };
   });
-  const maxCatSize = Math.max(1, ...byCat.map((c) => c.size));
   const folderColors = ['#ff3b3b', '#ffb347', '#c4ff00', '#5fe0ff', '#e8d8ff', '#a64bff'];
   return (
     <div className="panel">
@@ -1449,21 +1480,42 @@ function StatsPanel({ files, allCats }) {
         </div>
 
         <div className="stats-section">
-          <div className="player-section-label">USO DEL DISCO ({pct.toFixed(1)}%)</div>
-          <div className="meter big"><div className="fill" style={{width: pct + '%'}}></div></div>
+          <div className="player-section-label">TOTAL · {fmtBytes(VAULT_CAP)} · {pct.toFixed(1)}% OCUPADO</div>
+          <div className="meter big total-meter">
+            {byCat.map((c, i) => {
+              const w = (c.size / VAULT_CAP) * 100;
+              if (w <= 0) return null;
+              const color = folderColors[i % folderColors.length];
+              return (
+                <div key={c.cat} className="total-meter-seg" title={`${c.cat}: ${fmtBytes(c.size)}`}
+                     style={{width: w + '%', background: color, boxShadow: '0 0 6px ' + color}}></div>
+              );
+            })}
+          </div>
+          <div className="total-meter-legend">
+            {byCat.filter(c => c.size > 0).map((c, i) => {
+              const color = folderColors[allCats.indexOf(c.cat) % folderColors.length];
+              return (
+                <span key={c.cat} className="legend-item" style={{color}}>
+                  ■ {c.cat}
+                </span>
+              );
+            })}
+            <span className="legend-item" style={{color:'var(--fg-dim)'}}>□ LIBRE</span>
+          </div>
         </div>
 
         <div className="stats-section">
-          <div className="player-section-label">POR CATEGORÍA · BYTES OCUPADOS</div>
+          <div className="player-section-label">POR CATEGORÍA · % DE {fmtBytes(VAULT_CAP)}</div>
           <div className="bar-chart">
             {byCat.map((c, i) => {
-              const w = (c.size / maxCatSize) * 100;
+              const w = (c.size / VAULT_CAP) * 100;
               const color = folderColors[i % folderColors.length];
               return (
                 <div key={c.cat} className="bar-row">
                   <div className="bar-lbl" style={{color}}>{c.cat}</div>
                   <div className="bar-bg">
-                    <div className="bar-fill" style={{width: w + '%', background: color, boxShadow: '0 0 8px ' + color}}></div>
+                    <div className="bar-fill" style={{width: w + '%', background: color, boxShadow: w > 0 ? '0 0 8px ' + color : 'none'}}></div>
                   </div>
                   <div className="bar-val">{fmtBytes(c.size)} <span style={{color:'var(--fg-dim)'}}>· {c.count}</span></div>
                 </div>
