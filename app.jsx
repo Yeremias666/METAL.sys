@@ -1232,12 +1232,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
 
       {/* Main body: speakers + cover */}
       <div className="radio-mid">
-        <div className="radio-grille">
-          <div className="radio-knobs">
-            <div className="radio-knob"></div>
-            <div className="radio-knob small"></div>
-          </div>
-        </div>
+        <div className="radio-grille"></div>
 
         <div className="radio-window">
           <div className="radio-cover-frame">
@@ -1253,24 +1248,23 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
           </button>
         </div>
 
-        <div className="radio-grille">
-          <div className="radio-knobs right">
-            <div className="radio-knob small"></div>
-            <div className="radio-knob"></div>
-          </div>
+        <div className="radio-grille"></div>
+      </div>
+
+      {/* Knobs row */}
+      <div className="radio-knobs-bar">
+        <div className="radio-knob"></div>
+        <div className="radio-knob small"></div>
+        <div className="radio-info-strip">
+          {tags && tags.album && (
+            <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
+          )}
+          {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
+          <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
         </div>
+        <div className="radio-knob small"></div>
+        <div className="radio-knob"></div>
       </div>
-
-      {/* Bottom info strip */}
-      <div className="radio-info-strip">
-        {tags && tags.album && (
-          <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
-        )}
-        {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
-        <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
-      </div>
-
-      <audio src={file.fileData} controls className="radio-native" preload="metadata"></audio>
     </div>
   );
 }
@@ -1698,18 +1692,19 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
           </div>
 
           <div className="player">
-            {/* Top: cassette deck w/ thumbnail */}
-            <div className="player-deck">
-              <div className="deck-reel left"></div>
-              <div className="deck-screen">
-                {file.thumbnail
-                  ? <img src={file.thumbnail} alt={file.name} />
-                  : <div className="deck-glyph"><CategoryGlyph cat={file.category} size={120} /></div>}
-                <div className="deck-overlay">
-                  <div className="deck-cat">▸ {file.category}</div>
+            {/* Top: cassette */}
+            <div className="player-cassette">
+              <div className="player-cassette-brand">TDK SA-90 ◆ VAULT MASTER ◆ NODE 03</div>
+              <div className="player-cassette-reels">
+                <div className="reel"></div>
+                <div className="player-cassette-window">
+                  {file.thumbnail
+                    ? <img src={file.thumbnail} alt={file.name} />
+                    : <div className="player-cassette-glyph"><CategoryGlyph cat={file.category} size={52} /></div>}
+                  <div className="player-cassette-cat">▸ {file.category}</div>
                 </div>
+                <div className="reel"></div>
               </div>
-              <div className="deck-reel right"></div>
             </div>
 
             {/* Track info bar */}
