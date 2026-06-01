@@ -1377,37 +1377,47 @@ function MarkdownPreview({ file }) {
   return <div className="md-preview" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
-  const BAR_COUNT = 12;
-  const [vuData, setVuData] = useState(() => new Array(BAR_COUNT).fill(5));
-  const frameRef = useRef(null);
+// Logarithmic frequency mapping: more bars on bass, compressed highs — matches human hearing
+function readVuBars(node, data, barCount) {
+  node.getByteFrequencyData(data);
+  const bins = node.frequencyBinCount;
+  const bars = [];
+  for (let i = 0; i < barCount; i++) {
+    const lo = Math.floor(Math.pow(bins, i / barCount));
+    const hi = Math.max(lo + 1, Math.floor(Math.pow(bins, (i + 1) / barCount)));
+    let sum = 0;
+    for (let j = lo; j < hi; j++) sum += data[j];
+    bars.push(Math.max(4, ((sum / (hi - lo)) / 255) * 95));
+  }
+  return bars;
+}
 
+function useVuBars(analyser, isPlaying, barCount) {
+  const [vuData, setVuData] = useState(() => new Array(barCount).fill(4));
+  const frameRef = useRef(null);
   useEffect(() => {
     const node = analyser && analyser.current;
     if (!node || !isPlaying) {
       if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      setVuData(new Array(BAR_COUNT).fill(5));
+      setVuData(new Array(barCount).fill(4));
       return;
     }
     if (node.context.state === 'suspended') node.context.resume().catch(() => {});
     const data = new Uint8Array(node.frequencyBinCount);
     const tick = () => {
-      node.getByteFrequencyData(data);
-      const bins = node.frequencyBinCount;
-      const bars = [];
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const lo = Math.floor(i * bins / BAR_COUNT);
-        const hi = Math.floor((i + 1) * bins / BAR_COUNT);
-        let sum = 0;
-        for (let j = lo; j < hi; j++) sum += data[j];
-        bars.push(Math.max(5, ((sum / (hi - lo)) / 255) * 95));
-      }
-      setVuData(bars);
+      setVuData(readVuBars(node, data, barCount));
       frameRef.current = requestAnimationFrame(tick);
     };
     frameRef.current = requestAnimationFrame(tick);
     return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [analyser, isPlaying]);
+  }, [analyser, isPlaying, barCount]);
+  return vuData;
+}
+
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
+  const BAR_COUNT = 12;
+  const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
+  const cover = file.thumbnail || (tags && tags.coverArt) || null;
 
   return (
     <div className="radio-body">
@@ -1431,11 +1441,9 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
         <div className="radio-grille"></div>
         <div className="radio-window">
           <div className="radio-cover-frame">
-            {tags && tags.coverArt
-              ? <img src={tags.coverArt} alt={file.name} />
-              : file.thumbnail
-                ? <img src={file.thumbnail} alt={file.name} />
-                : <div className="radio-cover-empty"><CategoryGlyph cat="MÚSICA" size={72} /></div>}
+            {cover
+              ? <img src={cover} alt={file.name} />
+              : <div className="radio-cover-empty"><CategoryGlyph cat="MÚSICA" size={72} /></div>}
             <div className="radio-cover-scanlines"></div>
           </div>
         </div>
@@ -1725,37 +1733,9 @@ function StatsPanel({ files, allCats }) {
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
 function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags, analyser }) {
   if (!track) return null;
-
-  const BAR_COUNT = 16;
-  const [vuData, setVuData] = useState(() => new Array(BAR_COUNT).fill(5));
-  const frameRef = useRef(null);
-
-  useEffect(() => {
-    const node = analyser && analyser.current;
-    if (!node || !isPlaying) {
-      if (frameRef.current) cancelAnimationFrame(frameRef.current);
-      setVuData(new Array(BAR_COUNT).fill(5));
-      return;
-    }
-    if (node.context.state === 'suspended') node.context.resume().catch(() => {});
-    const data = new Uint8Array(node.frequencyBinCount);
-    const tick = () => {
-      node.getByteFrequencyData(data);
-      const bins = node.frequencyBinCount;
-      const bars = [];
-      for (let i = 0; i < BAR_COUNT; i++) {
-        const lo = Math.floor(i * bins / BAR_COUNT);
-        const hi = Math.floor((i + 1) * bins / BAR_COUNT);
-        let sum = 0;
-        for (let j = lo; j < hi; j++) sum += data[j];
-        bars.push(Math.max(5, ((sum / (hi - lo)) / 255) * 95));
-      }
-      setVuData(bars);
-      frameRef.current = requestAnimationFrame(tick);
-    };
-    frameRef.current = requestAnimationFrame(tick);
-    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [analyser, isPlaying]);
+  const BAR_COUNT = 40;
+  const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
+  const cover = track.thumbnail || (tags && tags.coverArt) || null;
 
   const fmtTime = (s) => {
     if (!s || !isFinite(s)) return '0:00';
@@ -1764,37 +1744,36 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
     return `${m}:${String(ss).padStart(2, '0')}`;
   };
   const progressPct = duration > 0 ? (position / duration) * 100 : 0;
+
   return (
     <div className="music-player">
+      {/* VU bars — absolutely positioned, growing UP from the top border */}
+      <div className="mp-vu" aria-hidden="true">
+        {vuData.map((h, i) => (
+          <div key={i} className="mp-vu-bar"
+               style={{height: h + '%', opacity: isPlaying ? 1 : 0.15}} />
+        ))}
+      </div>
+
       <div className="mp-cover">
-        {tags && tags.coverArt
-          ? <img src={tags.coverArt} alt="cover" />
-          : track.thumbnail
-            ? <img src={track.thumbnail} alt="cover" />
-            : <div className="mp-cover-empty"><CategoryGlyph cat="MÚSICA" size={36} /></div>}
+        {cover
+          ? <img src={cover} alt={track.name} />
+          : <div className="mp-cover-empty"><CategoryGlyph cat="MÚSICA" size={36} /></div>}
       </div>
       <div className="mp-info">
         <div className="mp-title">{(tags && tags.title) || track.name}</div>
-        <div className="mp-artist">{(tags && tags.artist) || '— sin metadatos —'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
+        <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
         <div className="mp-progress">
           <span className="mp-time">{fmtTime(position)}</span>
           <div className="mp-bar" onClick={(e) => {
             const r = e.currentTarget.getBoundingClientRect();
-            const p = (e.clientX - r.left) / r.width;
-            onSeek(p * duration);
+            onSeek((e.clientX - r.left) / r.width * duration);
           }}>
             <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
             <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
           </div>
           <span className="mp-time">{fmtTime(duration)}</span>
         </div>
-      </div>
-      {/* VU bars */}
-      <div className="mp-vu">
-        {vuData.map((h, i) => (
-          <div key={i} className="mp-vu-bar"
-               style={{height: h + '%', opacity: isPlaying ? 1 : 0.25}} />
-        ))}
       </div>
       <div className="mp-controls">
         <button onClick={onPrev} title="Anterior">◀◀</button>
@@ -2307,8 +2286,8 @@ function App() {
       const ctx = new (window.AudioContext || window.webkitAudioContext)();
       const source = ctx.createMediaElementSource(audioRef.current);
       const analyser = ctx.createAnalyser();
-      analyser.fftSize = 64;
-      analyser.smoothingTimeConstant = 0.75;
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.55;
       source.connect(analyser);
       analyser.connect(ctx.destination);
       audioCtxRef.current = ctx;

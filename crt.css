@@ -72,6 +72,8 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+::selection { background: var(--fg-primary); color: #000; }
+::-moz-selection { background: var(--fg-primary); color: #000; }
 html, body { height: 100%; overflow: hidden; background: #000; }
 body {
   font-family: var(--mono);
@@ -2129,10 +2131,11 @@ input, textarea {
   box-shadow: 0 0 24px rgba(214,31,31,0.6), inset 0 0 16px rgba(214,31,31,0.18);
   padding: 12px 16px;
   display: grid;
-  grid-template-columns: 64px 1fr auto auto auto auto;
+  grid-template-columns: 64px 1fr auto auto auto;
   gap: 14px;
   align-items: center;
   animation: modal-pop 0.18s ease-out;
+  overflow: visible;
 }
 @media (max-width: 800px) {
   .music-player {
@@ -2252,23 +2255,24 @@ input, textarea {
 }
 .mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
 
-/* Mini VU bars in bottom player */
+/* VU bars — absolute, grow upward from the top border of the player */
 .mp-vu {
+  position: absolute;
+  bottom: calc(100% - 2px); /* sits just on the top border */
+  left: 0; right: 0;
+  height: 60px;
   display: flex;
-  gap: 2px;
-  align-items: flex-end;
-  height: 36px;
-  width: 80px;
-  flex-shrink: 0;
+  align-items: flex-end; /* bars anchor at the bottom = player's top edge */
+  gap: 1px;
+  padding: 0 2px;
+  pointer-events: none;
 }
 .mp-vu-bar {
   flex: 1;
   background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
-  border-radius: 1px;
   min-height: 2px;
-  box-shadow: 0 0 3px var(--fg-primary);
-  transition: height 0.08s ease-out;
-  align-self: flex-end;
+  box-shadow: 0 0 4px var(--fg-primary);
+  transition: height 0.07s ease-out;
 }
 
 /* Push page content up when music player visible */
