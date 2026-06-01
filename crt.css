@@ -2258,20 +2258,21 @@ input, textarea {
 /* VU bars — absolute, grow upward from the top border of the player */
 .mp-vu {
   position: absolute;
-  bottom: calc(100% - 2px); /* sits just on the top border */
+  bottom: calc(100% - 2px);
   left: 0; right: 0;
-  height: 60px;
+  height: 56px;
   display: flex;
-  align-items: flex-end; /* bars anchor at the bottom = player's top edge */
-  gap: 1px;
-  padding: 0 2px;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 4px;
   pointer-events: none;
 }
 .mp-vu-bar {
-  flex: 1;
+  width: 3px;
+  flex: none;
   background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
   min-height: 2px;
-  box-shadow: 0 0 4px var(--fg-primary);
+  box-shadow: 0 0 3px var(--fg-primary);
   transition: height 0.07s ease-out;
 }
 

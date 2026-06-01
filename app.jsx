@@ -266,11 +266,15 @@ async function readID3(dataURL) {
             p++;
           }
           const imgBytes = new Uint8Array(buf, p, fdStart + frameSize - p);
-          // Convert to base64 data URL (more reliable than blob URL across re-renders)
           const mimeType = mime || 'image/jpeg';
-          let binary = '';
-          for (let i = 0; i < imgBytes.length; i++) binary += String.fromCharCode(imgBytes[i]);
-          tags.coverArt = `data:${mimeType};base64,${btoa(binary)}`;
+          // FileReader is more reliable than btoa for large/binary image data
+          const blob = new Blob([new Uint8Array(imgBytes)], { type: mimeType });
+          tags.coverArt = await new Promise(res => {
+            const fr = new FileReader();
+            fr.onload  = () => res(fr.result);
+            fr.onerror = () => res(null);
+            fr.readAsDataURL(blob);
+          });
         } catch {}
       }
       offset = fdStart + frameSize;
@@ -1429,7 +1433,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
           <div className="radio-freq-title">{(tags && tags.title) || file.name}</div>
         </div>
         <div className="radio-vu">
-          {vuData.map((h, i) => (
+          {[...vuData].reverse().concat(vuData).map((h, i) => (
             <div key={i} className="radio-vu-bar"
                  style={{height: h + '%', opacity: isPlaying ? 1 : 0.3}}></div>
           ))}
@@ -1733,7 +1737,7 @@ function StatsPanel({ files, allCats }) {
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
 function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags, analyser }) {
   if (!track) return null;
-  const BAR_COUNT = 40;
+  const BAR_COUNT = 32;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = track.thumbnail || (tags && tags.coverArt) || null;
 
@@ -1749,7 +1753,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
     <div className="music-player">
       {/* VU bars — absolutely positioned, growing UP from the top border */}
       <div className="mp-vu" aria-hidden="true">
-        {vuData.map((h, i) => (
+        {[...vuData].reverse().concat(vuData).map((h, i) => (
           <div key={i} className="mp-vu-bar"
                style={{height: h + '%', opacity: isPlaying ? 1 : 0.15}} />
         ))}
