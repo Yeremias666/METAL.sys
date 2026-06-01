@@ -251,38 +251,53 @@ async function _parseID3Buffer(buf) {
       } catch {}
     } else if (frameId === 'APIC') {
       try {
-        let p = fdStart;
-        const enc = view.getUint8(p); p++;
-        let mime = '';
-        while (p < fdStart + frameSize && view.getUint8(p) !== 0) {
-          mime += String.fromCharCode(view.getUint8(p)); p++;
-        }
-        p++; // null after MIME
-        p++; // picture type byte
-        // Skip description (null-terminated, encoding-aware)
-        if (enc === 1 || enc === 2) {
-          while (p + 1 < fdStart + frameSize && !(view.getUint8(p) === 0 && view.getUint8(p+1) === 0)) p++;
-          p += 2;
-        } else {
-          while (p < fdStart + frameSize && view.getUint8(p) !== 0) p++;
-          p++;
-        }
-        const imgLen = fdStart + frameSize - p;
-        if (imgLen > 0 && p + imgLen <= buf.byteLength) {
-          const imgCopy = new Uint8Array(buf.slice(p, p + imgLen)); // slice = copy, avoids GC issues
-          const mimeType = mime.trim() || 'image/jpeg';
-          const blob = new Blob([imgCopy], { type: mimeType });
-          tags.coverArt = await new Promise(res => {
-            const fr = new FileReader();
-            fr.onload  = () => res(fr.result);
-            fr.onerror = () => res(null);
-            fr.readAsDataURL(blob);
-          });
+        // Scan for JPEG (FF D8 FF) or PNG (89 50 4E 47) magic bytes within the frame.
+        // This is more robust than parsing the APIC header fields manually.
+        const frameEnd = Math.min(fdStart + frameSize, buf.byteLength);
+        const frameBytes = new Uint8Array(buf, fdStart, frameEnd - fdStart);
+        for (let i = 0; i < frameBytes.length - 3; i++) {
+          const isJpeg = frameBytes[i] === 0xFF && frameBytes[i+1] === 0xD8 && frameBytes[i+2] === 0xFF;
+          const isPng  = frameBytes[i] === 0x89 && frameBytes[i+1] === 0x50 && frameBytes[i+2] === 0x4E;
+          if (isJpeg || isPng) {
+            const mime = isJpeg ? 'image/jpeg' : 'image/png';
+            const imgSlice = buf.slice(fdStart + i, frameEnd);
+            const blob = new Blob([imgSlice], { type: mime });
+            tags.coverArt = await new Promise(res => {
+              const fr = new FileReader();
+              fr.onload  = () => res(fr.result);
+              fr.onerror = () => res(null);
+              fr.readAsDataURL(blob);
+            });
+            break;
+          }
         }
       } catch {}
     }
     offset = fdStart + frameSize;
   }
+
+  // Fallback: brute-force scan the entire ID3 section for JPEG/PNG magic bytes.
+  // Covers cases where the APIC frame was skipped or the loop broke early.
+  if (!tags.coverArt) {
+    const tagEnd = Math.min(10 + tagSize, buf.byteLength);
+    const tagView = new Uint8Array(buf, 0, tagEnd);
+    for (let i = 10; i < tagView.length - 3; i++) {
+      const isJpeg = tagView[i] === 0xFF && tagView[i+1] === 0xD8 && tagView[i+2] === 0xFF;
+      const isPng  = tagView[i] === 0x89 && tagView[i+1] === 0x50 && tagView[i+2] === 0x4E;
+      if (isJpeg || isPng) {
+        const mime = isJpeg ? 'image/jpeg' : 'image/png';
+        const blob = new Blob([buf.slice(i, tagEnd)], { type: mime });
+        tags.coverArt = await new Promise(res => {
+          const fr = new FileReader();
+          fr.onload  = () => res(fr.result);
+          fr.onerror = () => res(null);
+          fr.readAsDataURL(blob);
+        });
+        break;
+      }
+    }
+  }
+
   return tags;
 }
 
@@ -679,16 +694,17 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
 
 // ─── PAGE: SUBIR ───────────────────────────────────────────────
 function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
-  const [file, setFile]     = useState(null);
-  const [name, setName]     = useState('');
-  const [artist, setArtist] = useState('');
-  const [album, setAlbum]   = useState('');
-  const [track, setTrack]   = useState('');
-  const [year, setYear]     = useState('');
-  const [genre, setGenre]   = useState('');
-  const [thumb, setThumb]   = useState(null);
-  const [drag, setDrag]     = useState(false);
-  const [err, setErr]       = useState('');
+  const [file, setFile]         = useState(null);
+  const [name, setName]         = useState('');
+  const [artist, setArtist]     = useState('');
+  const [album, setAlbum]       = useState('');
+  const [track, setTrack]       = useState('');
+  const [year, setYear]         = useState('');
+  const [genre, setGenre]       = useState('');
+  const [thumb, setThumb]       = useState(null);
+  const [coverArt, setCoverArt] = useState(null); // raw data URL from ID3, stored in file entry
+  const [drag, setDrag]         = useState(false);
+  const [err, setErr]           = useState('');
   const [scanning, setScanning] = useState(false);
   const fileInput  = useRef(null);
   const thumbInput = useRef(null);
@@ -715,9 +731,11 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
         if (tags.year)   setYear(tags.year);
         if (tags.genre)  setGenre(tags.genre);
         if (tags.track)  setTrack(tags.track);
-        // Use the cover art data URL directly — no canvas needed
-        if (tags.coverArt && !thumb) setThumb(tags.coverArt);
-      } catch {}
+        if (tags.coverArt) {
+          setCoverArt(tags.coverArt);  // always store raw cover data URL
+          if (!thumb) setThumb(tags.coverArt);  // also use as thumb preview
+        }
+      } catch (e) { console.error('ID3 parse error:', e); }
       setScanning(false);
     } else {
       setName(f.name.replace(/\.[^.]+$/, ''));
@@ -745,7 +763,8 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
       track:    track.trim(),
       year:     year.trim(),
       genre:    genre.trim(),
-      thumbnail: thumb,
+      thumbnail: thumb || coverArt,   // thumb = user-chosen or processed; coverArt = raw ID3
+      coverArt:  coverArt,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type || 'application/octet-stream',
@@ -754,7 +773,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
 
   const clear = () => {
     setFile(null); setName(''); setArtist(''); setAlbum('');
-    setTrack(''); setYear(''); setGenre(''); setThumb(null); setErr('');
+    setTrack(''); setYear(''); setGenre(''); setThumb(null); setCoverArt(null); setErr('');
   };
 
   const isAudio = file && isAudioFile({ fileName: file.name, fileType: file.type || '' });
@@ -1079,8 +1098,8 @@ function FileCard({ file, onClick }) {
   return (
     <div className="file-card" onClick={onClick}>
       <div className="file-card-thumb">
-        {file.thumbnail
-          ? <img src={file.thumbnail} alt={file.name} />
+        {(file.coverArt || file.thumbnail)
+          ? <img src={file.coverArt || file.thumbnail} alt={file.name} />
           : <div className="file-card-glyph"><IconGlyph iconId="nota" size={56} /></div>}
         <div className="file-card-cat">{file.album || file.artist || file.category}</div>
       </div>
@@ -1419,7 +1438,7 @@ function useVuBars(analyser, isPlaying, barCount) {
 function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
-  const cover = file.thumbnail || (tags && tags.coverArt) || null;
+  const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
 
   return (
     <div className="radio-body">
@@ -1737,7 +1756,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   if (!track) return null;
   const BAR_COUNT = 60;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
-  const cover = track.thumbnail || (tags && tags.coverArt) || null;
+  const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
 
   const fmtTime = (s) => {
     if (!s || !isFinite(s)) return '0:00';
@@ -1918,8 +1937,8 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
               <div className="player-cassette-reels">
                 <div className="reel"></div>
                 <div className="player-cassette-window">
-                  {file.thumbnail
-                    ? <img src={file.thumbnail} alt={file.name} />
+                  {(file.coverArt || file.thumbnail)
+                    ? <img src={file.coverArt || file.thumbnail} alt={file.name} />
                     : <div className="player-cassette-glyph"><CategoryGlyph cat={file.category} size={52} /></div>}
                   <div className="player-cassette-cat">▸ {file.category}</div>
                 </div>
@@ -2408,7 +2427,8 @@ function App() {
         track:       meta.track   || '',
         year:        meta.year    || '',
         genre:       meta.genre   || '',
-        thumbnail:   meta.thumbnail,
+        thumbnail:   meta.thumbnail || meta.coverArt,
+        coverArt:    meta.coverArt,
         fileName:    meta.fileName,
         fileSize:    meta.fileSize,
         fileType:    meta.fileType,
