@@ -20,7 +20,7 @@ const LOG_KEY = 'metalsys_log_v2';
 const SIZE_CAP = 8 * 1024 * 1024;
 const VAULT_CAP = 25 * 1024 * 1024;
 
-const DEFAULT_CATS = ["JUEGOS", "MÚSICA", "DOCUMENTOS", "IMÁGENES", "VIDEOS", "OTROS"];
+const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
 
 const ASCII_LOGO = String.raw`
  \m/  ▲▼▲▼▲▼▲▼▲▼  \m/
@@ -532,40 +532,26 @@ function Banner({ onNav }) {
   );
 }
 
-function Nav({ current, onNav, customCats, onCreateCat }) {
-  const items = [
-    { key: 'INICIO',     glyph: 'INICIO' },
-    { key: 'SUBIR',      glyph: 'SUBIR' },
-    { key: 'JUEGOS',     glyph: 'JUEGOS' },
-    { key: 'MÚSICA',     glyph: 'MÚSICA' },
-    { key: 'DOCUMENTOS', glyph: 'DOCUMENTOS' },
-    { key: 'IMÁGENES',   glyph: 'IMÁGENES' },
-    { key: 'VIDEOS',     glyph: 'VIDEOS' },
-    { key: 'OTROS',      glyph: 'OTROS' },
-    ...customCats.map((c) => ({ key: c.name, glyph: null, custom: true, iconId: c.icon })),
-  ];
+function Nav({ current, onNav, allCats }) {
   return (
     <nav className="nav">
       <span className="prompt glow">C:\&gt;</span>
-      {items.map((it) => (
+      {/* Fixed: Inicio + Subir */}
+      {[{ key: 'INICIO', glyph: 'INICIO' }, { key: 'SUBIR', glyph: 'SUBIR' }].map(it => (
         <button key={it.key}
-                className={current.page === 'CAT' && current.cat === it.key ? 'active'
-                          : current.page === it.key ? 'active' : ''}
-                onClick={() => {
-                  if (it.key === 'INICIO' || it.key === 'SUBIR') onNav({ page: it.key });
-                  else onNav({ page: 'CAT', cat: it.key });
-                }}>
-          {it.glyph
-            ? <NavGlyph kind={it.glyph} />
-            : it.custom
-              ? <span style={{display:'inline-block',width:14,height:14,verticalAlign:'-2px',marginRight:6,flexShrink:0,lineHeight:0}}><IconGlyph iconId={it.iconId||'default'} size={14}/></span>
-              : null}
-          {it.key}
+                className={current.page === it.key ? 'active' : ''}
+                onClick={() => onNav({ page: it.key })}>
+          <NavGlyph kind={it.glyph} />{it.key}
         </button>
       ))}
-      <button onClick={onCreateCat} title="Crear nueva categoría">
-        <NavGlyph kind="CREAR" />CREAR
-      </button>
+      {/* Dynamic: one button per artist */}
+      {allCats.map(artist => (
+        <button key={artist}
+                className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                onClick={() => onNav({ page: 'CAT', cat: artist })}>
+          <NavGlyph kind="MÚSICA" />{artist}
+        </button>
+      ))}
     </nav>
   );
 }
@@ -581,18 +567,20 @@ function Marquee() {
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
 function HomePage({ files, allCats, onOpenFile, onNav }) {
-  const total = files.reduce((a, f) => a + f.fileSize, 0);
+  const total  = files.reduce((a, f) => a + f.fileSize, 0);
   const recent = files.slice(0, 8);
+  const songCount   = files.filter(isAudioFile).length;
+  const artistCount = allCats.length;
+
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">INICIO <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
           <div className="hero">
-            <h2 className="chroma">// BIENVENIDO A LA BÓVEDA \m/</h2>
-            <p>Has conectado con METAL.SYS — el intercambio underground de archivos. Sube cualquier cosa, ponle un nombre, descripción y miniatura, y guárdala en la categoría que quieras.</p>
-            <p>Cada archivo vive en tu navegador. Sin servidor, sin cloud, sin tracking. Si limpias el cache, se va al vacío. Trátalos con respeto.</p>
-            <p>Vault actual: <span style={{color:'var(--fg-primary)'}}>{files.length} archivo{files.length===1?'':'s'}</span> ocupando <span style={{color:'var(--fg-accent)'}}>{fmtBytes(total)}</span> de {fmtBytes(VAULT_CAP)}.</p>
+            <h2 className="chroma">// METAL.SYS · REPRODUCTOR PERSONAL \m/</h2>
+            <p>Biblioteca privada de música. Sube tus MP3 y los metadatos se leerán automáticamente — artista, álbum, pista y portada.</p>
+            <p>Biblioteca actual: <span style={{color:'var(--fg-primary)'}}>{songCount} canción{songCount===1?'':'es'}</span> de <span style={{color:'var(--fg-accent)'}}>{artistCount} artista{artistCount===1?'':'s'}</span> ocupando <span style={{color:'var(--fg-success)'}}>{fmtBytes(total)}</span>.</p>
             <p style={{marginTop: 16}}>
               <span style={{color:'var(--fg-success)'}}>READY.</span>
               <span className="cursor"></span>
@@ -602,34 +590,44 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
       </div>
 
       <div className="two-col section">
-        {/* Quick category nav */}
+        {/* Artist grid */}
         <div className="panel">
-          <div className="panel-hd">CATEGORÍAS <span className="dots">/// {allCats.length}</span></div>
+          <div className="panel-hd">ARTISTAS <span className="dots">/// {artistCount}</span></div>
           <div className="panel-body">
-            <div className="cat-grid">
-              {allCats.map((c) => {
-                const count = files.filter((f) => f.category === c).length;
-                return (
-                  <div key={c} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: c })}>
-                    <CategoryGlyph cat={c} size={36} />
-                    <div className="cat-name">{c}</div>
-                    <div className="cat-count">{count} archivo{count===1?'':'s'}</div>
-                  </div>
-                );
-              })}
-            </div>
+            {artistCount === 0 ? (
+              <div style={{padding:'24px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:20}}>
+                ◇ BIBLIOTECA VACÍA — SUBE TU PRIMER MP3
+              </div>
+            ) : (
+              <div className="cat-grid">
+                {allCats.map((artist) => {
+                  const songs  = files.filter(f => (f.artist || f.category) === artist);
+                  const albums = [...new Set(songs.map(f => f.album).filter(Boolean))];
+                  const cover  = songs.find(f => f.thumbnail);
+                  return (
+                    <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
+                      {cover
+                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'cover',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
+                        : <IconGlyph iconId="nota" size={36} />}
+                      <div className="cat-name">{artist}</div>
+                      <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Quick upload CTA */}
+        {/* Add song CTA */}
         <div className="panel">
-          <div className="panel-hd">SUBIR RÁPIDO <span className="dots">/// CTA</span></div>
+          <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">/// CTA</span></div>
           <div className="panel-body">
             <div className="hero" style={{minHeight: 'unset'}}>
-              <p>¿Listo para soltar un artefacto en la bóveda? Cada archivo necesita un nombre, una descripción y una miniatura para que quede como debe.</p>
+              <p>Sube un MP3 y los metadatos se detectan solos: artista, álbum, pista, año y portada.</p>
               <p style={{color:'var(--fg-dim)', fontSize: 18}}>Máximo 8 MB por archivo · 25 MB en total.</p>
               <button className="big-btn" style={{marginTop: 14}} onClick={() => onNav({ page: 'SUBIR' })}>
-                ↑ IR A SUBIR ARCHIVO
+                ♪ AÑADIR CANCIÓN
               </button>
             </div>
           </div>
@@ -642,11 +640,11 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
 
       <div className="section">
         <div className="panel">
-          <div className="panel-hd">ARCHIVOS RECIENTES <span className="dots">// {Math.min(files.length, 8)} DE {files.length}</span></div>
+          <div className="panel-hd">AÑADIDAS RECIENTEMENTE <span className="dots">// {Math.min(files.length, 8)} DE {files.length}</span></div>
           <div className="panel-body">
             {recent.length === 0 ? (
               <div style={{padding:'24px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:20}}>
-                ◇ LA BÓVEDA ESTÁ VACÍA ◇<br/>SUBE TU PRIMER ARTEFACTO ARRIBA
+                ◇ BIBLIOTECA VACÍA ◇<br/>SUBE TU PRIMER MP3 ARRIBA
               </div>
             ) : (
               <div className="file-grid">
@@ -661,52 +659,81 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
 }
 
 // ─── PAGE: SUBIR ───────────────────────────────────────────────
-function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat, prefillCat }) {
-  const [file, setFile] = useState(null);
-  const [name, setName] = useState("");
-  const [desc, setDesc] = useState("");
-  const [cat, setCat] = useState(() => prefillCat && allCats.includes(prefillCat) ? prefillCat : (allCats[0] || 'OTROS'));
-  const [thumb, setThumb] = useState(null); // data URL
-  const [drag, setDrag] = useState(false);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
-  const fileInput = useRef(null);
+function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
+  const [file, setFile]     = useState(null);
+  const [name, setName]     = useState('');
+  const [artist, setArtist] = useState('');
+  const [album, setAlbum]   = useState('');
+  const [track, setTrack]   = useState('');
+  const [year, setYear]     = useState('');
+  const [genre, setGenre]   = useState('');
+  const [thumb, setThumb]   = useState(null);
+  const [drag, setDrag]     = useState(false);
+  const [err, setErr]       = useState('');
+  const [scanning, setScanning] = useState(false);
+  const fileInput  = useRef(null);
   const thumbInput = useRef(null);
 
   const totalBytes = vault.reduce((a, f) => a + f.fileSize, 0);
 
   const handleFile = async (f) => {
     if (!f) return;
-    setErr("");
+    setErr('');
     if (f.size > SIZE_CAP) { setErr(`Archivo demasiado grande: ${fmtBytes(f.size)} (máximo 8 MB)`); return; }
-    if (totalBytes + f.size > VAULT_CAP) { setErr(`No cabe en la bóveda: agregar ${fmtBytes(f.size)} excedería los 25 MB`); return; }
+    if (totalBytes + f.size > VAULT_CAP) { setErr(`No cabe: agregar ${fmtBytes(f.size)} excedería los 25 MB`); return; }
     setFile(f);
-    if (!name) setName(f.name.replace(/\.[^.]+$/, ''));
-    if (!cat || cat === 'OTROS') setCat(autoCategory(f.name, f.type || ''));
+
+    // Auto-read ID3 for audio files
+    if (isAudioFile({ fileName: f.name, fileType: f.type || '' })) {
+      setScanning(true);
+      try {
+        const src = await readAsDataURL(f);
+        const tags = await readID3(src);
+        if (tags.title)  setName(tags.title);
+        else             setName(f.name.replace(/\.[^.]+$/, ''));
+        if (tags.artist || tags.albumArtist) setArtist(tags.artist || tags.albumArtist || '');
+        if (tags.album)  setAlbum(tags.album);
+        if (tags.year)   setYear(tags.year);
+        if (tags.genre)  setGenre(tags.genre);
+        if (tags.track)  setTrack(tags.track);
+        // Use embedded cover art as thumbnail if present
+        if (tags.coverArt && !thumb) {
+          try {
+            const resp = await fetch(tags.coverArt);
+            const blob = await resp.blob();
+            const imgFile = new File([blob], 'cover.jpg', { type: blob.type });
+            const data = await processThumb(imgFile);
+            setThumb(data);
+          } catch {}
+        }
+      } catch {}
+      setScanning(false);
+    } else {
+      setName(f.name.replace(/\.[^.]+$/, ''));
+    }
   };
 
   const handleThumb = async (f) => {
     if (!f) return;
     if (!f.type.startsWith('image/')) { setErr('La miniatura debe ser una imagen'); return; }
-    if (f.size > 5 * 1024 * 1024) { setErr('Miniatura demasiado grande (máximo 5 MB de origen)'); return; }
-    try {
-      const data = await processThumb(f);
-      setThumb(data);
-      setErr('');
-    } catch (e) {
-      setErr('No se pudo procesar la miniatura');
-    }
+    try { setThumb(await processThumb(f)); setErr(''); }
+    catch { setErr('No se pudo procesar la miniatura'); }
   };
 
   const submit = () => {
-    if (!file) { setErr('Arrastra o elige un archivo'); return; }
-    if (!name.trim()) { setErr('Ponle un nombre al archivo'); return; }
-    if (!cat) { setErr('Elige una categoría'); return; }
+    if (!file)         { setErr('Arrastra o elige un archivo'); return; }
+    if (!name.trim())  { setErr('Ponle un nombre a la canción'); return; }
+    if (!artist.trim()){ setErr('Indica el artista'); return; }
     onUpload({
       _rawFile: file,
-      name: name.trim(),
-      description: desc.trim(),
-      category: cat,
+      name:     name.trim(),
+      description: [album, year, genre].filter(Boolean).join(' · '),
+      category: artist.trim(),   // artista = categoría de nivel 1
+      artist:   artist.trim(),
+      album:    album.trim(),
+      track:    track.trim(),
+      year:     year.trim(),
+      genre:    genre.trim(),
       thumbnail: thumb,
       fileName: file.name,
       fileSize: file.size,
@@ -714,13 +741,20 @@ function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat, prefillCat }
     });
   };
 
+  const clear = () => {
+    setFile(null); setName(''); setArtist(''); setAlbum('');
+    setTrack(''); setYear(''); setGenre(''); setThumb(null); setErr('');
+  };
+
+  const isAudio = file && isAudioFile({ fileName: file.name, fileType: file.type || '' });
+
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">SUBIR ARCHIVO <span className="dots">━━━━━━━</span></div>
+        <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
           <div className="upload-grid">
-            {/* LEFT: drop zone */}
+            {/* LEFT: drop zone + portada */}
             <div>
               <div
                 className={"dropzone" + (drag ? " drag" : "") + (file ? " has-file" : "")}
@@ -730,86 +764,101 @@ function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat, prefillCat }
                 onClick={() => fileInput.current && fileInput.current.click()}
               >
                 <div className="dz-glyph">
-                  <svg viewBox="0 0 60 60" width="60" height="60">
-                    <path d="M30 4 L30 38 M16 22 L30 8 L44 22" fill="none" stroke="currentColor" strokeWidth="3"/>
-                    <path d="M6 42 L6 54 L54 54 L54 42" fill="none" stroke="currentColor" strokeWidth="3"/>
+                  <svg viewBox="0 0 60 60" width="60" height="60" fill="none" stroke="currentColor" strokeWidth="3">
+                    <ellipse cx="30" cy="46" rx="18" ry="6"/>
+                    <circle cx="30" cy="46" r="3" fill="currentColor" stroke="none"/>
+                    <line x1="30" y1="4" x2="30" y2="40"/>
+                    <line x1="42" y1="4" x2="42" y2="24"/>
+                    <line x1="30" y1="4" x2="42" y2="4"/>
                   </svg>
                 </div>
                 <div className="dz-title">
-                  {file ? "✓ ARCHIVO LISTO" : drag ? "SUELTA PARA CARGAR" : "ARRASTRA EL ARCHIVO AQUÍ"}
+                  {scanning ? "◆ LEYENDO METADATOS..." : file ? "✓ ARCHIVO LISTO" : drag ? "SUELTA EL MP3" : "ARRASTRA UN MP3 AQUÍ"}
                 </div>
                 <div className="dz-sub">
-                  {file
-                    ? `${file.name} · ${fmtBytes(file.size)}`
-                    : "O HAZ CLICK PARA EXPLORAR ◆ MAX 8MB"}
+                  {file ? `${file.name} · ${fmtBytes(file.size)}` : "O HAZ CLICK PARA EXPLORAR · MAX 8MB"}
                 </div>
-                <input ref={fileInput} type="file" style={{display:'none'}}
+                <input ref={fileInput} type="file" accept="audio/*" style={{display:'none'}}
                        onChange={(e) => handleFile(e.target.files[0])} />
               </div>
 
-              {/* Thumbnail uploader */}
               <div style={{marginTop: 14}}>
-                <div className="field-label">MINIATURA <span style={{color:'var(--fg-dim)'}}>· OPCIONAL</span></div>
+                <div className="field-label">PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
                 <div className="thumb-zone" onClick={() => thumbInput.current && thumbInput.current.click()}>
-                  {thumb ? (
-                    <img src={thumb} alt="thumb" />
-                  ) : (
-                    <div className="thumb-empty">
-                      <CameraGlyph size={48} />
-                      <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.1em'}}>
-                        SIN MINIATURA · CLICK PARA AGREGAR
-                      </div>
-                    </div>
-                  )}
+                  {thumb
+                    ? <img src={thumb} alt="portada" />
+                    : <div className="thumb-empty">
+                        <CameraGlyph size={48} />
+                        <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.1em'}}>
+                          SE EXTRAE DEL MP3 O CLICK PARA ELEGIR
+                        </div>
+                      </div>}
                   <input ref={thumbInput} type="file" accept="image/*" style={{display:'none'}}
                          onChange={(e) => handleThumb(e.target.files[0])} />
                 </div>
-                {thumb && (
-                  <button className="mini-btn alt" style={{marginTop: 8}} onClick={() => setThumb(null)}>✕ QUITAR MINIATURA</button>
-                )}
+                {thumb && <button className="mini-btn alt" style={{marginTop:8}} onClick={() => setThumb(null)}>✕ QUITAR PORTADA</button>}
               </div>
             </div>
 
-            {/* RIGHT: form */}
+            {/* RIGHT: metadata form */}
             <div className="upload-form">
               <div className="field">
-                <div className="field-label">NOMBRE DEL ARCHIVO</div>
+                <div className="field-label">TÍTULO</div>
                 <input className="field-input" value={name} onChange={(e) => setName(e.target.value)}
-                       placeholder="Ponle un nombre digno..." maxLength={80} />
+                       placeholder="Nombre de la canción..." maxLength={120} />
               </div>
-
               <div className="field">
-                <div className="field-label">DESCRIPCIÓN</div>
-                <textarea className="field-input" value={desc} onChange={(e) => setDesc(e.target.value)}
-                          rows={4} maxLength={500}
-                          placeholder="¿De qué va? ¿De dónde viene? ¿Por qué importa?"></textarea>
+                <div className="field-label">ARTISTA <span style={{color:'var(--fg-primary)'}}>*</span></div>
+                <input className="field-input" value={artist} onChange={(e) => setArtist(e.target.value)}
+                       placeholder="Nombre del artista o banda..." maxLength={100} />
               </div>
-
-              <div className="field">
-                <div className="field-label">CATEGORÍA</div>
-                <div className="cat-picker">
-                  {allCats.map((c) => (
-                    <button key={c} className={"cat-pill " + (cat === c ? "on" : "")} onClick={() => setCat(c)}>
-                      <CategoryGlyph cat={c} size={18} />
-                      <span>{c}</span>
-                    </button>
-                  ))}
-                  <button className="cat-pill new" onClick={onCreateCat}>
-                    <NavGlyph kind="CREAR" /><span>CREAR NUEVA</span>
-                  </button>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <div className="field">
+                  <div className="field-label">ÁLBUM</div>
+                  <input className="field-input" value={album} onChange={(e) => setAlbum(e.target.value)}
+                         placeholder="Nombre del álbum..." maxLength={100} />
+                </div>
+                <div className="field">
+                  <div className="field-label">AÑO</div>
+                  <input className="field-input" value={year} onChange={(e) => setYear(e.target.value)}
+                         placeholder="Ej. 1996" maxLength={4} />
+                </div>
+              </div>
+              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <div className="field">
+                  <div className="field-label">PISTA #</div>
+                  <input className="field-input" value={track} onChange={(e) => setTrack(e.target.value)}
+                         placeholder="Ej. 4/14" maxLength={10} />
+                </div>
+                <div className="field">
+                  <div className="field-label">GÉNERO</div>
+                  <input className="field-input" value={genre} onChange={(e) => setGenre(e.target.value)}
+                         placeholder="Ej. Heavy Metal" maxLength={60} />
                 </div>
               </div>
 
               {err && <div className="dz-err">! {err}</div>}
 
               <div className="form-actions">
-                <button className="big-btn" disabled={busy} onClick={submit}>
-                  {busy ? "GUARDANDO..." : "↑ SUBIR"}
+                <button className="big-btn" disabled={scanning} onClick={submit}>
+                  {scanning ? "◆ LEYENDO..." : "↑ AÑADIR"}
                 </button>
-                <button className="big-btn ghost" onClick={() => { setFile(null); setName(''); setDesc(''); setThumb(null); setErr(''); }}>
-                  ✕ LIMPIAR
-                </button>
+                <button className="big-btn ghost" onClick={clear}>✕ LIMPIAR</button>
               </div>
+
+              {allCats.length > 0 && (
+                <div style={{marginTop:16}}>
+                  <div className="field-label" style={{marginBottom:6}}>ARTISTAS EN LA BIBLIOTECA</div>
+                  <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
+                    {allCats.map(a => (
+                      <button key={a} className="cat-pill" style={{fontSize:11}}
+                              onClick={() => setArtist(a)}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -818,25 +867,50 @@ function UploadPage({ allCats, vault, onUpload, onNav, onCreateCat, prefillCat }
   );
 }
 
-// ─── PAGE: CATEGORY ────────────────────────────────────────────
+// ─── PAGE: ARTIST (category = artist) ─────────────────────────
 function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy }) {
-  const list = files.filter((f) => f.category === cat);
-  const [query, setQuery] = useState('');
-  const [ext, setExt] = useState('');
-  const [dateRange, setDateRange] = useState('all');
-  const [sort, setSort] = useState('date-desc');
-  const [view, setView] = useState('grid');
+  const list = files.filter((f) => (f.artist || f.category) === cat);
+  const [query, setQuery]       = useState('');
+  const [sort, setSort]         = useState('track-asc');
+  const [view, setView]         = useState('list');
+  const [selAlbum, setSelAlbum] = useState(null);
 
-  const allExts = [...new Set(list.map(extOf).filter(Boolean))].sort();
-  const filtered = filterAndSort(list, { query, ext, dateRange, sort });
+  // Albums by this artist, sorted by year then name
+  const albums = [...new Set(list.map(f => f.album).filter(Boolean))].sort((a, b) => {
+    const ya = (list.find(f => f.album === a) || {}).year || '';
+    const yb = (list.find(f => f.album === b) || {}).year || '';
+    return ya.localeCompare(yb) || a.localeCompare(b);
+  });
+
+  const visibleList = selAlbum ? list.filter(f => f.album === selAlbum) : list;
+  const allExts = [...new Set(visibleList.map(extOf).filter(Boolean))].sort();
+
+  // Custom sort for music: track number aware
+  const sortMusic = (arr, s) => {
+    if (s === 'track-asc') {
+      return [...arr].sort((a, b) => {
+        const ta = parseInt((a.track || '0').split('/')[0]) || 0;
+        const tb = parseInt((b.track || '0').split('/')[0]) || 0;
+        return ta - tb || a.name.localeCompare(b.name);
+      });
+    }
+    return filterAndSort(arr, { query, ext: '', dateRange: 'all', sort: s });
+  };
+
+  const filtered = sortMusic(
+    query.trim()
+      ? visibleList.filter(f => normStr(f.name).includes(normStr(query)) || normStr(f.album).includes(normStr(query)))
+      : visibleList,
+    sort
+  );
 
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">
           <span style={{display:'flex', alignItems:'center', gap:8}}>
-            <button className="cat-upload-btn" title={`Subir a ${cat}`}
-              onClick={() => onNav({ page: 'SUBIR', prefillCat: cat })}>
+            <button className="cat-upload-btn" title={`Añadir canción de ${cat}`}
+              onClick={() => onNav({ page: 'SUBIR' })}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="miter">
                 <line x1="1" y1="2" x2="11" y2="2" strokeLinecap="square"/>
                 <line x1="6" y1="4" x2="6" y2="11"/>
@@ -845,43 +919,78 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             </button>
             {cat}
           </span>
-          <span className="dots">/// {list.length} ARCHIVO{list.length===1?'':'S'}</span>
+          <span className="dots">/// {list.length} CANCIÓN{list.length===1?'':'ES'}</span>
         </div>
         <div className="panel-body">
-          <div className="cat-header">
-            <CategoryGlyph cat={cat} size={56} />
-            <div>
-              <h2 style={{fontFamily:'var(--pixel)', fontSize:18, color:'var(--fg-primary)', textShadow:'0 0 8px var(--fg-primary)'}}>{cat}</h2>
-              <p style={{fontSize:20, color:'var(--fg-text)', marginTop: 6}}>
-                {list.length === 0
-                  ? `Aún no hay archivos en ${cat}. Sube uno para inaugurar la categoría.`
-                  : `Todos los archivos de la bóveda etiquetados como ${cat}. ${filtered.length !== list.length ? `${filtered.length} de ${list.length} tras filtrar.` : 'Click en cualquiera para ver el detalle.'}`}
-              </p>
+          {/* Album sub-navigation */}
+          {albums.length > 0 && (
+            <div className="album-subnav">
+              <button className={"album-pill" + (!selAlbum ? " on" : "")} onClick={() => setSelAlbum(null)}>
+                ◆ TODOS
+              </button>
+              {albums.map(a => {
+                const yr = (list.find(f => f.album === a) || {}).year;
+                return (
+                  <button key={a} className={"album-pill" + (selAlbum === a ? " on" : "")}
+                          onClick={() => setSelAlbum(a === selAlbum ? null : a)}>
+                    {a}{yr ? ` · ${yr}` : ''}
+                  </button>
+                );
+              })}
             </div>
-          </div>
+          )}
         </div>
       </div>
 
+      {/* Search + sort toolbar */}
       {list.length > 0 && (
         <div className="section">
-          <SearchBar query={query} setQuery={setQuery} ext={ext} setExt={setExt}
-                     dateRange={dateRange} setDateRange={setDateRange}
-                     sort={sort} setSort={setSort} view={view} setView={setView}
-                     allExts={allExts} />
+          <div className="panel searchbar">
+            <div className="panel-hd">BUSCADOR <span className="dots">/// FILTROS</span></div>
+            <div className="panel-body searchbar-body">
+              <div className="search-row">
+                <input className="field-input" placeholder="◆ BUSCAR POR TÍTULO O ÁLBUM..."
+                       value={query} onChange={(e) => setQuery(e.target.value)} />
+                {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
+              </div>
+              <div className="search-filters">
+                <div className="filter-group">
+                  <span className="filter-label">ORDEN</span>
+                  <select className="field-input filter-select" value={sort} onChange={(e) => setSort(e.target.value)}>
+                    <option value="track-asc">Nº PISTA ↑</option>
+                    <option value="name-asc">TÍTULO A-Z</option>
+                    <option value="name-desc">TÍTULO Z-A</option>
+                    <option value="date-desc">AÑADIDO ↓</option>
+                    <option value="dl-desc">DESCARGAS ↓</option>
+                  </select>
+                </div>
+                <div className="filter-group">
+                  <span className="filter-label">VISTA</span>
+                  <div className="view-toggle">
+                    <button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>▦ GRID</button>
+                    <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>≡ LISTA</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
       <div className="section">
         <div className="panel">
-          <div className="panel-hd">RESULTADOS <span className="dots">/// {filtered.length}</span></div>
+          <div className="panel-hd">
+            {selAlbum ? selAlbum : cat}
+            <span className="dots">/// {filtered.length} CANCIÓN{filtered.length===1?'':'ES'}</span>
+          </div>
           <div className="panel-body">
             {list.length === 0 ? (
               <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize: 22}}>
-                ◇ CATEGORÍA VACÍA ◇
+                ◇ ARTISTA VACÍO — AÑADE CANCIONES ◇
               </div>
             ) : filtered.length === 0 ? (
               <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize: 22}}>
-                ◇ NINGÚN ARCHIVO COINCIDE CON LOS FILTROS ◇
+                ◇ NINGUNA CANCIÓN COINCIDE ◇
               </div>
             ) : view === 'grid' ? (
               <div className="file-grid">
@@ -896,12 +1005,60 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 ))}
               </div>
             ) : (
-              <FileListTable files={filtered} sort={sort} setSort={setSort}
-                             onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
+              <TrackListTable files={filtered} sort={sort} setSort={setSort}
+                              onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
             )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── TRACK LIST TABLE (música) ─────────────────────────────────
+function TrackListTable({ files, sort, setSort, onOpen, selectedIds, toggleSel }) {
+  return (
+    <div className="file-list-wrap">
+      <table className="file-list">
+        <thead>
+          <tr>
+            <th className="col-sel"></th>
+            <th className="col-thumb"></th>
+            <th onClick={() => setSort(sort === 'track-asc' ? 'name-asc' : 'track-asc')}>#</th>
+            <th>TÍTULO</th>
+            <th>ÁLBUM</th>
+            <th>AÑO</th>
+            <th>TAMAÑO</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {files.map((f) => {
+            const sel = selectedIds.has(f.id);
+            const trackNum = f.track ? f.track.split('/')[0] : '—';
+            return (
+              <tr key={f.id} className={sel ? 'sel' : ''} onClick={() => onOpen(f.id)}>
+                <td className="col-sel" onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
+                  <div className={"checkbox " + (sel ? 'on' : '')}>{sel ? '◉' : '◌'}</div>
+                </td>
+                <td className="col-thumb">
+                  {f.thumbnail
+                    ? <img src={f.thumbnail} alt="" style={{width:48,height:36,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}} />
+                    : <div className="list-glyph"><IconGlyph iconId="nota" size={28} /></div>}
+                </td>
+                <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11, width:36, textAlign:'center'}}>{trackNum}</td>
+                <td>
+                  <div className="list-name">{f.name}</div>
+                </td>
+                <td style={{color:'var(--fg-secondary)', fontSize:18}}>{f.album || '—'}</td>
+                <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10}}>{f.year || '—'}</td>
+                <td>{fmtBytes(f.fileSize)}</td>
+                <td><button className="mini-btn" onClick={(e) => { e.stopPropagation(); onOpen(f.id); }}>▶</button></td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -913,8 +1070,8 @@ function FileCard({ file, onClick }) {
       <div className="file-card-thumb">
         {file.thumbnail
           ? <img src={file.thumbnail} alt={file.name} />
-          : <div className="file-card-glyph"><CategoryGlyph cat={file.category} size={56} /></div>}
-        <div className="file-card-cat">{file.category}</div>
+          : <div className="file-card-glyph"><IconGlyph iconId="nota" size={56} /></div>}
+        <div className="file-card-cat">{file.album || file.artist || file.category}</div>
       </div>
       <div className="file-card-body">
         <div className="file-card-name">{file.name}</div>
@@ -1233,7 +1390,6 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
       {/* Main body: speakers + cover */}
       <div className="radio-mid">
         <div className="radio-grille"></div>
-
         <div className="radio-window">
           <div className="radio-cover-frame">
             {tags && tags.coverArt
@@ -1243,27 +1399,30 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
                 : <div className="radio-cover-empty"><CategoryGlyph cat="MÚSICA" size={72} /></div>}
             <div className="radio-cover-scanlines"></div>
           </div>
-          <button className="radio-play-btn" onClick={onPlay} title={isPlaying ? 'Pausar' : 'Reproducir'}>
-            <span>{isPlaying ? "❚❚" : "▶"}</span>
-          </button>
         </div>
-
         <div className="radio-grille"></div>
       </div>
 
-      {/* Knobs row */}
+      {/* Bottom bar: knobs | play (center) | info + knobs */}
       <div className="radio-knobs-bar">
-        <div className="radio-knob"></div>
-        <div className="radio-knob small"></div>
-        <div className="radio-info-strip">
-          {tags && tags.album && (
-            <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
-          )}
-          {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
-          <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
+        <div className="radio-knobs-side">
+          <div className="radio-knob"></div>
+          <div className="radio-knob small"></div>
         </div>
-        <div className="radio-knob small"></div>
-        <div className="radio-knob"></div>
+        <button className="radio-play-btn" onClick={onPlay} title={isPlaying ? 'Pausar' : 'Reproducir'}>
+          <span>{isPlaying ? "❚❚" : "▶"}</span>
+        </button>
+        <div className="radio-knobs-side right">
+          <div className="radio-info-strip">
+            {tags && tags.album && (
+              <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
+            )}
+            {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
+            <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
+          </div>
+          <div className="radio-knob small"></div>
+          <div className="radio-knob"></div>
+        </div>
       </div>
     </div>
   );
@@ -1921,56 +2080,77 @@ function RecentActivity({ log, files, onOpen }) {
 function Terminal({ files, allCats }) {
   const total = files.reduce((a, f) => a + f.fileSize, 0);
   const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
-  const catCount = allCats.length;
-  const fileCount = files.length;
-
-  const byCat = allCats.map((c) => ({
-    cat: c,
-    files: files.filter((f) => f.category === c),
-  }));
-
-  // Subtle color rotation for category folders so the eye can split them
   const folderClasses = ['fold-a', 'fold-b', 'fold-c', 'fold-d', 'fold-e', 'fold-f'];
+
+  // Build artist → albums → songs tree
+  const byArtist = allCats.map(artist => {
+    const songs = files.filter(f => (f.artist || f.category) === artist);
+    const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
+    const noAlbum = songs.filter(f => !f.album);
+    return { artist, songs, albums, noAlbum };
+  });
 
   const lines = [];
   lines.push(
     <div key="cmd" className="line">
       <span className="t-prompt">C:\&gt;</span>{' '}
       <span className="t-cmd">ls </span>
-      <span className="t-arg">/metal.sys</span>
+      <span className="t-arg">/metal.sys/library</span>
       <span className="t-cmd"> --tree</span>
     </div>
   );
-  lines.push(<div key="path" className="line"><span className="t-path">\METAL.SYS\</span></div>);
+  lines.push(<div key="path" className="line"><span className="t-path">\LIBRARY\</span></div>);
 
-  byCat.forEach((entry, ci) => {
-    const isLast = ci === byCat.length - 1;
-    const elbow = isLast ? '└── ' : '├── ';
-    const bar = isLast ? '    ' : '│   ';
-    const count = entry.files.length;
-    const size = entry.files.reduce((a, f) => a + f.fileSize, 0);
-    const folderColor = folderClasses[ci % folderClasses.length];
+  byArtist.forEach((entry, ai) => {
+    const isLastArtist = ai === byArtist.length - 1;
+    const aElbow = isLastArtist ? '└── ' : '├── ';
+    const aBar   = isLastArtist ? '    ' : '│   ';
+    const size   = entry.songs.reduce((a, f) => a + f.fileSize, 0);
+    const color  = folderClasses[ai % folderClasses.length];
 
     lines.push(
-      <div key={`dir-${ci}`} className="line">
-        <span className="t-box">{elbow}</span>
-        <span className={"t-folder " + folderColor}>{entry.cat}</span>
-        <span className="t-meta">{' '}{count === 0
-          ? '[vacío]'
-          : <>[<span className="t-num">{count}</span> archivo{count===1?'':'s'} · <span className="t-num">{fmtBytes(size)}</span>]</>}</span>
+      <div key={`artist-${ai}`} className="line">
+        <span className="t-box">{aElbow}</span>
+        <span className={"t-folder " + color}>{entry.artist}/</span>
+        <span className="t-meta"> [{entry.songs.length} tema{entry.songs.length===1?'':'s'} · {fmtBytes(size)}]</span>
       </div>
     );
 
-    entry.files.forEach((f, fi) => {
-      const isLastFile = fi === entry.files.length - 1;
-      const fileElbow = isLastFile ? '└── ' : '├── ';
-      const name = trunc(f.name, 40);
-      const ext = (f.fileName.split('.').pop() || '').toUpperCase();
-      return lines.push(
-        <div key={`file-${ci}-${fi}`} className="line">
-          <span className="t-box">{bar}{fileElbow}</span>
-          <span className="t-file">{name}</span>
-          {ext && <span className="t-ext"> .{ext}</span>}
+    entry.albums.forEach((album, li) => {
+      const albumSongs = entry.songs.filter(f => f.album === album)
+        .sort((a, b) => (parseInt(a.track)||0) - (parseInt(b.track)||0));
+      const isLastAlbum = li === entry.albums.length - 1 && entry.noAlbum.length === 0;
+      const albElbow = isLastAlbum ? '└── ' : '├── ';
+      const albBar   = isLastAlbum ? '    ' : '│   ';
+      const yr = (albumSongs[0] || {}).year;
+
+      lines.push(
+        <div key={`album-${ai}-${li}`} className="line">
+          <span className="t-box">{aBar}{albElbow}</span>
+          <span className="t-folder" style={{color:'var(--fg-secondary)'}}>{album}{yr ? ` (${yr})` : ''}/</span>
+        </div>
+      );
+      albumSongs.forEach((f, fi) => {
+        const isLastSong = fi === albumSongs.length - 1;
+        const sElbow = isLastSong ? '└── ' : '├── ';
+        const trk = f.track ? f.track.split('/')[0].padStart(2,'0') + '. ' : '';
+        lines.push(
+          <div key={`song-${ai}-${li}-${fi}`} className="line">
+            <span className="t-box">{aBar}{albBar}{sElbow}</span>
+            <span className="t-file">{trk}{trunc(f.name, 36)}</span>
+            <span className="t-meta">  ({fmtBytes(f.fileSize)})</span>
+          </div>
+        );
+      });
+    });
+
+    entry.noAlbum.forEach((f, fi) => {
+      const isLastSong = fi === entry.noAlbum.length - 1;
+      const sElbow = isLastSong ? '└── ' : '├── ';
+      lines.push(
+        <div key={`noalb-${ai}-${fi}`} className="line">
+          <span className="t-box">{aBar}{sElbow}</span>
+          <span className="t-file">{trunc(f.name, 40)}</span>
           <span className="t-meta">  ({fmtBytes(f.fileSize)})</span>
         </div>
       );
@@ -1980,9 +2160,9 @@ function Terminal({ files, allCats }) {
   lines.push(<div key="blank" className="line">&nbsp;</div>);
   lines.push(
     <div key="summary" className="line">
-      <span className="t-num">{catCount}</span>{' '}<span className="t-label">categoría{catCount===1?'':'s'}</span>
+      <span className="t-num">{allCats.length}</span>{' '}<span className="t-label">artista{allCats.length===1?'':'s'}</span>
       <span className="t-sep"> · </span>
-      <span className="t-num">{fileCount}</span>{' '}<span className="t-label">archivo{fileCount===1?'':'s'}</span>
+      <span className="t-num">{files.length}</span>{' '}<span className="t-label">canción{files.length===1?'':'es'}</span>
       <span className="t-sep"> · </span>
       <span className="t-num">{fmtBytes(total)}</span>{' '}<span className="t-label">usados</span>
       <span className="t-sep"> · </span>
@@ -2084,7 +2264,9 @@ function App() {
   }, [currentTrackId]);
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
-  const allCats = [...DEFAULT_CATS, ...customCats.map(c => c.name)];
+  // Artistas derivados de los archivos; si un archivo antiguo tiene sólo category, se usa eso
+  const allArtists = [...new Set(files.map(f => f.artist || f.category).filter(Boolean))].sort();
+  const allCats = allArtists;
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
 
@@ -2138,22 +2320,27 @@ function App() {
       });
       const entry = {
         id: 'F' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
-        name: meta.name,
+        name:        meta.name,
         description: meta.description,
-        category: meta.category,
-        thumbnail: meta.thumbnail,
-        fileName: meta.fileName,
-        fileSize: meta.fileSize,
-        fileType: meta.fileType,
-        fileData: reader.result,
-        uploadedAt: Date.now(),
-        downloads: 0,
+        category:    meta.artist || meta.category,
+        artist:      meta.artist  || '',
+        album:       meta.album   || '',
+        track:       meta.track   || '',
+        year:        meta.year    || '',
+        genre:       meta.genre   || '',
+        thumbnail:   meta.thumbnail,
+        fileName:    meta.fileName,
+        fileSize:    meta.fileSize,
+        fileType:    meta.fileType,
+        fileData:    reader.result,
+        uploadedAt:  Date.now(),
+        downloads:   0,
       };
       setFiles((prev) => [entry, ...prev]);
       addToLog({ kind: 'UP', name: entry.name, size: entry.fileSize });
       setTimeout(() => {
         setUploadProgress(null);
-        setRoute({ page: 'CAT', cat: meta.category });
+        setRoute({ page: 'CAT', cat: entry.category });
       }, 900);
     };
     reader.onerror = () => {
@@ -2243,7 +2430,7 @@ function App() {
   };
 
   // ───── MUSIC PLAYER ─────
-  const musicQueue = files.filter((f) => f.category === 'MÚSICA' || isAudioFile(f));
+  const musicQueue = files.filter(isAudioFile);
   const currentTrack = currentTrackId ? files.find((f) => f.id === currentTrackId) : null;
 
   const requestID3 = async (file) => {
@@ -2307,7 +2494,7 @@ function App() {
           <div className="page">
             <StatusBar count={files.length} totalBytes={totalBytes} />
             <Banner onNav={setRoute} />
-            <Nav current={route} onNav={setRoute} customCats={customCats} onCreateCat={handleCreateCat} />
+            <Nav current={route} onNav={setRoute} allCats={allCats} />
             <Marquee />
 
             <div className="grid">
