@@ -2255,21 +2255,21 @@ input, textarea {
 }
 .mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
 
-/* VU bars — absolute, grow upward from the top border of the player */
+/* VU bars — behind the player, grow upward from its top edge */
 .mp-vu {
   position: absolute;
-  bottom: calc(100% - 2px);
+  bottom: 100%;
   left: 0; right: 0;
   height: 56px;
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  padding: 0 4px;
+  gap: 1px;
+  padding: 0;
   pointer-events: none;
+  z-index: -1;
 }
 .mp-vu-bar {
-  width: 3px;
-  flex: none;
+  flex: 1;
   background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
   min-height: 2px;
   box-shadow: 0 0 3px var(--fg-primary);

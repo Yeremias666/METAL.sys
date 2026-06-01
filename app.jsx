@@ -703,22 +703,8 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
         if (tags.year)   setYear(tags.year);
         if (tags.genre)  setGenre(tags.genre);
         if (tags.track)  setTrack(tags.track);
-        // Use embedded cover art as thumbnail
-        if (tags.coverArt && !thumb) {
-          try {
-            const img = await loadImage(tags.coverArt);
-            const maxW = 128;
-            const scale = Math.min(1, maxW / img.width);
-            const w = Math.max(1, Math.round(img.width * scale));
-            const h = Math.max(1, Math.round(img.height * scale));
-            const c = document.createElement('canvas');
-            c.width = w; c.height = h;
-            const ctx = c.getContext('2d');
-            ctx.imageSmoothingEnabled = false;
-            ctx.drawImage(img, 0, 0, w, h);
-            setThumb(c.toDataURL('image/png'));
-          } catch {}
-        }
+        // Use the cover art data URL directly — no canvas needed
+        if (tags.coverArt && !thumb) setThumb(tags.coverArt);
       } catch {}
       setScanning(false);
     } else {
@@ -1737,7 +1723,7 @@ function StatsPanel({ files, allCats }) {
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
 function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags, analyser }) {
   if (!track) return null;
-  const BAR_COUNT = 32;
+  const BAR_COUNT = 60;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = track.thumbnail || (tags && tags.coverArt) || null;
 
