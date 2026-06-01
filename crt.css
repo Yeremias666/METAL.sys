@@ -1892,20 +1892,12 @@ input, textarea {
 }
 .radio-vu-bar {
   width: 5px;
-  background: var(--fg-dim);
-  border-radius: 1px;
-  height: 20%;
-  opacity: 0.4;
-}
-.radio-vu-bar.active {
-  opacity: 1;
-  animation: radio-vu-anim 0.6s ease-in-out infinite alternate;
   background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 55%, #6b0000 100%);
-  box-shadow: 0 0 5px var(--fg-primary);
-}
-@keyframes radio-vu-anim {
-  0%   { height: 12%; }
-  100% { height: 92%; }
+  border-radius: 1px;
+  height: 5%;
+  box-shadow: 0 0 4px var(--fg-primary);
+  transition: height 0.08s ease-out;
+  align-self: flex-end;
 }
 
 /* Middle: speakers + display */
@@ -2033,14 +2025,19 @@ input, textarea {
 }
 .radio-play-btn span { display: flex; line-height: 1; }
 
-/* Info strip — inside radio-knobs-side.right */
+/* Info strip — own row between grille area and knobs bar */
 .radio-info-strip {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 1;
+  padding: 7px 12px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--fg-dim);
+  border-radius: 3px;
+  margin-bottom: 8px;
   overflow: hidden;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 .radio-strip-album {
   font-family: var(--mono);
@@ -2132,7 +2129,7 @@ input, textarea {
   box-shadow: 0 0 24px rgba(214,31,31,0.6), inset 0 0 16px rgba(214,31,31,0.18);
   padding: 12px 16px;
   display: grid;
-  grid-template-columns: 64px 1fr auto auto auto;
+  grid-template-columns: 64px 1fr auto auto auto auto;
   gap: 14px;
   align-items: center;
   animation: modal-pop 0.18s ease-out;
@@ -2254,6 +2251,25 @@ input, textarea {
   padding: 0;
 }
 .mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
+
+/* Mini VU bars in bottom player */
+.mp-vu {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 36px;
+  width: 80px;
+  flex-shrink: 0;
+}
+.mp-vu-bar {
+  flex: 1;
+  background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
+  border-radius: 1px;
+  min-height: 2px;
+  box-shadow: 0 0 3px var(--fg-primary);
+  transition: height 0.08s ease-out;
+  align-self: flex-end;
+}
 
 /* Push page content up when music player visible */
 body:has(.music-player) .crt-content { padding-bottom: 100px; }

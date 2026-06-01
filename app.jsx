@@ -244,8 +244,9 @@ async function readID3(dataURL) {
         if (frameId === 'TPE1') tags.artist = text;
         if (frameId === 'TPE2') tags.albumArtist = text;
         if (frameId === 'TALB') tags.album = text;
-        if (frameId === 'TYER' || frameId === 'TDRC') tags.year = text;
-        if (frameId === 'TCON') tags.genre = text;
+        if (frameId === 'TYER' || frameId === 'TDRC') tags.year = text.slice(0, 4);
+        if (frameId === 'TCON') tags.genre = text.replace(/^\(?\d+\)?/, '').trim() || text;
+        if (frameId === 'TRCK') tags.track = text;
       } else if (frameId === 'APIC') {
         // Cover art: enc(1) + mime(text\0) + picType(1) + desc(text\0) + image data
         try {
@@ -257,7 +258,6 @@ async function readID3(dataURL) {
           }
           p++; // null
           p++; // picType
-          // desc null-term in correct encoding (approximation)
           if (enc === 1 || enc === 2) {
             while (p < fdStart + frameSize - 1 && !(view.getUint8(p) === 0 && view.getUint8(p+1) === 0)) p++;
             p += 2;
@@ -266,8 +266,11 @@ async function readID3(dataURL) {
             p++;
           }
           const imgBytes = new Uint8Array(buf, p, fdStart + frameSize - p);
-          const blob = new Blob([imgBytes], { type: mime || 'image/jpeg' });
-          tags.coverArt = URL.createObjectURL(blob);
+          // Convert to base64 data URL (more reliable than blob URL across re-renders)
+          const mimeType = mime || 'image/jpeg';
+          let binary = '';
+          for (let i = 0; i < imgBytes.length; i++) binary += String.fromCharCode(imgBytes[i]);
+          tags.coverArt = `data:${mimeType};base64,${btoa(binary)}`;
         } catch {}
       }
       offset = fdStart + frameSize;
@@ -696,14 +699,20 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
         if (tags.year)   setYear(tags.year);
         if (tags.genre)  setGenre(tags.genre);
         if (tags.track)  setTrack(tags.track);
-        // Use embedded cover art as thumbnail if present
+        // Use embedded cover art as thumbnail
         if (tags.coverArt && !thumb) {
           try {
-            const resp = await fetch(tags.coverArt);
-            const blob = await resp.blob();
-            const imgFile = new File([blob], 'cover.jpg', { type: blob.type });
-            const data = await processThumb(imgFile);
-            setThumb(data);
+            const img = await loadImage(tags.coverArt);
+            const maxW = 128;
+            const scale = Math.min(1, maxW / img.width);
+            const w = Math.max(1, Math.round(img.width * scale));
+            const h = Math.max(1, Math.round(img.height * scale));
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(img, 0, 0, w, h);
+            setThumb(c.toDataURL('image/png'));
           } catch {}
         }
       } catch {}
@@ -1368,8 +1377,38 @@ function MarkdownPreview({ file }) {
   return <div className="md-preview" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying }) {
-  const vuHeights = [30,55,80,60,90,45,70,95,50,75,40,65];
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
+  const BAR_COUNT = 12;
+  const [vuData, setVuData] = useState(() => new Array(BAR_COUNT).fill(5));
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    const node = analyser && analyser.current;
+    if (!node || !isPlaying) {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      setVuData(new Array(BAR_COUNT).fill(5));
+      return;
+    }
+    if (node.context.state === 'suspended') node.context.resume().catch(() => {});
+    const data = new Uint8Array(node.frequencyBinCount);
+    const tick = () => {
+      node.getByteFrequencyData(data);
+      const bins = node.frequencyBinCount;
+      const bars = [];
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const lo = Math.floor(i * bins / BAR_COUNT);
+        const hi = Math.floor((i + 1) * bins / BAR_COUNT);
+        let sum = 0;
+        for (let j = lo; j < hi; j++) sum += data[j];
+        bars.push(Math.max(5, ((sum / (hi - lo)) / 255) * 95));
+      }
+      setVuData(bars);
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [analyser, isPlaying]);
+
   return (
     <div className="radio-body">
       {/* Frequency display */}
@@ -1380,9 +1419,9 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
           <div className="radio-freq-title">{(tags && tags.title) || file.name}</div>
         </div>
         <div className="radio-vu">
-          {vuHeights.map((h, i) => (
-            <div key={i} className={"radio-vu-bar" + (isPlaying ? " active" : "")}
-                 style={{animationDelay: (i * 0.09) + 's', animationDuration: (0.5 + (i % 4) * 0.15) + 's'}}></div>
+          {vuData.map((h, i) => (
+            <div key={i} className="radio-vu-bar"
+                 style={{height: h + '%', opacity: isPlaying ? 1 : 0.3}}></div>
           ))}
         </div>
       </div>
@@ -1393,9 +1432,9 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
         <div className="radio-window">
           <div className="radio-cover-frame">
             {tags && tags.coverArt
-              ? <img src={tags.coverArt} alt="cover" />
+              ? <img src={tags.coverArt} alt={file.name} />
               : file.thumbnail
-                ? <img src={file.thumbnail} alt="cover" />
+                ? <img src={file.thumbnail} alt={file.name} />
                 : <div className="radio-cover-empty"><CategoryGlyph cat="MÚSICA" size={72} /></div>}
             <div className="radio-cover-scanlines"></div>
           </div>
@@ -1403,7 +1442,16 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
         <div className="radio-grille"></div>
       </div>
 
-      {/* Bottom bar: knobs | play (center) | info + knobs */}
+      {/* Info strip — own row above knobs */}
+      <div className="radio-info-strip">
+        {tags && tags.album && (
+          <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
+        )}
+        {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
+        <span className="radio-strip-meta" style={{marginLeft:'auto'}}>{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
+      </div>
+
+      {/* Knobs bar — only play button + decorative knobs */}
       <div className="radio-knobs-bar">
         <div className="radio-knobs-side">
           <div className="radio-knob"></div>
@@ -1413,13 +1461,6 @@ function AudioInfo({ file, tags, onPlay, isPlaying }) {
           <span>{isPlaying ? "❚❚" : "▶"}</span>
         </button>
         <div className="radio-knobs-side right">
-          <div className="radio-info-strip">
-            {tags && tags.album && (
-              <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
-            )}
-            {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
-            <span className="radio-strip-meta">{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
-          </div>
           <div className="radio-knob small"></div>
           <div className="radio-knob"></div>
         </div>
@@ -1682,8 +1723,40 @@ function StatsPanel({ files, allCats }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags, analyser }) {
   if (!track) return null;
+
+  const BAR_COUNT = 16;
+  const [vuData, setVuData] = useState(() => new Array(BAR_COUNT).fill(5));
+  const frameRef = useRef(null);
+
+  useEffect(() => {
+    const node = analyser && analyser.current;
+    if (!node || !isPlaying) {
+      if (frameRef.current) cancelAnimationFrame(frameRef.current);
+      setVuData(new Array(BAR_COUNT).fill(5));
+      return;
+    }
+    if (node.context.state === 'suspended') node.context.resume().catch(() => {});
+    const data = new Uint8Array(node.frequencyBinCount);
+    const tick = () => {
+      node.getByteFrequencyData(data);
+      const bins = node.frequencyBinCount;
+      const bars = [];
+      for (let i = 0; i < BAR_COUNT; i++) {
+        const lo = Math.floor(i * bins / BAR_COUNT);
+        const hi = Math.floor((i + 1) * bins / BAR_COUNT);
+        let sum = 0;
+        for (let j = lo; j < hi; j++) sum += data[j];
+        bars.push(Math.max(5, ((sum / (hi - lo)) / 255) * 95));
+      }
+      setVuData(bars);
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
+  }, [analyser, isPlaying]);
+
   const fmtTime = (s) => {
     if (!s || !isFinite(s)) return '0:00';
     const m = Math.floor(s / 60);
@@ -1716,13 +1789,20 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           <span className="mp-time">{fmtTime(duration)}</span>
         </div>
       </div>
+      {/* VU bars */}
+      <div className="mp-vu">
+        {vuData.map((h, i) => (
+          <div key={i} className="mp-vu-bar"
+               style={{height: h + '%', opacity: isPlaying ? 1 : 0.25}} />
+        ))}
+      </div>
       <div className="mp-controls">
         <button onClick={onPrev} title="Anterior">◀◀</button>
         <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
         <button onClick={onNext} title="Siguiente">▶▶</button>
       </div>
       <div className="mp-volume">
-        <span>🔊</span>
+        <span style={{fontSize:14}}>🔊</span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
                onChange={(e) => onVolume(parseFloat(e.target.value))} />
       </div>
@@ -1805,7 +1885,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3 }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ name: file.name, description: file.description, category: file.category });
   const [tab, setTab] = useState('desc');
@@ -1912,7 +1992,8 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                 <div className="player-section-label">REPRODUCTOR DE AUDIO</div>
                 <AudioInfo file={file} tags={id3Tags}
                            onPlay={() => onPlayAudio(file)}
-                           isPlaying={currentPlayingId === file.id && isPlaying} />
+                           isPlaying={currentPlayingId === file.id && isPlaying}
+                           analyser={analyser} />
               </div>
             )}
 
@@ -2217,6 +2298,24 @@ function App() {
   // Music player state
   const audioRef = useRef(null);
   if (!audioRef.current) audioRef.current = new Audio();
+  const analyserRef  = useRef(null);
+  const audioCtxRef  = useRef(null);
+
+  const ensureAnalyser = () => {
+    if (analyserRef.current) return analyserRef.current;
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const source = ctx.createMediaElementSource(audioRef.current);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      analyser.smoothingTimeConstant = 0.75;
+      source.connect(analyser);
+      analyser.connect(ctx.destination);
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+    } catch {}
+    return analyserRef.current;
+  };
   const [currentTrackId, setCurrentTrackId] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -2442,8 +2541,11 @@ function App() {
 
   const playTrack = (file) => {
     const audio = audioRef.current;
+    ensureAnalyser();
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
     if (currentTrackId === file.id) {
-      // toggle
       if (audio.paused) audio.play(); else audio.pause();
       return;
     }
@@ -2525,7 +2627,8 @@ function App() {
                                   currentPlayingId={currentTrackId}
                                   isPlaying={isPlaying}
                                   id3Tags={id3Cache[currentFile.id]}
-                                  requestID3={requestID3} />
+                                  requestID3={requestID3}
+                                  analyser={analyserRef} />
                     : <div className="panel"><div className="panel-body" style={{textAlign:'center', padding: 40}}>
                         Archivo no encontrado. <button className="mini-btn" onClick={() => setRoute({ page: 'INICIO' })}>VOLVER</button>
                       </div></div>
@@ -2557,7 +2660,8 @@ function App() {
                    onPlayPause={playPause} onSeek={seek}
                    onPrev={playPrev} onNext={playNext} onVolume={setVolume}
                    onClose={stopMusic}
-                   tags={currentTrackId ? id3Cache[currentTrackId] : null} />
+                   tags={currentTrackId ? id3Cache[currentTrackId] : null}
+                   analyser={analyserRef} />
 
       {showCreateModal && (
         <CreateCategoryModal
