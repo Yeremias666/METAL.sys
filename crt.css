@@ -2270,9 +2270,15 @@ input, textarea {
 }
 .mp-vu-bar {
   flex: 1;
-  background: linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
+  background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.28) 0px, rgba(0,0,0,0.28) 1px,
+      transparent 1px, transparent 3px
+    ),
+    linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
   min-height: 2px;
-  box-shadow: 0 0 3px var(--fg-primary);
+  box-shadow: 0 0 4px var(--fg-primary);
   transition: height 0.07s ease-out;
 }
 

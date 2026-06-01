@@ -199,45 +199,46 @@ function normStr(s) {
 }
 
 // Minimal ID3v2 tag parser — extracts title/artist/album/year + cover art if present
-async function readID3(dataURL) {
-  try {
-    const resp = await fetch(dataURL);
-    const buf = await resp.arrayBuffer();
-    if (buf.byteLength < 10) return {};
-    const view = new DataView(buf);
-    const sig = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2));
-    if (sig !== 'ID3') return {};
-    const major = view.getUint8(3);
-    const tagSize = ((view.getUint8(6) & 0x7f) << 21) | ((view.getUint8(7) & 0x7f) << 14)
-                  | ((view.getUint8(8) & 0x7f) << 7)  |  (view.getUint8(9) & 0x7f);
-    let offset = 10;
-    const end = Math.min(10 + tagSize, view.byteLength);
-    const tags = {};
-    const decUtf = new TextDecoder('utf-8');
-    const decUtf16 = new TextDecoder('utf-16');
-    const decLatin = new TextDecoder('latin1');
-    while (offset + 10 < end) {
-      const frameId = String.fromCharCode(
-        view.getUint8(offset), view.getUint8(offset+1),
-        view.getUint8(offset+2), view.getUint8(offset+3)
-      );
-      if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
-      let frameSize;
-      if (major === 4) {
-        frameSize = ((view.getUint8(offset+4) & 0x7f) << 21) | ((view.getUint8(offset+5) & 0x7f) << 14)
-                  | ((view.getUint8(offset+6) & 0x7f) << 7)  | (view.getUint8(offset+7) & 0x7f);
-      } else {
-        frameSize = view.getUint32(offset+4);
-      }
-      if (frameSize <= 0 || offset + 10 + frameSize > end) break;
-      const fdStart = offset + 10;
-      if (frameId.startsWith('T')) {
+// Core ID3 parser \u2014 accepts an ArrayBuffer directly
+async function _parseID3Buffer(buf) {
+  if (buf.byteLength < 10) return {};
+  const view = new DataView(buf);
+  const sig = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2));
+  if (sig !== 'ID3') return {};
+  const major = view.getUint8(3);
+  const tagSize = ((view.getUint8(6) & 0x7f) << 21) | ((view.getUint8(7) & 0x7f) << 14)
+                | ((view.getUint8(8) & 0x7f) << 7)  |  (view.getUint8(9) & 0x7f);
+  let offset = 10;
+  const end = Math.min(10 + tagSize, view.byteLength);
+  const tags = {};
+  const decUtf   = new TextDecoder('utf-8');
+  const decUtf16 = new TextDecoder('utf-16');
+  const decLatin = new TextDecoder('latin1');
+
+  while (offset + 10 < end) {
+    const frameId = String.fromCharCode(
+      view.getUint8(offset), view.getUint8(offset+1),
+      view.getUint8(offset+2), view.getUint8(offset+3)
+    );
+    if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
+    let frameSize;
+    if (major === 4) {
+      frameSize = ((view.getUint8(offset+4) & 0x7f) << 21) | ((view.getUint8(offset+5) & 0x7f) << 14)
+                | ((view.getUint8(offset+6) & 0x7f) << 7)  | (view.getUint8(offset+7) & 0x7f);
+    } else {
+      frameSize = view.getUint32(offset+4);
+    }
+    if (frameSize <= 0 || offset + 10 + frameSize > end) break;
+    const fdStart = offset + 10;
+
+    if (frameId.startsWith('T')) {
+      try {
         const enc = view.getUint8(fdStart);
         const bytes = new Uint8Array(buf, fdStart + 1, frameSize - 1);
         let text;
         if (enc === 0) text = decLatin.decode(bytes);
         else if (enc === 1) text = decUtf16.decode(bytes);
-        else if (enc === 2) text = decUtf16.decode(bytes); // utf-16BE no BOM, approx
+        else if (enc === 2) text = decUtf16.decode(bytes);
         else text = decUtf.decode(bytes);
         text = text.replace(/\0+$/g, '').replace(/^\uFEFF/, '').trim();
         if (frameId === 'TIT2') tags.title = text;
@@ -247,39 +248,50 @@ async function readID3(dataURL) {
         if (frameId === 'TYER' || frameId === 'TDRC') tags.year = text.slice(0, 4);
         if (frameId === 'TCON') tags.genre = text.replace(/^\(?\d+\)?/, '').trim() || text;
         if (frameId === 'TRCK') tags.track = text;
-      } else if (frameId === 'APIC') {
-        // Cover art: enc(1) + mime(text\0) + picType(1) + desc(text\0) + image data
-        try {
-          let p = fdStart;
-          const enc = view.getUint8(p); p++;
-          let mime = '';
-          while (p < fdStart + frameSize && view.getUint8(p) !== 0) {
-            mime += String.fromCharCode(view.getUint8(p)); p++;
-          }
-          p++; // null
-          p++; // picType
-          if (enc === 1 || enc === 2) {
-            while (p < fdStart + frameSize - 1 && !(view.getUint8(p) === 0 && view.getUint8(p+1) === 0)) p++;
-            p += 2;
-          } else {
-            while (p < fdStart + frameSize && view.getUint8(p) !== 0) p++;
-            p++;
-          }
-          const imgBytes = new Uint8Array(buf, p, fdStart + frameSize - p);
-          const mimeType = mime || 'image/jpeg';
-          // FileReader is more reliable than btoa for large/binary image data
-          const blob = new Blob([new Uint8Array(imgBytes)], { type: mimeType });
+      } catch {}
+    } else if (frameId === 'APIC') {
+      try {
+        let p = fdStart;
+        const enc = view.getUint8(p); p++;
+        let mime = '';
+        while (p < fdStart + frameSize && view.getUint8(p) !== 0) {
+          mime += String.fromCharCode(view.getUint8(p)); p++;
+        }
+        p++; // null after MIME
+        p++; // picture type byte
+        // Skip description (null-terminated, encoding-aware)
+        if (enc === 1 || enc === 2) {
+          while (p + 1 < fdStart + frameSize && !(view.getUint8(p) === 0 && view.getUint8(p+1) === 0)) p++;
+          p += 2;
+        } else {
+          while (p < fdStart + frameSize && view.getUint8(p) !== 0) p++;
+          p++;
+        }
+        const imgLen = fdStart + frameSize - p;
+        if (imgLen > 0 && p + imgLen <= buf.byteLength) {
+          const imgCopy = new Uint8Array(buf.slice(p, p + imgLen)); // slice = copy, avoids GC issues
+          const mimeType = mime.trim() || 'image/jpeg';
+          const blob = new Blob([imgCopy], { type: mimeType });
           tags.coverArt = await new Promise(res => {
             const fr = new FileReader();
             fr.onload  = () => res(fr.result);
             fr.onerror = () => res(null);
             fr.readAsDataURL(blob);
           });
-        } catch {}
-      }
-      offset = fdStart + frameSize;
+        }
+      } catch {}
     }
-    return tags;
+    offset = fdStart + frameSize;
+  }
+  return tags;
+}
+
+// readID3: called when playing (file is a stored data URL)
+async function readID3(dataURL) {
+  try {
+    const resp = await fetch(dataURL);
+    const buf  = await resp.arrayBuffer();
+    return _parseID3Buffer(buf);
   } catch { return {}; }
 }
 
@@ -694,8 +706,8 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
     if (isAudioFile({ fileName: f.name, fileType: f.type || '' })) {
       setScanning(true);
       try {
-        const src = await readAsDataURL(f);
-        const tags = await readID3(src);
+        const buf  = await f.arrayBuffer();       // read file bytes directly — no data URL conversion
+        const tags = await _parseID3Buffer(buf);
         if (tags.title)  setName(tags.title);
         else             setName(f.name.replace(/\.[^.]+$/, ''));
         if (tags.artist || tags.albumArtist) setArtist(tags.artist || tags.albumArtist || '');
