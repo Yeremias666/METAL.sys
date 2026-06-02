@@ -2852,11 +2852,12 @@ function Footer() {
 }
 
 // ─── LIBRARY TREE (left sidebar) ───────────────────────────
-function LibraryTree({ files, allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile }) {
+function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile }) {
   const [collapsed, setCollapsed] = useState({});
   const toggle = (key) => setCollapsed(p => ({ ...p, [key]: !p[key] }));
+  const allFiles = [...files, ...localFiles];
   const byArtist = allCats.map(artist => {
-    const songs = files.filter(f => (f.artist || f.category) === artist);
+    const songs = allFiles.filter(f => (f.artist || f.category) === artist);
     const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
     const noAlbum = songs.filter(f => !f.album).sort((a, b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
     return { artist, songs, albums, noAlbum };
@@ -3413,8 +3414,8 @@ function App() {
   }, [currentTrackId, repeatMode]);
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
-  // Artistas derivados de los archivos; si un archivo antiguo tiene sólo category, se usa eso
-  const allArtists = [...new Set(files.map(f => f.artist || f.category).filter(Boolean))].sort();
+  // Artistas derivados del vault y de la carpeta local
+  const allArtists = [...new Set([...files, ...localFiles].map(f => f.artist || f.category).filter(Boolean))].sort();
   const allCats = allArtists;
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
@@ -3521,7 +3522,11 @@ function App() {
     setRoute({ page: 'CAT', cat: name });
   };
 
-  const openFile = (id) => setRoute({ page: 'DETAIL', fileId: id });
+  const openFile = (id) => {
+    const localFile = localFiles.find(f => f.id === id);
+    if (localFile) { playTrack(localFile); return; }
+    setRoute({ page: 'DETAIL', fileId: id });
+  };
 
   // ───── MULTI-SELECT ─────
   const toggleSel = (id) => {
@@ -3592,18 +3597,19 @@ function App() {
   const getQueueForContext = useCallback((context) => {
     if (context.type === 'local') return localFiles;
     const all = files.filter(isAudioFile);
+    const combined = [...all, ...localFiles.filter(isAudioFile)];
     if (context.type === 'artist' && context.artist) {
-      return all.filter((f) => (f.artist || f.category) === context.artist);
+      return combined.filter((f) => (f.artist || f.category) === context.artist);
     }
     if (context.type === 'album' && context.artist && context.album) {
-      return all.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
+      return combined.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
     }
     return all;
   }, [files, localFiles]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
-  const currentTrack = currentTrackId ? files.find((f) => f.id === currentTrackId) : null;
+  const currentTrack = currentTrackId ? ([...files, ...localFiles].find((f) => f.id === currentTrackId) ?? null) : null;
 
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
@@ -3887,11 +3893,12 @@ function App() {
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
+          <StatusBar count={files.length} totalBytes={totalBytes} />
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
               <LibraryTree
-                files={files} allCats={allCats}
+                files={files} localFiles={localFiles} allCats={allCats}
                 onNav={setRoute} onOpenFile={openFile}
                 onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
                 onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
@@ -3899,7 +3906,6 @@ function App() {
 
             {/* Center column: header + page content */}
             <div className="col-main">
-              <StatusBar count={files.length} totalBytes={totalBytes} />
               <Banner onNav={setRoute} />
               <Nav current={route} onNav={setRoute} allCats={allCats} />
               <Marquee />
