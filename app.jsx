@@ -1205,14 +1205,16 @@ function FolderImportSection({ vault, onUpload }) {
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, prefillAlbum }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
   const [view, setView] = useState('grid');
-  const [selAlbums, setSelAlbums] = useState(new Set());
-  const [selectedAlbum, setSelectedAlbum] = useState(null);
+  const [albumSort, setAlbumSort] = useState('year');
+  const [albumDir, setAlbumDir] = useState('desc');
+  const [selectedAlbum, setSelectedAlbum] = useState(prefillAlbum || null);
   const [showResults, setShowResults] = useState(false);
+  useEffect(() => { if (prefillAlbum) setSelectedAlbum(prefillAlbum); }, [prefillAlbum]);
 
   const albumObjects = [...new Set(list.map((f) => (f.album || 'SINGLE')).filter(Boolean))]
     .map((name) => {
@@ -1222,9 +1224,11 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       return { name, songs, year, cover };
     })
     .sort((a, b) => {
-      const ya = parseInt(a.year) || 0;
-      const yb = parseInt(b.year) || 0;
-      return (yb - ya) || a.name.localeCompare(b.name);
+      let cmp = 0;
+      if (albumSort === 'year')  cmp = (parseInt(a.year) || 0) - (parseInt(b.year) || 0);
+      else if (albumSort === 'alpha') cmp = a.name.localeCompare(b.name);
+      else cmp = a.songs.length - b.songs.length; // songs
+      return albumDir === 'asc' ? cmp : -cmp;
     });
 
   const q = normStr(query.trim());
@@ -1238,27 +1242,11 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   }) : [];
   const suggestions = [...albumMatches.map((a) => ({ type: 'album', album: a })), ...songMatches.map((f) => ({ type: 'song', file: f }))].slice(0, 5);
 
-  const selectedAlbumSongs = selAlbums.size > 0 ? list.filter((f) => selAlbums.has(f.album || 'SINGLE')) : [];
-  const searchSongs = showResults
-    ? (q
-        ? (selAlbums.size > 0
-            ? selectedAlbumSongs.filter((f) => normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q))
-            : songMatches)
-        : selectedAlbumSongs)
-    : [];
+  const searchSongs  = showResults && q ? songMatches  : [];
   const searchAlbums = showResults && q ? albumMatches : [];
 
   const currentAlbum = selectedAlbum ? albumObjects.find((a) => a.name === selectedAlbum) : null;
   const currentSongs = currentAlbum ? currentAlbum.songs.filter((f) => !q || normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
-
-  const toggleAlbum = (album) => {
-    const next = new Set(selAlbums);
-    if (next.has(album)) next.delete(album);
-    else next.add(album);
-    setSelAlbums(next);
-    setSelectedAlbum(null);
-    setShowResults(false);
-  };
 
   const openAlbum = (album) => {
     setSelectedAlbum(album);
@@ -1343,24 +1331,18 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               )}
 
               <div className="search-filters">
-                <div className="filter-group" style={{ minWidth: 160 }}>
-                  <span className="filter-label">FILTRO</span>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    <button
-                      className={"album-pill" + (selAlbums.size === 0 ? ' on' : '')}
-                      onClick={() => { setSelAlbums(new Set()); setShowResults(false); }}
-                    >
-                      TODOS
+                <div className="filter-group">
+                  <span className="filter-label">ORDENAR</span>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <select className="sort-select" value={albumSort} onChange={e => setAlbumSort(e.target.value)}>
+                      <option value="year">AÑO</option>
+                      <option value="alpha">ALFABÉTICO</option>
+                      <option value="songs">Nº CANCIONES</option>
+                    </select>
+                    <button className="dir-btn" title={albumDir === 'asc' ? 'Ascendente' : 'Descendente'}
+                            onClick={() => setAlbumDir(d => d === 'asc' ? 'desc' : 'asc')}>
+                      {albumDir === 'asc' ? '▲' : '▼'}
                     </button>
-                    {albumObjects.map((album) => (
-                      <button
-                        key={album.name}
-                        className={"album-pill" + (selAlbums.has(album.name) ? ' on' : '')}
-                        onClick={() => toggleAlbum(album.name)}
-                      >
-                        {album.name}{album.year ? ` · ${album.year}` : ''}
-                      </button>
-                    ))}
                   </div>
                 </div>
                 <div className="filter-group">
@@ -2483,7 +2465,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
   }, [file.id]);
 
   const saveEdit = () => {
-    onUpdate({ ...file, name: draft.name.trim() || file.name, description: draft.description.trim(), category: draft.category });
+    onUpdate({ ...file, name: (draft.name || '').trim() || file.name, description: (draft.description || '').trim(), category: draft.category });
     setEditing(false);
   };
 
@@ -2927,7 +2909,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
                       <div key={album}>
                         <div className="lib-album-row" onClick={() => toggle(aKey)}>
                           <span className="lib-toggle">{albumOpen ? '▼' : '▶'}</span>
-                          <span className="lib-name lib-album-name" onClick={e => { e.stopPropagation(); onNav({ page: 'CAT', cat: artist }); }}>{album}</span>
+                          <span className="lib-name lib-album-name" onClick={e => { e.stopPropagation(); onNav({ page: 'CAT', cat: artist, album }); }}>{album}</span>
                           <button className="lib-play" onClick={e => { e.stopPropagation(); onPlayAlbum(artist, album); }}>▶</button>
                         </div>
                         {albumOpen && (
@@ -3656,6 +3638,7 @@ function App() {
 
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
+    if (!file.fileData) return null;
     const tags = await readID3(file.fileData);
     setId3Cache((p) => ({ ...p, [file.id]: tags }));
     return tags;
@@ -3992,7 +3975,7 @@ function App() {
               )}
               {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
               {route.page === 'CAT' && (
-                <CategoryPage cat={route.cat} files={[...files, ...localFiles]}
+                <CategoryPage cat={route.cat} prefillAlbum={route.album} files={[...files, ...localFiles]}
                               onOpenFile={openFile} onNav={setRoute}
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}

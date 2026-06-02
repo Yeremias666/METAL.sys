@@ -302,14 +302,6 @@ input, textarea {
     linear-gradient(180deg, rgba(255,43,214,0.08), rgba(0,240,255,0.04));
   position: relative;
 }
-.banner::before, .banner::after {
-  content: '';
-  position: absolute;
-  width: calc(100% + 16px); height: calc(100% + 16px);
-  border: 2px solid var(--fg-secondary);
-}
-.banner::before { top: -8px; left: -8px; border-right: 0; border-bottom: 0; }
-.banner::after  { bottom: -8px; right: -8px; border-left: 0; border-top: 0; }
 
 .ascii-logo {
   font-family: var(--mono);
@@ -1205,7 +1197,7 @@ input, textarea {
 /* ─── File grid + cards ──────────────────────────────────── */
 .file-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 14px;
 }
 .file-card {
@@ -1222,7 +1214,7 @@ input, textarea {
 }
 .file-card-thumb {
   position: relative;
-  aspect-ratio: 4 / 3;
+  aspect-ratio: 1 / 1;
   background:
     repeating-linear-gradient(45deg, rgba(214,31,31,0.15) 0 3px, transparent 3px 6px),
     #08070a;
@@ -1230,10 +1222,9 @@ input, textarea {
   border-bottom: 2px solid var(--fg-primary);
 }
 .file-card-thumb img {
-  width: 100%; height: 100%; object-fit: contain;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  image-rendering: auto;
 }
 .file-card-glyph {
   width: 100%; height: 100%;
@@ -1252,15 +1243,23 @@ input, textarea {
   padding: 3px 6px;
   text-shadow: 0 0 4px rgba(255,255,255,0.4);
 }
-.file-card-body { padding: 10px 12px; }
+.file-card-body {
+  padding: 10px 12px;
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
 .file-card-name {
   font-family: var(--mono);
   font-size: 20px;
   color: var(--fg-text);
   line-height: 1.2;
-  margin-bottom: 6px;
-  word-break: break-word;
-  max-height: 48px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-clamp: 2;
   overflow: hidden;
 }
 .file-card-meta {
@@ -1270,6 +1269,7 @@ input, textarea {
   font-size: 9px;
   letter-spacing: 0.08em;
   color: var(--fg-dim);
+  flex-shrink: 0;
 }
 .file-card-meta span:last-child { color: var(--fg-accent); }
 
@@ -1794,6 +1794,37 @@ input, textarea {
   padding: 6px 10px;
   appearance: none;
   -webkit-appearance: none;
+}
+.sort-select {
+  font-family: var(--mono);
+  font-size: 18px;
+  background: var(--bg-deep);
+  color: var(--fg-text);
+  border: 1px solid var(--fg-dim);
+  padding: 5px 10px;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  min-width: 140px;
+}
+.sort-select:hover { border-color: var(--fg-secondary); }
+.dir-btn {
+  font-family: var(--mono);
+  font-size: 20px;
+  background: transparent;
+  color: var(--fg-secondary);
+  border: 1px solid var(--fg-dim);
+  padding: 4px 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.08s;
+  line-height: 1;
+}
+.dir-btn:hover {
+  background: var(--fg-primary);
+  color: var(--bg-deep);
+  border-color: var(--fg-primary);
+  box-shadow: 0 0 8px var(--fg-primary);
 }
 .view-toggle { display: flex; gap: 0; }
 .view-toggle button {
@@ -2445,24 +2476,21 @@ input, textarea {
 .mp-controls button {
   font-family: var(--pixel);
   font-size: 14px;
-  background: transparent;
+  background: rgba(214,31,31,0.15);
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
   width: 38px; height: 38px;
   cursor: pointer;
   padding: 0;
   text-shadow: 0 0 6px var(--fg-primary);
+  transition: all 0.08s;
 }
-.mp-controls button:hover { background: var(--fg-primary); color: #fff; }
+.mp-controls button:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); }
 .mp-controls .mp-play {
   width: 48px; height: 48px;
   font-size: 18px;
-  background: var(--fg-primary);
-  color: #fff;
-  box-shadow: 0 0 14px var(--fg-primary);
-  text-shadow: 0 0 6px rgba(255,255,255,0.5);
 }
-.mp-controls .mp-play:hover { background: var(--fg-accent); border-color: var(--fg-accent); box-shadow: 0 0 18px var(--fg-accent); }
+.mp-controls .mp-play:hover { background: var(--fg-primary); border-color: var(--fg-primary); box-shadow: 0 0 18px var(--fg-primary); color: #000; }
 .mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; color: var(--fg-primary); }
 .mp-volume span { font-size: 16px; color: var(--fg-primary); }
 .mp-volume input[type=range] {
