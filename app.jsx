@@ -2725,22 +2725,36 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
 }
 
 // ─── SIDEBAR WIDGETS ───────────────────────────────────────────
-function NowStreaming({ files, onOpen }) {
-  const recent = files[0];
+function NowStreaming({ currentTrack, isPlaying, onOpen }) {
+  const hasCover = currentTrack && (currentTrack.coverArt || currentTrack.thumbnail);
   return (
     <div className="widget">
       <div className="panel">
-        <div className="panel-hd">ÚLTIMA SUBIDA <span className="dots">::</span></div>
+        <div className="panel-hd">REPRODUCIENDO <span className="dots">::</span></div>
         <div className="panel-body">
-          <div className="cassette" onClick={() => recent && onOpen(recent.id)} style={{cursor: recent ? 'pointer' : 'default'}}>
+          <div className={`cassette${!isPlaying ? ' paused' : ''}`}
+               onClick={() => currentTrack && onOpen(currentTrack.id)}
+               style={{cursor: currentTrack ? 'pointer' : 'default'}}>
             <div className="label">TDK SA-90 ◆ VAULT MASTER ◆ NODE 03</div>
             <div className="reels">
               <div className="reel"></div>
+              {hasCover
+                ? <img src={currentTrack.coverArt || currentTrack.thumbnail}
+                       alt={currentTrack.name}
+                       style={{width:56, height:56, objectFit:'cover', border:'1px solid var(--fg-secondary)', flexShrink:0}} />
+                : <div style={{width:56, height:56, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--fg-dim)', fontSize:22}}>♪</div>
+              }
               <div className="reel"></div>
             </div>
             <div className="track">
-              <strong style={{wordBreak:'break-all'}}>{recent ? recent.name : "— BÓVEDA VACÍA —"}</strong>
-              <span style={{color:'var(--fg-secondary)'}}>{recent ? recent.category + ' · ' + fmtBytes(recent.fileSize) : "SUBE TU PRIMER ARCHIVO"}</span>
+              <strong style={{wordBreak:'break-all'}}>
+                {currentTrack ? currentTrack.name : '— SIN REPRODUCCIÓN —'}
+              </strong>
+              <span style={{color:'var(--fg-secondary)'}}>
+                {currentTrack
+                  ? (currentTrack.artist || currentTrack.category || '') + (currentTrack.album ? ' · ' + currentTrack.album : '')
+                  : 'Reproduce una canción'}
+              </span>
             </div>
           </div>
         </div>
@@ -4059,7 +4073,7 @@ function App() {
                 onJump={file => startTrack(file)}
                 onReorder={arr => setManualQueue(arr)} />
               <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
-              <NowStreaming files={files} onOpen={openFile} />
+              <NowStreaming currentTrack={currentTrack} isPlaying={isPlaying} onOpen={openFile} />
               <DownloadCounter files={files} />
               <RecentActivity log={log} files={files} onOpen={openFile} />
             </div>
