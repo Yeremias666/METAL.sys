@@ -21,9 +21,13 @@ Una bóveda privada de música (y otros archivos) con interfaz tipo consola unde
 ### Biblioteca y navegación
 - Página de inicio (`INICIO`) con cuadrícula de artistas, canciones recientes y estadísticas
 - Página `TODO` con todos los artistas y botón "Reproducir Todo"
+- Página `♥ GUSTA` con todas las canciones marcadas con me gusta + reproducir todo
+- Página `STATS` con timeline de subidas, top artistas, 8 métricas del vault
+- Página `LOCAL` para importar música desde una carpeta del sistema (Chrome/Edge)
 - Página de artista (`CAT`) con cuadrícula de álbumes/discos
 - Vista interior de disco con lista de canciones (grid o lista)
-- Navegación dinámica en `<Nav>` — un botón por artista en la barra de navegación
+- **Árbol de biblioteca** en sidebar izquierdo: artistas > discos > canciones colapsables
+- Navegación dinámica en `<Nav>` — un botón por artista
 
 ### Búsqueda y filtros
 - Buscador en la página de artista con sugerencias en vivo (máx. 5)
@@ -32,16 +36,37 @@ Una bóveda privada de música (y otros archivos) con interfaz tipo consola unde
 
 ### Reproductor de música
 - Barra persistente en la parte inferior (`MusicPlayer`) activa cuando hay pista en curso
-- Controles: ▶/❚❚, ◀◀ anterior, ▶▶ siguiente, volumen
+- Controles: ▶/❚❚, ◀◀ anterior, ▶▶ siguiente, volumen, ♡ me gusta, ··· opciones
 - **Shuffle**: aleatoriza la cola según el contexto activo (artista / disco / todo)
 - **Repeat**: tres modos — `off` (sin repetición), `all` (repite lista), `one` (repite pista actual)
+- **Waveform**: forma de onda de la canción superpuesta en la barra de progreso
 - Visualizador VU con 60 barras usando Web Audio API (`AnalyserNode`, log-frequency mapping)
 - Barra de progreso clickable para hacer seek
+- **Cola de reproducción** en sidebar derecho: tiempo real, drag-to-reorder
+- **Destello CRT sincronizado** con el volumen del audio en reproducción
 
 ### Botones de reproducción contextual
 - Botón ▶ en cada tarjeta de artista → reproduce ese artista
 - Botón ▶ en cada tarjeta de álbum → reproduce ese disco
+- Botón ▶ en el árbol de biblioteca (sidebar) → reproduce artista o disco
 - Botón "▶ REPRODUCIR TODO" en `TodoPage` → reproduce toda la biblioteca
+- Botón "▶ REPRODUCIR ME GUSTA" en `MeGustaPage` → reproduce solo canciones con me gusta
+
+### Me Gusta
+- Botón ♡/♥ en el reproductor y en el detalle de cada canción
+- Página dedicada `♥ GUSTA` con todas las canciones favoritas
+- Persistencia en `localStorage`
+
+### Marcadores y Clips
+- **Menú ···** en el reproductor con opciones avanzadas
+- **Marcadores**: crea checkpoints con nombre y tiempo (M:SS); accésibles desde la pestaña Marcadores en el detalle
+- **Clips**: crea fragmentos de audio con inicio y fin; se reproducen en bucle; pestaña Clips en el detalle
+
+### Estadísticas
+- Timeline de subidas por día (gráfico de barras)
+- Top artistas por número de reproducciones
+- Top 10 canciones en sidebar derecho
+- 8 métricas: canciones, artistas, reproducciones, me gusta, subidas, descargas, borradas, tamaño medio
 
 ### Detalle de archivo (`DetailPage`)
 - Pestañas según tipo: AUDIO, IMAGEN, VÍDEO, PDF, MD, TEXTO, ÁRBOL (ZIP), DESCRIPCIÓN, DETALLES

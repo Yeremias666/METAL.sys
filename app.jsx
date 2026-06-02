@@ -14,10 +14,14 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "jitter": true
 }/*EDITMODE-END*/;
 
-const STORAGE_KEY = 'metalsys_vault_v2';
-const CATS_KEY = 'metalsys_cats_v2';
-const LOG_KEY = 'metalsys_log_v2';
-const SIZE_CAP = 8 * 1024 * 1024;
+const STORAGE_KEY  = 'metalsys_vault_v2';
+const CATS_KEY     = 'metalsys_cats_v2';
+const LOG_KEY      = 'metalsys_log_v2';
+const LIKES_KEY    = 'metalsys_likes_v1';
+const COUNTS_KEY   = 'metalsys_playcounts_v1';
+const BMRK_KEY     = 'metalsys_bookmarks_v1';
+const CLIPS_KEY    = 'metalsys_clips_v1';
+const SIZE_CAP  = 8 * 1024 * 1024;
 const VAULT_CAP = 25 * 1024 * 1024;
 
 const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
@@ -52,6 +56,58 @@ function loadCats() {
 function saveCats(c) { try { localStorage.setItem(CATS_KEY, JSON.stringify(c)); } catch {} }
 function loadLog() { try { return JSON.parse(localStorage.getItem(LOG_KEY) || '[]'); } catch { return []; } }
 function saveLog(l) { try { localStorage.setItem(LOG_KEY, JSON.stringify(l.slice(0, 200))); } catch {} }
+function loadLikes() { try { return new Set(JSON.parse(localStorage.getItem(LIKES_KEY) || '[]')); } catch { return new Set(); } }
+function saveLikes(s) { try { localStorage.setItem(LIKES_KEY, JSON.stringify([...s])); } catch {} }
+function loadCounts() { try { return JSON.parse(localStorage.getItem(COUNTS_KEY) || '{}'); } catch { return {}; } }
+function saveCounts(c) { try { localStorage.setItem(COUNTS_KEY, JSON.stringify(c)); } catch {} }
+function loadBookmarks() { try { return JSON.parse(localStorage.getItem(BMRK_KEY) || '{}'); } catch { return {}; } }
+function saveBookmarks(b) { try { localStorage.setItem(BMRK_KEY, JSON.stringify(b)); } catch {} }
+function loadClipStore() { try { return JSON.parse(localStorage.getItem(CLIPS_KEY) || '{}'); } catch { return {}; } }
+function saveClipStore(c) { try { localStorage.setItem(CLIPS_KEY, JSON.stringify(c)); } catch {} }
+
+// IndexedDB helper for storing File System Access handles
+function getIDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('metalsys_fs', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('handles');
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function idbSet(key, val) {
+  try {
+    const db = await getIDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(val, key);
+      tx.oncomplete = () => res();
+      tx.onerror = () => rej(tx.error);
+    });
+  } catch {}
+}
+async function idbGet(key) {
+  try {
+    const db = await getIDB();
+    return new Promise((res) => {
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(key);
+      req.onsuccess = () => res(req.result || null);
+      req.onerror = () => res(null);
+    });
+  } catch { return null; }
+}
+
+function fmtTimeSec(sec) {
+  if (!sec && sec !== 0) return '—';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+function parseTimeSec(str) {
+  const parts = (str || '').split(':').map(Number);
+  if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0);
+  return Number(parts[0]) || 0;
+}
 
 function fmtBytes(n) {
   if (n < 1024) return n + ' B';
@@ -582,6 +638,21 @@ function Nav({ current, onNav, allCats }) {
               className={current.page === 'TODO' ? 'active' : ''}
               onClick={() => onNav({ page: 'TODO' })}>
         <NavGlyph kind="MÚSICA" />TODO
+      </button>
+      <button key="MESGUSTA"
+              className={current.page === 'MESGUSTA' ? 'active' : ''}
+              onClick={() => onNav({ page: 'MESGUSTA' })}>
+        <NavGlyph kind="OTROS" />♥ GUSTA
+      </button>
+      <button key="STATS"
+              className={current.page === 'STATS' ? 'active' : ''}
+              onClick={() => onNav({ page: 'STATS' })}>
+        <NavGlyph kind="OTROS" />STATS
+      </button>
+      <button key="LOCAL"
+              className={current.page === 'LOCAL' ? 'active' : ''}
+              onClick={() => onNav({ page: 'LOCAL' })}>
+        <NavGlyph kind="SUBIR" />LOCAL
       </button>
       {/* Dynamic: one button per artist */}
       {allCats.map(artist => (
@@ -1964,7 +2035,7 @@ function StatsPanel({ files, allCats }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike }) {
   if (!track) return null;
   const BAR_COUNT = 60;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
@@ -2002,6 +2073,12 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
             const r = e.currentTarget.getBoundingClientRect();
             onSeek((e.clientX - r.left) / r.width * duration);
           }}>
+            {waveform && (
+              <svg className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
+                <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+                <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+              </svg>
+            )}
             <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
             <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
           </div>
@@ -2020,6 +2097,19 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <input type="range" min="0" max="1" step="0.01" value={volume}
                onChange={(e) => onVolume(parseFloat(e.target.value))} />
       </div>
+      <div className="mp-menu-wrap">
+        <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones">···</button>
+        {showMenu && (
+          <PlayerMenuDropdown
+            onCreateBookmark={onCreateBookmark}
+            onCreateClip={onCreateClip}
+            onClose={onCloseMenu}
+          />
+        )}
+      </div>
+      {likedIds && track && (
+        <LikeButton fileId={track.id} likedIds={likedIds} onToggle={onToggleLike} />
+      )}
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
     </div>
   );
@@ -2100,7 +2190,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onPlayClip, onStopClip, activeClip, position }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ name: file.name, description: file.description, category: file.category });
   const [tab, setTab] = useState('desc');
@@ -2185,6 +2275,8 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
               <button className={tab === 'specs' ? 'active' : ''} onClick={() => setTab('specs')}>DETALLES</button>
               {hasText && !hasMd && <button className={tab === 'text' ? 'active' : ''} onClick={() => setTab('text')}>TEXTO</button>}
               {hasZip  && <button className={tab === 'tree' ? 'active' : ''} onClick={() => setTab('tree')}>ÁRBOL</button>}
+              <button className={tab === 'bookmarks' ? 'active' : ''} onClick={() => setTab('bookmarks')}>MARCADORES</button>
+              <button className={tab === 'clips' ? 'active' : ''} onClick={() => setTab('clips')}>CLIPS</button>
             </div>
 
             {/* Tab content */}
@@ -2284,8 +2376,53 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
               </div>
             )}
 
+            {tab === 'bookmarks' && (
+              <div className="player-section">
+                <div className="player-section-label">MARCADORES</div>
+                {(bookmarks[file.id]||[]).length === 0
+                  ? <div className="bm-empty">◇ Sin marcadores — crea uno desde ··· en el reproductor</div>
+                  : <div className="bm-list">
+                      {(bookmarks[file.id]||[]).map(bm => (
+                        <div key={bm.id} className="bm-item">
+                          <span className="bm-name">{bm.name}</span>
+                          <span className="bm-time">{fmtTimeSec(bm.time)}</span>
+                          <button onClick={() => onSeekBookmark(bm.time)} title="Ir al marcador">▶</button>
+                          <button onClick={() => onDeleteBookmark(file.id, bm.id)} title="Eliminar">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                }
+              </div>
+            )}
+
+            {tab === 'clips' && (
+              <div className="player-section">
+                <div className="player-section-label">CLIPS</div>
+                {(clipStore[file.id]||[]).length === 0
+                  ? <div className="clip-empty">◇ Sin clips — crea uno desde ··· en el reproductor</div>
+                  : <div className="clip-list">
+                      {(clipStore[file.id]||[]).map(clip => {
+                        const isActive = activeClip && activeClip.id === clip.id;
+                        return (
+                          <div key={clip.id} className={`clip-item${isActive?' active-clip':''}`}>
+                            <span className="clip-name">{clip.name}</span>
+                            <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
+                            {isActive
+                              ? <button onClick={onStopClip} title="Detener clip">■</button>
+                              : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
+                            }
+                            <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                }
+              </div>
+            )}
+
             {/* Big action buttons */}
-            <div className="player-actions">
+            <div className="player-actions" style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              {likedIds && <LikeButton fileId={file.id} likedIds={likedIds} onToggle={onToggleLike} />}
               <button className="big-btn" onClick={() => onDownload(file)}>↓ DESCARGAR AHORA</button>
               <button className="big-btn ghost" onClick={() => { if (confirm(`¿Eliminar "${file.name}" de la bóveda?`)) onDelete(file); }}>✕ ELIMINAR</button>
             </div>
@@ -2490,6 +2627,388 @@ function Footer() {
   );
 }
 
+// ─── LIBRARY TREE (left sidebar) ───────────────────────────
+function LibraryTree({ files, allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile }) {
+  const [collapsed, setCollapsed] = useState({});
+  const toggle = (key) => setCollapsed(p => ({ ...p, [key]: !p[key] }));
+  const byArtist = allCats.map(artist => {
+    const songs = files.filter(f => (f.artist || f.category) === artist);
+    const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
+    const noAlbum = songs.filter(f => !f.album).sort((a, b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
+    return { artist, songs, albums, noAlbum };
+  });
+  return (
+    <div className="lib-tree-wrap">
+      <div className="lib-tree">
+        <div className="lib-tree-hd">BIBLIOTECA</div>
+        {byArtist.map(({ artist, songs, albums, noAlbum }) => {
+          const open = !collapsed[artist];
+          return (
+            <div key={artist} className="lib-artist">
+              <div className="lib-artist-row" onClick={() => toggle(artist)}>
+                <span className="lib-toggle">{open ? '▼' : '▶'}</span>
+                <span className="lib-name" onClick={e => { e.stopPropagation(); onNav({ page: 'CAT', cat: artist }); }}>{artist}</span>
+                <button className="lib-play" onClick={e => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+              </div>
+              {open && (
+                <div>
+                  {albums.map(album => {
+                    const aKey = artist + '////' + album;
+                    const albumOpen = !collapsed[aKey];
+                    const albumSongs = songs.filter(f => f.album === album).sort((a,b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
+                    return (
+                      <div key={album}>
+                        <div className="lib-album-row" onClick={() => toggle(aKey)}>
+                          <span className="lib-toggle">{albumOpen ? '▼' : '▶'}</span>
+                          <span className="lib-name lib-album-name" onClick={e => { e.stopPropagation(); onNav({ page: 'CAT', cat: artist }); }}>{album}</span>
+                          <button className="lib-play" onClick={e => { e.stopPropagation(); onPlayAlbum(artist, album); }}>▶</button>
+                        </div>
+                        {albumOpen && (
+                          <div className="lib-songs">
+                            {albumSongs.map(f => (
+                              <div key={f.id} className="lib-song-row" onClick={() => onOpenFile(f.id)}>
+                                <span className="lib-song-num">{f.track ? f.track.split('/')[0] : '—'}</span>
+                                <span className="lib-song-name">{f.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {noAlbum.map(f => (
+                    <div key={f.id} className="lib-song-row lib-song-direct" onClick={() => onOpenFile(f.id)}>
+                      <span className="lib-song-num">◇</span>
+                      <span className="lib-song-name">{f.name}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {allCats.length === 0 && <div className="lib-empty">◇ VACÍO</div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── PLAY QUEUE (right sidebar) ────────────────────────────
+function PlayQueue({ queue, currentId, onJump, onReorder }) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+  const handleDragStart = (i) => setDragIdx(i);
+  const handleDragOver  = (e, i) => { e.preventDefault(); setOverIdx(i); };
+  const handleDrop = (e, i) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return; }
+    const arr = [...queue]; const [moved] = arr.splice(dragIdx, 1); arr.splice(i, 0, moved);
+    onReorder(arr); setDragIdx(null); setOverIdx(null);
+  };
+  return (
+    <div className="play-queue">
+      <div className="widget-hd">◆ COLA DE REPRODUCCIÓN <span style={{color:'var(--fg-dim)',fontSize:'8px'}}>· {queue.length}</span></div>
+      <div className="pq-list">
+        {queue.length === 0 && <div className="pq-empty">◇ Inicia la reproducción</div>}
+        {queue.map((f, i) => (
+          <div key={f.id}
+            className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
+            draggable
+            onDragStart={() => handleDragStart(i)}
+            onDragOver={e => handleDragOver(e, i)}
+            onDrop={e => handleDrop(e, i)}
+            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            onClick={() => onJump(f)}>
+            {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{i+1}</span>}
+            <div className="pq-info">
+              <div className="pq-name">{f.name}</div>
+              <div className="pq-artist">{f.artist||f.category}</div>
+            </div>
+            <span className="pq-drag-handle">⠿</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── TOP SONGS (right sidebar) ──────────────────────────────
+function TopSongs({ files, playCounts, onOpen }) {
+  const top = [...files].filter(isAudioFile).filter(f => (playCounts[f.id]||0)>0)
+    .sort((a,b) => (playCounts[b.id]||0)-(playCounts[a.id]||0)).slice(0,10);
+  return (
+    <div className="widget">
+      <div className="panel">
+        <div className="panel-hd">TOP CANCIONES <span className="dots">/// ESCUCHAS</span></div>
+        <div className="panel-body" style={{padding:'0'}}>
+          {top.length===0
+            ? <div style={{padding:'14px 12px',color:'var(--fg-dim)',fontSize:18}}>◇ Sin datos todavía</div>
+            : top.map((f,i) => (
+              <div key={f.id} className="top-song-row" onClick={()=>onOpen(f.id)}>
+                <span className="top-rank">{i+1}</span>
+                <div className="top-info"><div className="top-name">{f.name}</div><div className="top-artist">{f.artist||f.category}</div></div>
+                <span className="top-count">▶{playCounts[f.id]||0}</span>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LIKE BUTTON ────────────────────────────────────────────
+function LikeButton({ fileId, likedIds, onToggle }) {
+  const liked = likedIds.has(fileId);
+  return (
+    <button className={`like-btn${liked?' liked':''}`}
+            onClick={e => { e.stopPropagation(); onToggle(fileId); }}
+            title={liked?'Quitar de Me Gusta':'Me Gusta'}>
+      {liked ? '♥' : '♡'}
+    </button>
+  );
+}
+
+// ─── ME GUSTA PAGE ──────────────────────────────────────────
+function MeGustaPage({ files, likedIds, onOpenFile, onNav, onPlayAll, onToggleLike }) {
+  const liked = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
+  const total = liked.reduce((a, f) => a + f.fileSize, 0);
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">♥ ME GUSTA <span className="dots">/// {liked.length} CANCIÓN{liked.length===1?'':'ES'}</span></div>
+        <div className="panel-body">
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12}}>
+            <div>
+              <p>Tus canciones favoritas marcadas con ♥.</p>
+              <p style={{color:'var(--fg-dim)', fontSize:14}}>{liked.length} canción{liked.length===1?'':'es'} · {fmtBytes(total)}</p>
+            </div>
+            {liked.length > 0 && <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR ME GUSTA</button>}
+          </div>
+        </div>
+      </div>
+      {liked.length === 0
+        ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
+        : <div className="section"><div className="file-grid">{liked.map(f => (
+            <div key={f.id} style={{position:'relative'}}>
+              <FileCard file={f} onClick={() => onOpenFile(f.id)} />
+              <button className="like-btn liked" style={{position:'absolute',top:6,right:6}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
+            </div>
+          ))}</div></div>
+      }
+    </div>
+  );
+}
+
+// ─── STATS PAGE ─────────────────────────────────────────────
+function StatsPage({ files, playCounts, log, likedIds }) {
+  const audioFiles = files.filter(isAudioFile);
+  const totalPlays = Object.values(playCounts).reduce((a,v)=>a+v,0);
+  const firstUpload = files.length > 0 ? Math.min(...files.map(f=>f.uploadedAt)) : null;
+  const totalSize = audioFiles.reduce((a,f)=>a+f.fileSize,0);
+  const avgSize = audioFiles.length ? totalSize/audioFiles.length : 0;
+  const uploadsByDate = {};
+  files.forEach(f => {
+    const d = new Date(f.uploadedAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    uploadsByDate[key] = (uploadsByDate[key]||0)+1;
+  });
+  const sortedDates = Object.keys(uploadsByDate).sort();
+  const maxUploads = Math.max(1,...Object.values(uploadsByDate));
+  const artistPlays = {};
+  audioFiles.forEach(f => { const a=f.artist||f.category; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
+  const topArtists = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
+  const upCount = log.filter(e=>e.kind==='UP').length;
+  const dlCount = log.filter(e=>e.kind==='DL').length;
+  const delCount = log.filter(e=>e.kind==='DEL').length;
+  const mostPlayed = [...audioFiles].sort((a,b)=>(playCounts[b.id]||0)-(playCounts[a.id]||0))[0];
+  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category))];
+  return (
+    <div className="stats-page">
+      <div className="panel">
+        <div className="panel-hd">ESTADÍSTICAS <span className="dots">/// VAULT ANALYTICS</span></div>
+        <div className="panel-body">
+          <div className="stats-facts-grid">
+            {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',likedIds.size],['SUBIDAS (LOG)',upCount],['DESCARGAS (LOG)',dlCount],['BORRADAS (LOG)',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
+              <div key={lbl} className="stat-fact"><div className="sf-label">{lbl}</div><div className="sf-val">{val}</div></div>
+            ))}
+          </div>
+          {firstUpload && <div className="stat-fact" style={{marginBottom:8}}><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:18}}>{fmtLongDate(firstUpload)}</div></div>}
+          {mostPlayed && (playCounts[mostPlayed.id]||0)>0 && <div className="stat-fact" style={{marginBottom:8}}><div className="sf-label">MÁS ESCUCHADA</div><div className="sf-val" style={{fontSize:18}}>{mostPlayed.name} <span style={{color:'var(--fg-success)',fontSize:14}}>▶{playCounts[mostPlayed.id]}</span></div></div>}
+        </div>
+      </div>
+      {sortedDates.length>0 && (
+        <div className="panel section">
+          <div className="panel-hd">TIMELINE DE SUBIDAS <span className="dots">/// POR DÍA</span></div>
+          <div className="panel-body">
+            <div className="timeline-wrap">
+              <div className="timeline-chart">
+                {sortedDates.map(d => {
+                  const count=uploadsByDate[d]; const h=Math.max(4,(count/maxUploads)*76);
+                  return (<div key={d} className="tl-bar-col" title={`${d}: ${count}`}><span className="tl-count">{count}</span><div className="tl-bar" style={{height:h}}></div><span className="tl-label">{d.slice(5)}</span></div>);
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {topArtists.length>0 && (
+        <div className="panel section">
+          <div className="panel-hd">TOP ARTISTAS <span className="dots">/// REPRODUCCIONES</span></div>
+          <div className="panel-body">
+            {topArtists.map(([artist,plays],i)=>(
+              <div key={artist} className="artist-plays-row">
+                <span className="ap-rank">{i+1}</span><span className="ap-name">{artist}</span>
+                <div className="ap-bar-bg"><div className="ap-bar-fill" style={{width:(plays/maxAP*100)+'%'}}></div></div>
+                <span className="ap-count">▶{plays}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="section"><StatsPanel files={files} allCats={allArtistsList.sort()} /></div>
+    </div>
+  );
+}
+
+// ─── PLAYER MENU DROPDOWN ───────────────────────────────────
+function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [onClose]);
+  return (
+    <div ref={ref} className="mp-menu-dropdown">
+      <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
+      <button onClick={() => { onCreateClip(); onClose(); }}>✂ CREAR CLIP</button>
+    </div>
+  );
+}
+
+// ─── BOOKMARK MODAL ─────────────────────────────────────────
+function BookmarkModal({ position, onSave, onClose }) {
+  const [name, setName] = useState('');
+  const [time, setTime] = useState(() => fmtTimeSec(Math.floor(position)));
+  useEffect(() => { const k=e=>{if(e.key==='Escape')onClose();}; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[onClose]);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-hd"><span>◆ CREAR MARCADOR</span><button className="modal-x" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div className="field"><div className="field-label">NOMBRE</div><input className="field-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Intro, Coro, Solo..." autoFocus /></div>
+          <div className="field"><div className="field-label">TIEMPO (M:SS)</div><input className="field-input" value={time} onChange={e=>setTime(e.target.value)} placeholder="0:00" /></div>
+          <div className="form-actions">
+            <button className="big-btn" onClick={()=>onSave({id:'BM'+Date.now(),name:name.trim()||'Marcador',time:parseTimeSec(time)})}>✓ GUARDAR</button>
+            <button className="big-btn ghost" onClick={onClose}>✕ CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CLIP MODAL ─────────────────────────────────────────────
+function ClipModal({ position, onSave, onClose }) {
+  const [name, setName] = useState('');
+  const [start, setStart] = useState(() => fmtTimeSec(Math.max(0,Math.floor(position)-5)));
+  const [end, setEnd]   = useState(() => fmtTimeSec(Math.floor(position)));
+  useEffect(() => { const k=e=>{if(e.key==='Escape')onClose();}; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[onClose]);
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-hd"><span>✂ CREAR CLIP</span><button className="modal-x" onClick={onClose}>✕</button></div>
+        <div className="modal-body">
+          <div className="field"><div className="field-label">NOMBRE DEL CLIP</div><input className="field-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Intro, Solo, Coro..." autoFocus /></div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+            <div className="field"><div className="field-label">INICIO (M:SS)</div><input className="field-input" value={start} onChange={e=>setStart(e.target.value)} placeholder="0:00"/></div>
+            <div className="field"><div className="field-label">FIN (M:SS)</div><input className="field-input" value={end} onChange={e=>setEnd(e.target.value)} placeholder="0:30"/></div>
+          </div>
+          <div className="form-actions">
+            <button className="big-btn" onClick={()=>{const s=parseTimeSec(start),e2=parseTimeSec(end);if(e2>s)onSave({id:'CL'+Date.now(),name:name.trim()||'Clip',start:s,end:e2});}}>✓ GUARDAR CLIP</button>
+            <button className="big-btn ghost" onClick={onClose}>✕ CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOCAL IMPORT PAGE ──────────────────────────────────────
+function LocalPage({ vault, onImportFile }) {
+  const [supported] = useState(() => 'showDirectoryPicker' in window);
+  const [scanning, setScanning] = useState(false);
+  const [found, setFound] = useState(null);
+  const [results, setResults] = useState([]);
+  const [done, setDone] = useState(false);
+  const [dirName, setDirName] = useState('');
+  const scanFolder = async () => {
+    if (!supported) return;
+    try {
+      const dh = await window.showDirectoryPicker({ mode: 'read' });
+      setDirName(dh.name); setScanning(true); setFound(null); setResults([]); setDone(false);
+      const audioFiles = [];
+      const scan = async (handle, path) => {
+        for await (const [name, entry] of handle.entries()) {
+          const fp = path ? path+'/'+name : name;
+          if (entry.kind==='file') {
+            const ext=name.split('.').pop().toLowerCase();
+            if (/^(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/.test(ext)) {
+              const f=await entry.getFile(); audioFiles.push({handle:entry,name,size:f.size,path:fp});
+            }
+          } else if (entry.kind==='directory') { await scan(entry,fp); }
+        }
+      };
+      await scan(dh,''); setFound(audioFiles); setScanning(false);
+    } catch(e) { if(e.name!=='AbortError') alert('Error: '+(e.message||e)); setScanning(false); }
+  };
+  const importAll = async () => {
+    if (!found||found.length===0) return;
+    let usedSize = vault.reduce((a,f)=>a+f.fileSize,0);
+    const res = [];
+    for (const item of found) {
+      if (item.size>SIZE_CAP) { res.push({name:item.name,status:'skip',reason:'max 8MB'}); continue; }
+      if (usedSize+item.size>VAULT_CAP) { res.push({name:item.name,status:'skip',reason:'vault lleno'}); continue; }
+      try { const file=await item.handle.getFile(); await onImportFile(file,'LOCAL'); usedSize+=item.size; res.push({name:item.name,status:'ok'}); }
+      catch { res.push({name:item.name,status:'err'}); }
+    }
+    setResults(res); setDone(true);
+  };
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">MÚSICA LOCAL <span className="dots">━━━━━━━</span></div>
+        <div className="panel-body">
+          <div className="hero" style={{minHeight:'unset'}}>
+            <p>Conecta una carpeta local de música. El navegador pedirá permiso de lectura.</p>
+            <p style={{color:'var(--fg-dim)',fontSize:18,marginTop:8}}>Solo Chrome y Edge son compatibles. Se aplica el límite de 8 MB/archivo y 25 MB total. Los archivos importados se guardan en la categoría <strong style={{color:'var(--fg-primary)'}}>LOCAL</strong>.</p>
+          </div>
+          {!supported && <div className="dz-err" style={{marginTop:14}}>Tu navegador no soporta File System Access API. Usa Chrome o Edge.</div>}
+          {supported && !scanning && !found && <button className="big-btn" style={{marginTop:14}} onClick={scanFolder}>📁 ELEGIR CARPETA LOCAL</button>}
+          {scanning && <div style={{marginTop:14,color:'var(--fg-accent)',fontSize:20}}>◆ Escaneando...</div>}
+          {found && !done && (
+            <div style={{marginTop:14}}>
+              <p style={{color:'var(--fg-success)',marginBottom:10}}>✓ <strong>{dirName}</strong> — {found.length} archivo{found.length===1?'':'s'} de audio</p>
+              {found.length>0 && <button className="big-btn" onClick={importAll}>↑ IMPORTAR TODO</button>}
+              <button className="big-btn ghost" style={{marginLeft:10}} onClick={()=>{setFound(null);setDirName('');}}>✕ CANCELAR</button>
+              <div className="local-file-list">{found.map((f,i)=><div key={i} className="local-file-item"><span className="lf-name">{f.name}</span><span className="lf-size">{fmtBytes(f.size)}</span></div>)}</div>
+            </div>
+          )}
+          {done && (
+            <div style={{marginTop:14}}>
+              <p style={{color:'var(--fg-success)',marginBottom:10}}>✓ Importación completada</p>
+              <div className="local-file-list">{results.map((r,i)=><div key={i} className="local-file-item"><span className="lf-name">{r.name}</span><span className={`lf-status ${r.status==='ok'?'lf-ok':r.status==='skip'?'lf-skip':'lf-err'}`}>{r.status==='ok'?'✓ importado':r.status==='skip'?`omitido (${r.reason})`:'✕ error'}</span></div>)}</div>
+              <button className="big-btn" style={{marginTop:12}} onClick={()=>{setFound(null);setResults([]);setDone(false);setDirName('');}}>↺ IMPORTAR OTRA CARPETA</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ──────────────────────────────────────────────────
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -2540,8 +3059,26 @@ function App() {
   const [repeatMode, setRepeatMode] = useState('off');
   const [id3Cache, setId3Cache] = useState({}); // {fileId: tags}
 
+  // ── New feature state ──────────────────────────────────────
+  const [likedIds, setLikedIds]     = useState(loadLikes);
+  const [playCounts, setPlayCounts] = useState(loadCounts);
+  const [bookmarks, setBookmarks]   = useState(loadBookmarks);   // {fileId: [{id,name,time}]}
+  const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
+  const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
+  const [showPlayerMenu, setShowPlayerMenu] = useState(false);
+  const [showBookmarkModal, setShowBookmarkModal] = useState(false);
+  const [showClipModal, setShowClipModal]         = useState(false);
+  const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
+  const [waveforms, setWaveforms]   = useState({});              // {fileId: Float32Array}
+  const activeClipRef = useRef(null);
+  const audioSyncRef  = useRef(null);
+
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
+  useEffect(() => { saveLikes(likedIds); }, [likedIds]);
+  useEffect(() => { saveCounts(playCounts); }, [playCounts]);
+  useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
+  useEffect(() => { saveClipStore(clipStore); }, [clipStore]);
   useEffect(() => {
     _catIconRegistry = Object.fromEntries(customCats.map(c => [c.name, c.icon]));
   }, [customCats]);
@@ -2557,10 +3094,40 @@ function App() {
     root.style.setProperty('--flicker-strength', t.flicker ? 1 : 0.0001);
   }, [t]);
 
+  // Keep activeClipRef in sync
+  useEffect(() => { activeClipRef.current = activeClip; }, [activeClip]);
+
+  // CRT flicker sync with audio
+  useEffect(() => {
+    const pulse = document.querySelector('.crt-audio-pulse');
+    if (!isPlaying || !analyserRef.current) {
+      if (audioSyncRef.current) cancelAnimationFrame(audioSyncRef.current);
+      if (pulse) pulse.style.opacity = '0';
+      return;
+    }
+    const node = analyserRef.current;
+    const data = new Uint8Array(node.fftSize);
+    const tick = () => {
+      node.getByteTimeDomainData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) { const v = (data[i]/128)-1; sum += v*v; }
+      const rms = Math.sqrt(sum/data.length);
+      if (pulse) pulse.style.opacity = Math.min(1, rms * 2.5).toFixed(3);
+      audioSyncRef.current = requestAnimationFrame(tick);
+    };
+    audioSyncRef.current = requestAnimationFrame(tick);
+    return () => { if (audioSyncRef.current) cancelAnimationFrame(audioSyncRef.current); };
+  }, [isPlaying]);
+
   // Audio element wiring
   useEffect(() => {
     const audio = audioRef.current;
-    const onTime = () => setPosition(audio.currentTime);
+    const onTime = () => {
+      setPosition(audio.currentTime);
+      // Clip loop
+      const clip = activeClipRef.current;
+      if (clip && audio.currentTime >= clip.end) { audio.currentTime = clip.start; }
+    };
     const onDur = () => setDuration(audio.duration || 0);
     const onEnded = () => {
       if (repeatMode === 'one') {
@@ -2801,20 +3368,113 @@ function App() {
     setCurrentTrackId(file.id);
     setPosition(0);
     setDuration(0);
+    setActiveClip(null);  // clear any active clip on track change
     audio.play().catch(() => {});
     requestID3(file);
+    // Track play count
+    setPlayCounts(prev => ({ ...prev, [file.id]: (prev[file.id] || 0) + 1 }));
+    // Decode waveform for new track (non-blocking)
+    if (!waveforms[file.id]) {
+      (async () => {
+        try {
+          const resp = await fetch(file.fileData);
+          const buf = await resp.arrayBuffer();
+          const offCtx = new OfflineAudioContext(1, 1, 44100);
+          const decoded = await offCtx.decodeAudioData(buf);
+          const raw = decoded.getChannelData(0);
+          const N = 300;
+          const blockSize = Math.floor(raw.length / N);
+          const out = new Float32Array(N);
+          for (let i = 0; i < N; i++) {
+            let s = 0;
+            for (let j = 0; j < blockSize; j++) s += Math.abs(raw[i * blockSize + j]);
+            out[i] = Math.min(1, (s / blockSize) * 2.5);
+          }
+          setWaveforms(prev => ({ ...prev, [file.id]: out }));
+        } catch {}
+      })();
+    }
   };
 
   const playScope = (context, shuffle = false) => {
     const queue = getQueueForContext({ ...context, shuffle: false });
     if (queue.length === 0) return;
+    setManualQueue(null); // reset any manual reorder
     setPlayContext({ ...context, shuffle });
     const nextTrack = shuffle ? shuffleArray(queue)[0] : queue[0];
     startTrack(nextTrack, { ...context, shuffle });
   };
 
   const toggleShuffle = () => {
+    setManualQueue(null);
     setPlayContext((prev) => ({ ...prev, shuffle: !prev.shuffle }));
+  };
+
+  // Effective queue: manual reorder overrides the derived queue
+  const effectiveQueue = manualQueue || musicQueue;
+
+  // Like toggle
+  const toggleLike = (fileId) => {
+    setLikedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      return next;
+    });
+  };
+
+  // Bookmark handlers
+  const addBookmark = (fileId, bm) => {
+    setBookmarks(prev => ({ ...prev, [fileId]: [...(prev[fileId]||[]), bm] }));
+  };
+  const deleteBookmark = (fileId, bmId) => {
+    setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(b => b.id !== bmId) }));
+  };
+  const seekToBookmark = (time) => { seek(time); };
+
+  // Clip handlers
+  const addClip = (fileId, clip) => {
+    setClipStore(prev => ({ ...prev, [fileId]: [...(prev[fileId]||[]), clip] }));
+  };
+  const deleteClip = (fileId, clipId) => {
+    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(c => c.id !== clipId) }));
+    setActiveClip(prev => (prev && prev.id === clipId) ? null : prev);
+  };
+  const playClip = (clip) => {
+    setActiveClip(clip);
+    seek(clip.start);
+    audioRef.current.play().catch(() => {});
+  };
+  const stopClip = () => setActiveClip(null);
+
+  // Import file from local folder (used by LocalPage)
+  const importLocalFile = async (file, category) => {
+    return new Promise((resolve, reject) => {
+      const buf = file;
+      const startTs = Date.now();
+      const reader = new FileReader();
+      reader.onload = async () => {
+        let tags = {};
+        try { const ab = await file.arrayBuffer(); tags = await _parseID3Buffer(ab); } catch {}
+        const entry = {
+          id: 'F'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+          name: tags.title || file.name.replace(/\.[^.]+$/,''),
+          description: [tags.album, tags.year, tags.genre].filter(Boolean).join(' · '),
+          category: tags.artist || category,
+          artist: tags.artist || category,
+          album: tags.album||'', track: tags.track||'', year: tags.year||'', genre: tags.genre||'',
+          thumbnail: tags.coverArt||null, coverArt: tags.coverArt||null,
+          fileName: file.name, fileSize: file.size,
+          fileType: file.type||'audio/mpeg',
+          fileData: reader.result,
+          uploadedAt: Date.now(), downloads: 0,
+        };
+        setFiles(prev => [entry, ...prev]);
+        addToLog({ kind:'UP', name:entry.name, size:entry.fileSize });
+        resolve();
+      };
+      reader.onerror = () => reject(new Error('Read error'));
+      reader.readAsDataURL(file);
+    });
   };
 
   const toggleRepeat = () => {
@@ -2843,15 +3503,15 @@ function App() {
     if (audio.paused) audio.play().catch(() => {}); else audio.pause();
   };
   const playNext = (wrap = true) => {
-    if (musicQueue.length === 0) return;
-    const idx = musicQueue.findIndex((f) => f.id === currentTrackId);
-    const next = wrap ? musicQueue[(idx + 1) % musicQueue.length] : musicQueue[idx + 1];
+    if (effectiveQueue.length === 0) return;
+    const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
+    const next = wrap ? effectiveQueue[(idx + 1) % effectiveQueue.length] : effectiveQueue[idx + 1];
     if (next) startTrack(next);
   };
   const playPrev = () => {
-    if (musicQueue.length === 0) return;
-    const idx = musicQueue.findIndex((f) => f.id === currentTrackId);
-    const prev = musicQueue[(idx - 1 + musicQueue.length) % musicQueue.length];
+    if (effectiveQueue.length === 0) return;
+    const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
+    const prev = effectiveQueue[(idx - 1 + effectiveQueue.length) % effectiveQueue.length];
     if (prev) startTrack(prev);
   };
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
@@ -2862,6 +3522,7 @@ function App() {
     setIsPlaying(false);
     setPosition(0);
     setDuration(0);
+    setActiveClip(null);
   };
 
   // Clear multi-select when leaving CAT
@@ -2882,6 +3543,14 @@ function App() {
             <Marquee />
 
             <div className="grid">
+              {/* Left sidebar — library tree */}
+              <LibraryTree
+                files={files} allCats={allCats}
+                onNav={setRoute} onOpenFile={openFile}
+                onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
+                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
+
+              {/* Main content */}
               <div>
                 {route.page === 'INICIO' && (
                   <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
@@ -2892,6 +3561,24 @@ function App() {
                             onNav={setRoute}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+                )}
+                {route.page === 'MESGUSTA' && (
+                  <MeGustaPage
+                    files={files} likedIds={likedIds}
+                    onOpenFile={openFile} onNav={setRoute}
+                    onPlayAll={() => {
+                      const likedAudio = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
+                      if (likedAudio.length === 0) return;
+                      setManualQueue(likedAudio);
+                      startTrack(likedAudio[0], { type: 'all', shuffle: false });
+                    }}
+                    onToggleLike={toggleLike} />
+                )}
+                {route.page === 'STATS' && (
+                  <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} />
+                )}
+                {route.page === 'LOCAL' && (
+                  <LocalPage vault={files} onImportFile={importLocalFile} />
                 )}
                 {route.page === 'SUBIR' && (
                   <UploadPage allCats={allCats} vault={files}
@@ -2911,7 +3598,8 @@ function App() {
                 )}
                 {route.page === 'DETAIL' && (
                   currentFile
-                    ? <DetailPage file={currentFile} onBack={() => setRoute({ page: 'CAT', cat: currentFile.category })}
+                    ? <DetailPage file={currentFile}
+                                  onBack={() => setRoute({ page: 'CAT', cat: currentFile.category })}
                                   onDownload={handleDownload} onDelete={handleDelete}
                                   allCats={allCats} onUpdate={handleUpdate}
                                   onPlayAudio={playTrack}
@@ -2919,13 +3607,28 @@ function App() {
                                   isPlaying={isPlaying}
                                   id3Tags={id3Cache[currentFile.id]}
                                   requestID3={requestID3}
-                                  analyser={analyserRef} />
+                                  analyser={analyserRef}
+                                  likedIds={likedIds} onToggleLike={toggleLike}
+                                  bookmarks={bookmarks} onAddBookmark={addBookmark}
+                                  onDeleteBookmark={deleteBookmark} onSeekBookmark={seekToBookmark}
+                                  clipStore={clipStore} onAddClip={addClip}
+                                  onDeleteClip={deleteClip} onPlayClip={playClip}
+                                  onStopClip={stopClip} activeClip={activeClip}
+                                  position={position} />
                     : <div className="panel"><div className="panel-body" style={{textAlign:'center', padding: 40}}>
                         Archivo no encontrado. <button className="mini-btn" onClick={() => setRoute({ page: 'INICIO' })}>VOLVER</button>
                       </div></div>
                 )}
               </div>
-              <div>
+
+              {/* Right sidebar */}
+              <div className="right-sidebar-col">
+                <PlayQueue
+                  queue={effectiveQueue}
+                  currentId={currentTrackId}
+                  onJump={file => startTrack(file)}
+                  onReorder={arr => setManualQueue(arr)} />
+                <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
                 <NowStreaming files={files} onOpen={openFile} />
                 <DownloadCounter files={files} />
                 <RecentActivity log={log} files={files} onOpen={openFile} />
@@ -2941,12 +3644,13 @@ function App() {
         {t.rollbar && <div className="crt-rollbar"></div>}
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
+        <div className="crt-audio-pulse"></div>
       </div>
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}
                       onDownloadAll={bulkDownload} onDeleteAll={bulkDelete} busy={bulkBusy} />
 
-      <MusicPlayer track={currentTrack} queue={musicQueue} isPlaying={isPlaying}
+      <MusicPlayer track={currentTrack} queue={effectiveQueue} isPlaying={isPlaying}
                    position={position} duration={duration} volume={volume}
                    onPlayPause={playPause} onSeek={seek}
                    onPrev={playPrev} onNext={playNext}
@@ -2955,13 +3659,36 @@ function App() {
                    onVolume={setVolume}
                    onClose={stopMusic}
                    tags={currentTrackId ? id3Cache[currentTrackId] : null}
-                   analyser={analyserRef} />
+                   analyser={analyserRef}
+                   onOpenMenu={() => setShowPlayerMenu(true)}
+                   showMenu={showPlayerMenu}
+                   onCloseMenu={() => setShowPlayerMenu(false)}
+                   onCreateBookmark={() => { setShowPlayerMenu(false); setShowBookmarkModal(true); }}
+                   onCreateClip={() => { setShowPlayerMenu(false); setShowClipModal(true); }}
+                   waveform={currentTrackId ? waveforms[currentTrackId] : null}
+                   likedIds={likedIds} onToggleLike={toggleLike} />
 
       {showCreateModal && (
         <CreateCategoryModal
           existing={allCats}
           onClose={() => setShowCreateModal(false)}
           onSubmit={submitCreateCat}
+        />
+      )}
+
+      {showBookmarkModal && currentTrack && (
+        <BookmarkModal
+          position={position}
+          onSave={bm => { addBookmark(currentTrack.id, bm); setShowBookmarkModal(false); }}
+          onClose={() => setShowBookmarkModal(false)}
+        />
+      )}
+
+      {showClipModal && currentTrack && (
+        <ClipModal
+          position={position}
+          onSave={clip => { addClip(currentTrack.id, clip); setShowClipModal(false); }}
+          onClose={() => setShowClipModal(false)}
         />
       )}
 
