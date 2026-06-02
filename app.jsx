@@ -815,7 +815,7 @@ function TodoPage({ artists, files, onNav, onPlayAll, onPlayArtist }) {
 }
 
 // ─── PAGE: SUBIR ───────────────────────────────────────────────
-function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
+function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolder }) {
   const [file, setFile]         = useState(null);
   const [name, setName]         = useState('');
   const [artist, setArtist]     = useState('');
@@ -1014,6 +1014,150 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
             </div>
           </div>
         </div>
+      </div>
+
+      {'showDirectoryPicker' in window && (
+        <FolderImportSection vault={vault} onUpload={onUpload} />
+      )}
+    </div>
+  );
+}
+
+function FolderImportSection({ vault, onUpload }) {
+  const [state, setState] = useState('idle'); // idle | scanning | preview | importing | done
+  const [dirName, setDirName] = useState('');
+  const [found, setFound]     = useState([]);  // [{handle, name, size}]
+  const [results, setResults] = useState([]);  // [{name, status, reason?}]
+  const totalBytes = vault.reduce((a, f) => a + f.fileSize, 0);
+
+  const pickFolder = async () => {
+    try {
+      const dh = await window.showDirectoryPicker({ mode: 'read' });
+      setDirName(dh.name); setState('scanning'); setFound([]); setResults([]);
+      const audioFiles = [];
+      const scan = async (handle, path) => {
+        for await (const [name, entry] of handle.entries()) {
+          if (entry.kind === 'file') {
+            const ext = name.split('.').pop().toLowerCase();
+            if (/^(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/.test(ext)) {
+              const f = await entry.getFile();
+              audioFiles.push({ handle: entry, name, size: f.size });
+            }
+          } else if (entry.kind === 'directory') {
+            await scan(entry, path ? path + '/' + name : name);
+          }
+        }
+      };
+      await scan(dh, '');
+      setFound(audioFiles); setState('preview');
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error(e);
+      setState('idle');
+    }
+  };
+
+  const importAll = async () => {
+    setState('importing');
+    let used = totalBytes;
+    const res = [];
+    for (const item of found) {
+      if (item.size > SIZE_CAP)        { res.push({ name: item.name, status: 'skip', reason: 'max 8 MB' }); continue; }
+      if (used + item.size > VAULT_CAP){ res.push({ name: item.name, status: 'skip', reason: 'vault lleno' }); continue; }
+      try {
+        const file = await item.handle.getFile();
+        // Read ID3 tags
+        let tags = {};
+        try { const ab = await file.slice(0, 1024*1024).arrayBuffer(); tags = await _parseID3Buffer(ab); } catch {}
+        await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            onUpload({
+              _rawFile: file,
+              name:     tags.title  || file.name.replace(/\.[^.]+$/, ''),
+              description: [tags.album, tags.year, tags.genre].filter(Boolean).join(' · '),
+              category: tags.artist || 'LOCAL',
+              artist:   tags.artist || 'LOCAL',
+              album:    tags.album  || '',
+              track:    tags.track  || '',
+              year:     tags.year   || '',
+              genre:    tags.genre  || '',
+              thumbnail: tags.coverArt || null,
+              coverArt:  tags.coverArt || null,
+              fileName:  file.name,
+              fileSize:  file.size,
+              fileType:  file.type || 'audio/mpeg',
+            });
+            resolve();
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        used += item.size;
+        res.push({ name: item.name, status: 'ok' });
+      } catch { res.push({ name: item.name, status: 'err' }); }
+    }
+    setResults(res); setState('done');
+  };
+
+  return (
+    <div className="panel section">
+      <div className="panel-hd">IMPORTAR DESDE CARPETA <span className="dots">━━━</span></div>
+      <div className="panel-body">
+        <p style={{marginBottom:12, color:'var(--fg-dim)', fontSize:18}}>
+          Importa varios archivos de audio a la vez desde una carpeta local. Los archivos se copian al vault (se aplica el límite de 8 MB/archivo y 25 MB total).
+        </p>
+
+        {state === 'idle' && (
+          <button className="big-btn" onClick={pickFolder}>📁 ELEGIR CARPETA</button>
+        )}
+        {state === 'scanning' && (
+          <div style={{color:'var(--fg-accent)', fontSize:20}}>◆ Escaneando <strong>{dirName}</strong>...</div>
+        )}
+        {state === 'preview' && (
+          <div>
+            <p style={{color:'var(--fg-success)', marginBottom:10}}>
+              ✓ <strong>{dirName}</strong> — {found.length} archivo{found.length===1?'':'s'} de audio encontrado{found.length===1?'':'s'}
+            </p>
+            <div style={{display:'flex', gap:10, marginBottom:12, flexWrap:'wrap'}}>
+              {found.length > 0 && <button className="big-btn" onClick={importAll}>↑ IMPORTAR TODO</button>}
+              <button className="big-btn ghost" onClick={() => { setState('idle'); setFound([]); setDirName(''); }}>✕ CANCELAR</button>
+            </div>
+            <div className="local-file-list-preview">
+              {found.map((f, i) => (
+                <div key={i} className="local-file-item-preview">
+                  <span style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</span>
+                  <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9, flexShrink:0}}>{fmtBytes(f.size)}</span>
+                  {f.size > SIZE_CAP && <span style={{color:'var(--fg-accent)', fontFamily:'var(--pixel)', fontSize:9}}>omitido</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {state === 'importing' && (
+          <div style={{color:'var(--fg-accent)', fontSize:20}}>◆ Importando archivos...</div>
+        )}
+        {state === 'done' && (
+          <div>
+            <p style={{color:'var(--fg-success)', marginBottom:10}}>
+              ✓ Completado — {results.filter(r=>r.status==='ok').length} importado{results.filter(r=>r.status==='ok').length===1?'':'s'},
+              {' '}{results.filter(r=>r.status==='skip').length} omitido{results.filter(r=>r.status==='skip').length===1?'':'s'}
+            </p>
+            <div className="local-file-list-preview">
+              {results.map((r, i) => (
+                <div key={i} className="local-file-item-preview">
+                  <span style={{flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{r.name}</span>
+                  <span style={{fontFamily:'var(--pixel)', fontSize:9, flexShrink:0,
+                    color: r.status==='ok' ? 'var(--fg-success)' : r.status==='skip' ? 'var(--fg-dim)' : 'var(--fg-accent)'}}>
+                    {r.status==='ok' ? '✓' : r.status==='skip' ? `omitido (${r.reason})` : '✕ error'}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button className="big-btn" style={{marginTop:12}} onClick={() => { setState('idle'); setFound([]); setResults([]); setDirName(''); }}>
+              ↺ IMPORTAR OTRA CARPETA
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2034,10 +2178,79 @@ function StatsPanel({ files, allCats }) {
   );
 }
 
+// ─── PLAYER ICON SVGs ───────────────────────────────────────────
+function IconShuffle({ active }) {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" style={{ opacity: active ? 1 : 0.45 }}>
+      {/* arrow 1: left→right (top path) */}
+      <polyline points="16,3 21,3 21,8" {...s} />
+      <path d="M3 12 Q3 3 12 3 L21 3" {...s} />
+      {/* arrow 2: right→left (bottom path) */}
+      <polyline points="8,21 3,21 3,16" {...s} />
+      <path d="M21 12 Q21 21 12 21 L3 21" {...s} />
+      {/* crossing tick marks */}
+      <line x1="3" y1="3" x2="9" y2="9" {...s} />
+      <line x1="15" y1="15" x2="21" y2="21" {...s} />
+    </svg>
+  );
+}
+function IconRepeatOff() {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: 0.4 };
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <polyline points="17,1 21,5 17,9" {...s} />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" {...s} />
+      <polyline points="7,23 3,19 7,15" {...s} />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" {...s} />
+    </svg>
+  );
+}
+function IconRepeatAll() {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <polyline points="17,1 21,5 17,9" {...s} />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" {...s} />
+      <polyline points="7,23 3,19 7,15" {...s} />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" {...s} />
+    </svg>
+  );
+}
+function IconRepeatOne() {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <polyline points="17,1 21,5 17,9" {...s} />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" {...s} />
+      <polyline points="7,23 3,19 7,15" {...s} />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" {...s} />
+      <text x="12" y="14" textAnchor="middle" fill="currentColor" stroke="none" fontSize="7" fontFamily="var(--pixel)" fontWeight="bold">1</text>
+    </svg>
+  );
+}
+function IconVolume({ level }) {
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const f = { fill: 'currentColor', stroke: 'none' };
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24">
+      {/* speaker body */}
+      <polygon points="11,5 6,9 2,9 2,15 6,15 11,19" {...s} />
+      {/* wave 1 — always shown */}
+      {level > 0.05 && <path d="M15.54 8.46a5 5 0 0 1 0 7.07" {...s} />}
+      {/* wave 2 — only when loud */}
+      {level > 0.5  && <path d="M19.07 4.93a10 10 0 0 1 0 14.14" {...s} />}
+      {/* muted X */}
+      {level <= 0.05 && <line x1="23" y1="9" x2="17" y2="15" {...s} />}
+      {level <= 0.05 && <line x1="17" y1="9" x2="23" y2="15" {...s} />}
+    </svg>
+  );
+}
+
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
 function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike }) {
   if (!track) return null;
-  const BAR_COUNT = 60;
+  const BAR_COUNT = 90;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
 
@@ -2087,13 +2300,15 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-controls">
         <button onClick={onPrev} title="Anterior">◀◀</button>
-        <button onClick={onShuffle} title="Aleatorio">{shuffleActive ? '🔀' : '↻'}</button>
-        <button onClick={onRepeat} title="Repetir">{repeatMode === 'off' ? '⏹' : repeatMode === 'all' ? '🔁' : '🔂'}</button>
+        <button onClick={onShuffle} title="Aleatorio" style={{lineHeight:0}}><IconShuffle active={shuffleActive} /></button>
+        <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
+          {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
+        </button>
         <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
         <button onClick={onNext} title="Siguiente">▶▶</button>
       </div>
       <div className="mp-volume">
-        <span style={{fontSize:14}}>🔊</span>
+        <span style={{lineHeight:0, display:'inline-flex'}}><IconVolume level={volume} /></span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
                onChange={(e) => onVolume(parseFloat(e.target.value))} />
       </div>
@@ -2937,74 +3152,82 @@ function ClipModal({ position, onSave, onClose }) {
 }
 
 // ─── LOCAL IMPORT PAGE ──────────────────────────────────────
-function LocalPage({ vault, onImportFile }) {
-  const [supported] = useState(() => 'showDirectoryPicker' in window);
-  const [scanning, setScanning] = useState(false);
-  const [found, setFound] = useState(null);
-  const [results, setResults] = useState([]);
-  const [done, setDone] = useState(false);
-  const [dirName, setDirName] = useState('');
-  const scanFolder = async () => {
-    if (!supported) return;
-    try {
-      const dh = await window.showDirectoryPicker({ mode: 'read' });
-      setDirName(dh.name); setScanning(true); setFound(null); setResults([]); setDone(false);
-      const audioFiles = [];
-      const scan = async (handle, path) => {
-        for await (const [name, entry] of handle.entries()) {
-          const fp = path ? path+'/'+name : name;
-          if (entry.kind==='file') {
-            const ext=name.split('.').pop().toLowerCase();
-            if (/^(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/.test(ext)) {
-              const f=await entry.getFile(); audioFiles.push({handle:entry,name,size:f.size,path:fp});
-            }
-          } else if (entry.kind==='directory') { await scan(entry,fp); }
-        }
-      };
-      await scan(dh,''); setFound(audioFiles); setScanning(false);
-    } catch(e) { if(e.name!=='AbortError') alert('Error: '+(e.message||e)); setScanning(false); }
-  };
-  const importAll = async () => {
-    if (!found||found.length===0) return;
-    let usedSize = vault.reduce((a,f)=>a+f.fileSize,0);
-    const res = [];
-    for (const item of found) {
-      if (item.size>SIZE_CAP) { res.push({name:item.name,status:'skip',reason:'max 8MB'}); continue; }
-      if (usedSize+item.size>VAULT_CAP) { res.push({name:item.name,status:'skip',reason:'vault lleno'}); continue; }
-      try { const file=await item.handle.getFile(); await onImportFile(file,'LOCAL'); usedSize+=item.size; res.push({name:item.name,status:'ok'}); }
-      catch { res.push({name:item.name,status:'err'}); }
-    }
-    setResults(res); setDone(true);
-  };
+function LocalPage({ localFiles, dirName, scanning, onPickFolder, onPlayAll, onPlayFile, currentId, isPlaying }) {
+  const supported = 'showDirectoryPicker' in window;
+  const connected = localFiles.length > 0 || dirName;
+
+  // Group by artist/album for display
+  const byArtist = {};
+  localFiles.forEach(f => {
+    const a = f.artist || 'SIN ARTISTA';
+    if (!byArtist[a]) byArtist[a] = {};
+    const al = f.album || 'SIN ÁLBUM';
+    if (!byArtist[a][al]) byArtist[a][al] = [];
+    byArtist[a][al].push(f);
+  });
+
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">MÚSICA LOCAL <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
-          <div className="hero" style={{minHeight:'unset'}}>
-            <p>Conecta una carpeta local de música. El navegador pedirá permiso de lectura.</p>
-            <p style={{color:'var(--fg-dim)',fontSize:18,marginTop:8}}>Solo Chrome y Edge son compatibles. Se aplica el límite de 8 MB/archivo y 25 MB total. Los archivos importados se guardan en la categoría <strong style={{color:'var(--fg-primary)'}}>LOCAL</strong>.</p>
-          </div>
-          {!supported && <div className="dz-err" style={{marginTop:14}}>Tu navegador no soporta File System Access API. Usa Chrome o Edge.</div>}
-          {supported && !scanning && !found && <button className="big-btn" style={{marginTop:14}} onClick={scanFolder}>📁 ELEGIR CARPETA LOCAL</button>}
-          {scanning && <div style={{marginTop:14,color:'var(--fg-accent)',fontSize:20}}>◆ Escaneando...</div>}
-          {found && !done && (
-            <div style={{marginTop:14}}>
-              <p style={{color:'var(--fg-success)',marginBottom:10}}>✓ <strong>{dirName}</strong> — {found.length} archivo{found.length===1?'':'s'} de audio</p>
-              {found.length>0 && <button className="big-btn" onClick={importAll}>↑ IMPORTAR TODO</button>}
-              <button className="big-btn ghost" style={{marginLeft:10}} onClick={()=>{setFound(null);setDirName('');}}>✕ CANCELAR</button>
-              <div className="local-file-list">{found.map((f,i)=><div key={i} className="local-file-item"><span className="lf-name">{f.name}</span><span className="lf-size">{fmtBytes(f.size)}</span></div>)}</div>
+          {!supported && (
+            <div className="dz-err">File System Access API no disponible — usa Chrome o Edge.</div>
+          )}
+          {supported && (
+            <div style={{display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
+              <button className="big-btn" onClick={onPickFolder} disabled={scanning}>
+                {scanning ? '◆ ESCANEANDO...' : connected ? '↺ CAMBIAR CARPETA' : '📁 ELEGIR CARPETA'}
+              </button>
+              {connected && localFiles.length > 0 && (
+                <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+              )}
+              {dirName && (
+                <span style={{color:'var(--fg-dim)', fontSize:18}}>
+                  {dirName} · <span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span>
+                </span>
+              )}
             </div>
           )}
-          {done && (
-            <div style={{marginTop:14}}>
-              <p style={{color:'var(--fg-success)',marginBottom:10}}>✓ Importación completada</p>
-              <div className="local-file-list">{results.map((r,i)=><div key={i} className="local-file-item"><span className="lf-name">{r.name}</span><span className={`lf-status ${r.status==='ok'?'lf-ok':r.status==='skip'?'lf-skip':'lf-err'}`}>{r.status==='ok'?'✓ importado':r.status==='skip'?`omitido (${r.reason})`:'✕ error'}</span></div>)}</div>
-              <button className="big-btn" style={{marginTop:12}} onClick={()=>{setFound(null);setResults([]);setDone(false);setDirName('');}}>↺ IMPORTAR OTRA CARPETA</button>
-            </div>
+          {!connected && !scanning && supported && (
+            <p style={{marginTop:14, color:'var(--fg-dim)', fontSize:18}}>
+              Los archivos se leen directamente del disco — nada se copia ni almacena en el navegador. Sin límite de tamaño.
+            </p>
           )}
         </div>
       </div>
+
+      {Object.entries(byArtist).map(([artist, albums]) => (
+        <div key={artist} className="panel section">
+          <div className="panel-hd">{artist}</div>
+          <div className="panel-body" style={{padding:'0'}}>
+            {Object.entries(albums).map(([album, songs]) => (
+              <div key={album}>
+                <div style={{padding:'6px 14px 4px', fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em', borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
+                  {album}
+                </div>
+                {songs
+                  .sort((a,b)=>(parseInt(a.track)||999)-(parseInt(b.track)||999))
+                  .map(f => {
+                    const active = f.id === currentId;
+                    return (
+                      <div key={f.id} className={`local-track-row${active?' local-track-active':''}`} onClick={() => onPlayFile(f)}>
+                        <span className="local-track-num">{f.track ? f.track.split('/')[0] : '—'}</span>
+                        <div style={{flex:1, overflow:'hidden'}}>
+                          <div className="local-track-name">{f.name}</div>
+                        </div>
+                        {f.year && <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9}}>{f.year}</span>}
+                        <span className="local-track-size">{fmtBytes(f.fileSize)}</span>
+                        <span className="local-track-play">{active && isPlaying ? '❚❚' : '▶'}</span>
+                      </div>
+                    );
+                  })
+                }
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -3070,11 +3293,34 @@ function App() {
   const [showClipModal, setShowClipModal]         = useState(false);
   const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
   const [waveforms, setWaveforms]   = useState({});              // {fileId: Float32Array}
-  const activeClipRef = useRef(null);
-  const audioSyncRef  = useRef(null);
+  const activeClipRef  = useRef(null);
+  const audioSyncRef   = useRef(null);
+  const localBlobRef   = useRef(null);
+  const playStartRef   = useRef(null); // timestamp when current track started playing
+
+  // Local music (File System Access — never stored in localStorage)
+  const [localFiles,   setLocalFiles]   = useState([]);
+  const [localDirName, setLocalDirName] = useState('');
+  const [localScanning, setLocalScanning] = useState(false);
 
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
+
+  // Measure header height for sidebar top offset
+  useEffect(() => {
+    const measure = () => {
+      const page = document.querySelector('.page');
+      const marquee = document.querySelector('.marquee');
+      if (page && marquee) {
+        const top = marquee.getBoundingClientRect().bottom + 8;
+        document.documentElement.style.setProperty('--sidebar-top', top + 'px');
+      }
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
@@ -3130,9 +3376,13 @@ function App() {
     };
     const onDur = () => setDuration(audio.duration || 0);
     const onEnded = () => {
+      // Natural end always counts as a listen, regardless of duration
+      countPlay(currentTrackId);
+      playStartRef.current = null; // prevent double-count in startTrack
       if (repeatMode === 'one') {
         audio.currentTime = 0;
         audio.play().catch(() => {});
+        playStartRef.current = Date.now();
         return;
       }
       playNext(repeatMode === 'all');
@@ -3331,6 +3581,7 @@ function App() {
   };
 
   const getQueueForContext = useCallback((context) => {
+    if (context.type === 'local') return localFiles;
     const all = files.filter(isAudioFile);
     if (context.type === 'artist' && context.artist) {
       return all.filter((f) => (f.artist || f.category) === context.artist);
@@ -3339,7 +3590,7 @@ function App() {
       return all.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
     }
     return all;
-  }, [files]);
+  }, [files, localFiles]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
@@ -3350,6 +3601,11 @@ function App() {
     const tags = await readID3(file.fileData);
     setId3Cache((p) => ({ ...p, [file.id]: tags }));
     return tags;
+  };
+
+  const countPlay = (id) => {
+    if (!id) return;
+    setPlayCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
   };
 
   const startTrack = (file, nextContext) => {
@@ -3364,15 +3620,37 @@ function App() {
       audio.play().catch(() => {});
       return;
     }
+    // Count previous track if it was played for at least 30 seconds
+    if (currentTrackId && playStartRef.current) {
+      const elapsed = Date.now() - playStartRef.current;
+      if (elapsed >= 30000) countPlay(currentTrackId);
+    }
+    playStartRef.current = Date.now();
+
+    // Local file: get blob URL from FileSystemFileHandle
+    if (file.isLocal && file.fileHandle) {
+      (async () => {
+        try {
+          const f = await file.fileHandle.getFile();
+          if (localBlobRef.current) URL.revokeObjectURL(localBlobRef.current);
+          const url = URL.createObjectURL(f);
+          localBlobRef.current = url;
+          audio.src = url;
+          audio.play().catch(() => {});
+        } catch (e) { console.error('Local file read error:', e); }
+      })();
+      setCurrentTrackId(file.id);
+      setPosition(0); setDuration(0); setActiveClip(null);
+      requestID3(file);
+      return;
+    }
     audio.src = file.fileData;
     setCurrentTrackId(file.id);
     setPosition(0);
     setDuration(0);
-    setActiveClip(null);  // clear any active clip on track change
+    setActiveClip(null);
     audio.play().catch(() => {});
     requestID3(file);
-    // Track play count
-    setPlayCounts(prev => ({ ...prev, [file.id]: (prev[file.id] || 0) + 1 }));
     // Decode waveform for new track (non-blocking)
     if (!waveforms[file.id]) {
       (async () => {
@@ -3447,35 +3725,85 @@ function App() {
   const stopClip = () => setActiveClip(null);
 
   // Import file from local folder (used by LocalPage)
-  const importLocalFile = async (file, category) => {
-    return new Promise((resolve, reject) => {
-      const buf = file;
-      const startTs = Date.now();
-      const reader = new FileReader();
-      reader.onload = async () => {
-        let tags = {};
-        try { const ab = await file.arrayBuffer(); tags = await _parseID3Buffer(ab); } catch {}
-        const entry = {
-          id: 'F'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-          name: tags.title || file.name.replace(/\.[^.]+$/,''),
-          description: [tags.album, tags.year, tags.genre].filter(Boolean).join(' · '),
-          category: tags.artist || category,
-          artist: tags.artist || category,
-          album: tags.album||'', track: tags.track||'', year: tags.year||'', genre: tags.genre||'',
-          thumbnail: tags.coverArt||null, coverArt: tags.coverArt||null,
-          fileName: file.name, fileSize: file.size,
-          fileType: file.type||'audio/mpeg',
-          fileData: reader.result,
-          uploadedAt: Date.now(), downloads: 0,
-        };
-        setFiles(prev => [entry, ...prev]);
-        addToLog({ kind:'UP', name:entry.name, size:entry.fileSize });
-        resolve();
-      };
-      reader.onerror = () => reject(new Error('Read error'));
-      reader.readAsDataURL(file);
-    });
+  // ── LOCAL MUSIC (read from disk, no copy) ─────────────────────
+  const scanLocalDir = async (dirHandle) => {
+    setLocalScanning(true);
+    const entries = [];
+    const scan = async (handle, pathPrefix) => {
+      for await (const [name, entry] of handle.entries()) {
+        if (entry.kind === 'file') {
+          const ext = name.split('.').pop().toLowerCase();
+          if (/^(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/.test(ext)) {
+            entries.push({ fileHandle: entry, name, pathPrefix });
+          }
+        } else if (entry.kind === 'directory') {
+          await scan(entry, pathPrefix ? pathPrefix + '/' + name : name);
+        }
+      }
+    };
+    try {
+      await scan(dirHandle, '');
+      // Read ID3 tags for each file (only first 1MB — enough for metadata)
+      const parsed = await Promise.all(entries.map(async ({ fileHandle, name }) => {
+        try {
+          const file = await fileHandle.getFile();
+          const slice = file.slice(0, 1024 * 1024);
+          const buf = await slice.arrayBuffer();
+          const tags = await _parseID3Buffer(buf);
+          return {
+            id: 'local_' + Math.random().toString(36).slice(2),
+            name: tags.title || name.replace(/\.[^.]+$/, ''),
+            artist: tags.artist || tags.albumArtist || '',
+            album: tags.album || '',
+            track: tags.track || '',
+            year: tags.year || '',
+            genre: tags.genre || '',
+            thumbnail: tags.coverArt || null,
+            coverArt: tags.coverArt || null,
+            fileName: name,
+            fileSize: file.size,
+            fileType: file.type || 'audio/mpeg',
+            fileData: null,      // never stored
+            isLocal: true,
+            fileHandle,
+            uploadedAt: file.lastModified || Date.now(),
+            downloads: 0,
+          };
+        } catch { return null; }
+      }));
+      setLocalFiles(parsed.filter(Boolean));
+    } catch {}
+    setLocalScanning(false);
   };
+
+  const pickLocalFolder = async () => {
+    if (!('showDirectoryPicker' in window)) return;
+    try {
+      const dh = await window.showDirectoryPicker({ mode: 'read' });
+      setLocalDirName(dh.name);
+      await idbSet('localDirHandle', dh);
+      await scanLocalDir(dh);
+    } catch (e) {
+      if (e.name !== 'AbortError') console.error(e);
+    }
+  };
+
+  // Try to restore local folder on first load
+  useEffect(() => {
+    (async () => {
+      try {
+        const dh = await idbGet('localDirHandle');
+        if (!dh) return;
+        const perm = await dh.queryPermission({ mode: 'read' });
+        if (perm === 'granted') {
+          setLocalDirName(dh.name);
+          await scanLocalDir(dh);
+        } else {
+          setLocalDirName(dh.name); // show name, wait for user click to re-grant
+        }
+      } catch {}
+    })();
+  }, []);
 
   const toggleRepeat = () => {
     setRepeatMode((prev) => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
@@ -3489,6 +3817,20 @@ function App() {
     }
     if (currentTrackId === file.id) {
       if (audio.paused) audio.play(); else audio.pause();
+      return;
+    }
+    if (file.isLocal && file.fileHandle) {
+      (async () => {
+        try {
+          const f = await file.fileHandle.getFile();
+          if (localBlobRef.current) URL.revokeObjectURL(localBlobRef.current);
+          const url = URL.createObjectURL(f);
+          localBlobRef.current = url;
+          audio.src = url;
+          audio.play().catch(() => {});
+        } catch {}
+      })();
+      setCurrentTrackId(file.id); setPosition(0); setDuration(0);
       return;
     }
     audio.src = file.fileData;
@@ -3542,16 +3884,7 @@ function App() {
             <Nav current={route} onNav={setRoute} allCats={allCats} />
             <Marquee />
 
-            <div className="grid">
-              {/* Left sidebar — library tree */}
-              <LibraryTree
-                files={files} allCats={allCats}
-                onNav={setRoute} onOpenFile={openFile}
-                onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
-                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
-
-              {/* Main content */}
-              <div>
+            <div className="main-content-only">
                 {route.page === 'INICIO' && (
                   <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                             onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
@@ -3578,7 +3911,24 @@ function App() {
                   <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} />
                 )}
                 {route.page === 'LOCAL' && (
-                  <LocalPage vault={files} onImportFile={importLocalFile} />
+                  <LocalPage
+                    localFiles={localFiles}
+                    dirName={localDirName}
+                    scanning={localScanning}
+                    onPickFolder={pickLocalFolder}
+                    onPlayAll={() => {
+                      if (localFiles.length === 0) return;
+                      setManualQueue(null);
+                      playScope({ type: 'local', shuffle: false }, false);
+                    }}
+                    onPlayFile={f => {
+                      setManualQueue(null);
+                      setPlayContext({ type: 'local', shuffle: false });
+                      startTrack(f, { type: 'local', shuffle: false });
+                    }}
+                    currentId={currentTrackId}
+                    isPlaying={isPlaying}
+                  />
                 )}
                 {route.page === 'SUBIR' && (
                   <UploadPage allCats={allCats} vault={files}
@@ -3619,20 +3969,6 @@ function App() {
                         Archivo no encontrado. <button className="mini-btn" onClick={() => setRoute({ page: 'INICIO' })}>VOLVER</button>
                       </div></div>
                 )}
-              </div>
-
-              {/* Right sidebar */}
-              <div className="right-sidebar-col">
-                <PlayQueue
-                  queue={effectiveQueue}
-                  currentId={currentTrackId}
-                  onJump={file => startTrack(file)}
-                  onReorder={arr => setManualQueue(arr)} />
-                <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
-                <NowStreaming files={files} onOpen={openFile} />
-                <DownloadCounter files={files} />
-                <RecentActivity log={log} files={files} onOpen={openFile} />
-              </div>
             </div>
 
             <Terminal files={files} allCats={allCats} />
@@ -3645,6 +3981,26 @@ function App() {
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
         <div className="crt-audio-pulse"></div>
+      </div>
+
+      {/* Margin sidebars — outside crt-screen, truly in the viewport margins */}
+      <div className="margin-sidebar-left">
+        <LibraryTree
+          files={files} allCats={allCats}
+          onNav={setRoute} onOpenFile={openFile}
+          onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
+          onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
+      </div>
+      <div className="margin-sidebar-right">
+        <PlayQueue
+          queue={effectiveQueue}
+          currentId={currentTrackId}
+          onJump={file => startTrack(file)}
+          onReorder={arr => setManualQueue(arr)} />
+        <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
+        <NowStreaming files={files} onOpen={openFile} />
+        <DownloadCounter files={files} />
+        <RecentActivity log={log} files={files} onOpen={openFile} />
       </div>
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}

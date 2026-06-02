@@ -394,24 +394,50 @@ input, textarea {
   100% { transform: translateX(-100%); }
 }
 
-/* Grid layout — 3 columns: left sidebar + main + right sidebar */
-.grid {
-  display: grid;
-  grid-template-columns: 220px 1fr 280px;
-  gap: 18px;
-  align-items: start;
+/* Main content — full width, centered with space for margin sidebars */
+.main-content-only {
+  width: 100%;
 }
+
+/* Margin sidebars — fixed to viewport edges, outside the CRT screen */
+.margin-sidebar-left,
+.margin-sidebar-right {
+  position: fixed;
+  top: 0;
+  bottom: 90px; /* above music player */
+  width: 220px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: var(--sidebar-top, 260px);
+  padding-bottom: 12px;
+  z-index: 90;
+  scrollbar-width: thin;
+  scrollbar-color: var(--fg-primary) transparent;
+  pointer-events: auto;
+}
+.margin-sidebar-left::-webkit-scrollbar,
+.margin-sidebar-right::-webkit-scrollbar { width: 3px; }
+.margin-sidebar-left::-webkit-scrollbar-thumb,
+.margin-sidebar-right::-webkit-scrollbar-thumb { background: var(--fg-primary); }
+
+.margin-sidebar-left  { left: 6px; }
+.margin-sidebar-right { right: 6px; width: 240px; }
+
+/* Hide on narrow screens */
 @media (max-width: 1300px) {
-  .grid { grid-template-columns: 180px 1fr 260px; }
+  .margin-sidebar-left  { width: 180px; }
+  .margin-sidebar-right { width: 200px; }
 }
 @media (max-width: 1050px) {
-  .grid { grid-template-columns: 1fr 260px; }
-  .lib-tree-wrap { display: none; }
+  .margin-sidebar-left { display: none; }
 }
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
-  .right-sidebar-col { display: none; }
+  .margin-sidebar-right { display: none; }
 }
+
+/* Legacy — kept for any remaining uses */
+.grid { display: block; }
+.right-sidebar-col { display: none; }
 
 .panel {
   border: 1px solid var(--fg-dim);
@@ -2413,21 +2439,26 @@ input, textarea {
 }
 .mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
 
-/* VU bars — behind the player, grow upward from its top edge */
+/* VU bars — behind the player border, grow upward */
 .mp-vu {
   position: absolute;
-  bottom: 100%;
-  left: 0; right: 0;
-  height: 56px;
+  /* Overlap 2px into the player so the bars start from behind the border,
+     not sitting on top of it. z-index:-1 hides the overlap inside. */
+  bottom: calc(100% - 2px);
+  /* Extend left/right by 2px to cover the border width edge-to-edge */
+  left: -2px; right: -2px;
+  height: 60px;
   display: flex;
   align-items: flex-end;
   gap: 1px;
   padding: 0;
   pointer-events: none;
   z-index: -1;
+  overflow: hidden; /* clip the 2px that dips into the player */
 }
 .mp-vu-bar {
   flex: 1;
+  min-width: 0;
   background:
     repeating-linear-gradient(
       0deg,
@@ -2780,16 +2811,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
 /* ─── Library Tree (left sidebar) ───────────────────────────── */
 .lib-tree-wrap {
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fg-primary) transparent;
+  /* scroll handled by .margin-sidebar-left container */
+  overflow: visible;
 }
-.lib-tree-wrap::-webkit-scrollbar { width: 4px; }
-.lib-tree-wrap::-webkit-scrollbar-thumb { background: var(--fg-primary); }
 .lib-tree {
   background: rgba(0,0,0,0.5);
   border: 1px solid var(--fg-primary);
@@ -3109,19 +3133,33 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   transition: opacity 0.02s linear;
 }
 
-/* ─── Local import page section ──────────────────────────────── */
-.local-file-list { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; max-height: 300px; overflow-y: auto; }
-.local-file-item {
+/* ─── Local music page ───────────────────────────────────────── */
+.local-track-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 5px 10px;
-  border-bottom: 1px dotted rgba(214,31,31,0.2);
-  font-size: 17px;
+  padding: 7px 14px;
+  border-bottom: 1px dotted rgba(214,31,31,0.15);
+  cursor: pointer;
+  transition: background 0.1s;
+  font-size: 19px;
 }
-.local-file-item .lf-name { flex: 1; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.local-file-item .lf-size { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; }
-.local-file-item .lf-status { font-family: var(--pixel); font-size: 9px; }
-.lf-ok { color: var(--fg-success); }
-.lf-skip { color: var(--fg-dim); }
-.lf-err { color: var(--fg-accent); }
+.local-track-row:hover { background: rgba(214,31,31,0.1); }
+.local-track-active { background: rgba(214,31,31,0.18) !important; border-left: 2px solid var(--fg-accent); }
+.local-track-num  { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; width: 20px; text-align: right; flex-shrink: 0; }
+.local-track-name { color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.local-track-size { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; flex-shrink: 0; }
+.local-track-play { color: var(--fg-primary); font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+
+/* Folder import preview list (in UploadPage) */
+.local-file-list-preview {
+  display: flex; flex-direction: column;
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid rgba(214,31,31,0.3);
+  scrollbar-width: thin; scrollbar-color: var(--fg-primary) transparent;
+}
+.local-file-item-preview {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px; font-size: 17px;
+  border-bottom: 1px dotted rgba(214,31,31,0.15);
+}
