@@ -623,45 +623,82 @@ function Banner({ onNav }) {
 }
 
 function Nav({ current, onNav, allCats }) {
+  const [dropOpen, setDropOpen] = useState(false);
+  const [hiddenCats, setHiddenCats] = useState([]);
+  const navLeftRef = useRef(null);
+  const dropRef    = useRef(null);
+  const visibleRef = useRef(new Set());
+
+  useEffect(() => {
+    const navLeft = navLeftRef.current;
+    if (!navLeft) return;
+    visibleRef.current = new Set();
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        const cat = entry.target.dataset.navCat;
+        if (!cat) return;
+        if (entry.isIntersecting) visibleRef.current.add(cat);
+        else visibleRef.current.delete(cat);
+      });
+      const vis = visibleRef.current;
+      setHiddenCats(allCats.filter(c => !vis.has(c)));
+    }, { root: navLeft, threshold: 0.9 });
+    navLeft.querySelectorAll('[data-nav-cat]').forEach(el => observer.observe(el));
+    return () => { observer.disconnect(); visibleRef.current = new Set(); };
+  }, [allCats]);
+
+  useEffect(() => {
+    if (!dropOpen) return;
+    const handler = (e) => { if (!dropRef.current?.contains(e.target)) setDropOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropOpen]);
+
+  const dropActive = hiddenCats.some(c => current.page === 'CAT' && current.cat === c);
+
   return (
     <nav className="nav">
-      <span className="prompt glow">C:\&gt;</span>
-      {/* Fixed: Inicio + Subir */}
-      {[{ key: 'INICIO', glyph: 'INICIO' }, { key: 'SUBIR', glyph: 'SUBIR' }].map(it => (
-        <button key={it.key}
-                className={current.page === it.key ? 'active' : ''}
-                onClick={() => onNav({ page: it.key })}>
-          <NavGlyph kind={it.glyph} />{it.key}
-        </button>
-      ))}
-      <button key="TODO"
-              className={current.page === 'TODO' ? 'active' : ''}
-              onClick={() => onNav({ page: 'TODO' })}>
-        <NavGlyph kind="MÚSICA" />TODO
-      </button>
-      <button key="MESGUSTA"
-              className={current.page === 'MESGUSTA' ? 'active' : ''}
-              onClick={() => onNav({ page: 'MESGUSTA' })}>
-        <NavGlyph kind="OTROS" />♥ GUSTA
-      </button>
-      <button key="STATS"
-              className={current.page === 'STATS' ? 'active' : ''}
-              onClick={() => onNav({ page: 'STATS' })}>
-        <NavGlyph kind="OTROS" />STATS
-      </button>
-      <button key="LOCAL"
-              className={current.page === 'LOCAL' ? 'active' : ''}
-              onClick={() => onNav({ page: 'LOCAL' })}>
-        <NavGlyph kind="SUBIR" />LOCAL
-      </button>
-      {/* Dynamic: one button per artist */}
-      {allCats.map(artist => (
-        <button key={artist}
-                className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                onClick={() => onNav({ page: 'CAT', cat: artist })}>
-          <NavGlyph kind="MÚSICA" />{artist}
-        </button>
-      ))}
+      <div className="nav-left" ref={navLeftRef}>
+        <span className="prompt glow">C:\&gt;</span>
+        {[{ key: 'INICIO', glyph: 'INICIO' }, { key: 'SUBIR', glyph: 'SUBIR' }].map(it => (
+          <button key={it.key}
+                  className={current.page === it.key ? 'active' : ''}
+                  onClick={() => onNav({ page: it.key })}>
+            <NavGlyph kind={it.glyph} />{it.key}
+          </button>
+        ))}
+        <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="MÚSICA" />TODO</button>
+        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />♥ GUSTA</button>
+        <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="OTROS" />STATS</button>
+        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="SUBIR" />LOCAL</button>
+        {allCats.map(artist => (
+          <button key={artist}
+                  data-nav-cat={artist}
+                  className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                  onClick={() => onNav({ page: 'CAT', cat: artist })}>
+            <NavGlyph kind="MÚSICA" />{artist}
+          </button>
+        ))}
+      </div>
+      {hiddenCats.length > 0 && (
+        <div ref={dropRef} className="nav-more">
+          <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
+                  onClick={() => setDropOpen(p => !p)}>
+            ▼ +{hiddenCats.length}
+          </button>
+          {dropOpen && (
+            <div className="nav-dropdown">
+              {hiddenCats.map(artist => (
+                <button key={artist}
+                        className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                        onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
+                  <NavGlyph kind="MÚSICA" />{artist}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </nav>
   );
 }
@@ -3222,11 +3259,16 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onPlayAll, onP
                     const active = f.id === currentId;
                     return (
                       <div key={f.id} className={`local-track-row${active?' local-track-active':''}`} onClick={() => onPlayFile(f)}>
+                        {f.thumbnail
+                          ? <img src={f.thumbnail} alt="" className="local-track-thumb" />
+                          : <div className="local-track-thumb local-track-thumb-empty">♪</div>
+                        }
                         <span className="local-track-num">{f.track ? f.track.split('/')[0] : '—'}</span>
-                        <div style={{flex:1, overflow:'hidden'}}>
+                        <div style={{flex:1, minWidth:0}}>
                           <div className="local-track-name">{f.name}</div>
+                          {f.album && <div className="local-track-album">{f.album}</div>}
                         </div>
-                        {f.year && <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9}}>{f.year}</span>}
+                        {f.year && <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9, flexShrink:0}}>{f.year}</span>}
                         <span className="local-track-size">{fmtBytes(f.fileSize)}</span>
                         <span className="local-track-play">{active && isPlaying ? '❚❚' : '▶'}</span>
                       </div>
@@ -3768,7 +3810,7 @@ function App() {
           return {
             id: 'local_' + Math.random().toString(36).slice(2),
             name: tags.title || name.replace(/\.[^.]+$/, ''),
-            artist: tags.artist || tags.albumArtist || '',
+            artist: tags.albumArtist || tags.artist || '',
             album: tags.album || '',
             track: tags.track || '',
             year: tags.year || '',
@@ -3949,7 +3991,7 @@ function App() {
               )}
               {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
               {route.page === 'CAT' && (
-                <CategoryPage cat={route.cat} files={files}
+                <CategoryPage cat={route.cat} files={[...files, ...localFiles]}
                               onOpenFile={openFile} onNav={setRoute}
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
