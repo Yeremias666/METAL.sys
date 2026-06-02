@@ -511,8 +511,8 @@ input, textarea {
   justify-content: center;
   width: 22px;
   height: 22px;
-  background: rgba(0,0,0,0.45);
-  border: 1.5px solid rgba(0,0,0,0.55);
+  background: rgba(0,0,0,0.22);
+  border: 1.5px solid rgba(255,255,255,0.25);
   color: inherit;
   cursor: pointer;
   flex-shrink: 0;
@@ -520,8 +520,8 @@ input, textarea {
   transition: background 0.12s, box-shadow 0.12s;
 }
 .cat-upload-btn:hover {
-  background: rgba(0,0,0,0.7);
-  box-shadow: 0 0 5px rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.5);
+  box-shadow: 0 0 5px rgba(0,0,0,0.4);
 }
 
 /* Hero / welcome */
@@ -955,6 +955,11 @@ input, textarea {
   box-shadow: 0 0 14px rgba(214,31,31,0.5), inset 0 0 8px rgba(255,255,255,0.1);
   text-shadow: 0 0 6px rgba(255,255,255,0.4);
   transition: transform 0.08s, box-shadow 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  line-height: 1;
 }
 .big-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 rgba(214,31,31,0.4), 0 0 20px rgba(214,31,31,0.7); }
 .big-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }

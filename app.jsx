@@ -717,11 +717,12 @@ function Marquee() {
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist }) {
-  const total  = files.reduce((a, f) => a + f.fileSize, 0);
-  const recent = files.slice(0, 8);
-  const songCount   = files.filter(isAudioFile).length;
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '' }) {
+  const total      = files.reduce((a, f) => a + f.fileSize, 0);
+  const recent     = files.slice(0, 8);
+  const songCount  = files.filter(isAudioFile).length;
   const artistCount = allCats.length;
+  const localConnected = localFiles.length > 0 || localDirName;
 
   return (
     <div>
@@ -740,8 +741,45 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist }) {
         </div>
       </div>
 
+      {/* SUBIR + LOCAL */}
       <div className="two-col section">
-        {/* Artist grid */}
+        <div className="panel">
+          <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">/// VAULT</span></div>
+          <div className="panel-body">
+            <p>Sube un MP3 y los metadatos se detectan solos: artista, álbum, pista, año y portada.</p>
+            <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Máximo 8 MB por archivo · 25 MB en total.</p>
+            <button className="big-btn" style={{marginTop:14}} onClick={() => onNav({ page: 'SUBIR' })}>
+              ♪ AÑADIR CANCIÓN
+            </button>
+          </div>
+        </div>
+
+        <div className="panel">
+          <div className="panel-hd">MÚSICA LOCAL <span className="dots">/// DISCO</span></div>
+          <div className="panel-body">
+            {localConnected ? (
+              <>
+                <p>
+                  <span style={{color:'var(--fg-accent)'}}>{localDirName}</span>
+                  {localFiles.length > 0 && <> · <span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span></>}
+                </p>
+                <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Archivos leídos directamente del disco — sin límite de tamaño.</p>
+              </>
+            ) : (
+              <>
+                <p>Conecta una carpeta local para reproducir tu biblioteca sin necesidad de subir archivos.</p>
+                <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Sin límite de tamaño · Sin copias · Sin servidor.</p>
+              </>
+            )}
+            <button className="big-btn" style={{marginTop:14}} onClick={() => onNav({ page: 'LOCAL' })}>
+              {localConnected ? '↺ GESTIONAR LOCAL' : '📁 CONECTAR CARPETA'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ARTISTAS (ancho completo) */}
+      <div className="section">
         <div className="panel">
           <div className="panel-hd">ARTISTAS <span className="dots">/// {artistCount}</span></div>
           <div className="panel-body">
@@ -752,18 +790,18 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist }) {
             ) : (
               <div className="cat-grid">
                 {allCats.map((artist) => {
-                  const songs  = files.filter(f => (f.artist || f.category) === artist);
-                  const albums = [...new Set(songs.map(f => f.album).filter(Boolean))];
-                  const cover  = songs.find(f => f.thumbnail);
+                  const allSongs = [...files, ...localFiles].filter(f => (f.artist || f.category) === artist);
+                  const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
+                  const cover    = allSongs.find(f => f.thumbnail);
                   return (
                     <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
                       {cover
-                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'contain',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
+                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)'}} alt={artist} />
                         : <IconGlyph iconId="nota" size={36} />}
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%', marginTop: 12}}>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%', marginTop:12}}>
                         <div>
                           <div className="cat-name">{artist}</div>
-                          <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
+                          <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
                         </div>
                         <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
                       </div>
@@ -772,20 +810,6 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist }) {
                 })}
               </div>
             )}
-          </div>
-        </div>
-
-        {/* Add song CTA */}
-        <div className="panel">
-          <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">/// CTA</span></div>
-          <div className="panel-body">
-            <div className="hero" style={{minHeight: 'unset'}}>
-              <p>Sube un MP3 y los metadatos se detectan solos: artista, álbum, pista, año y portada.</p>
-              <p style={{color:'var(--fg-dim)', fontSize: 18}}>Máximo 8 MB por archivo · 25 MB en total.</p>
-              <button className="big-btn" style={{marginTop: 14}} onClick={() => onNav({ page: 'SUBIR' })}>
-                ♪ AÑADIR CANCIÓN
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -1366,7 +1390,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <button className="cat-upload-btn" title="Volver a discos" onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>
                   ◀
                 </button>
-                <button className="mini-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
+                <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
                 <span>{currentAlbum.name}</span>
               </span>
               <span className="dots">/// {currentSongs.length} CANCIÓN{currentSongs.length===1?'':'ES'}</span>
@@ -3937,7 +3961,8 @@ function App() {
               <Marquee />
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
-                          onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+                          onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                          localFiles={localFiles} localDirName={localDirName} />
               )}
               {route.page === 'TODO' && (
                 <TodoPage artists={allArtists} files={files}
