@@ -2525,8 +2525,11 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                 <div className="player-cassette-window">
                   {(file.coverArt || file.thumbnail)
                     ? <img src={file.coverArt || file.thumbnail} alt={file.name} />
-                    : <div className="player-cassette-glyph"><CategoryGlyph cat={file.category} size={52} /></div>}
-                  <div className="player-cassette-cat">▸ {file.category}</div>
+                    : <>
+                        <div className="player-cassette-glyph"><CategoryGlyph cat={file.category} size={52} /></div>
+                        <div className="player-cassette-cat">▸ {file.category}</div>
+                      </>
+                  }
                 </div>
                 <div className="reel"></div>
               </div>
@@ -3952,6 +3955,7 @@ function App() {
   return (
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
+        <div className="crt-audio-pulse"></div>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.length} totalBytes={totalBytes} />
           <div className="page">
@@ -4060,7 +4064,6 @@ function App() {
         {t.rollbar && <div className="crt-rollbar"></div>}
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
-        <div className="crt-audio-pulse"></div>
       </div>
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}
