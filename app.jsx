@@ -2178,6 +2178,23 @@ function StatsPanel({ files, allCats }) {
   );
 }
 
+// ─── VU BACKDROP (outside player, behind it) ────────────────────
+// Rendered as a sibling of MusicPlayer so its z-index can be LOWER
+// than the player (2147483625). The player paints on top, hiding the
+// bar overlap at the bottom. Only the portion above the player is visible.
+function VUBackdrop({ analyser, isPlaying }) {
+  const BAR_COUNT = 90;
+  const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
+  return (
+    <div className="vu-backdrop" aria-hidden="true">
+      {[...vuData].reverse().concat(vuData).map((h, i) => (
+        <div key={i} className="vu-backdrop-bar"
+             style={{ height: h + '%', opacity: isPlaying ? 1 : 0.18 }} />
+      ))}
+    </div>
+  );
+}
+
 // ─── PLAYER ICON SVGs ───────────────────────────────────────────
 function IconShuffle({ active }) {
   const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
@@ -2264,14 +2281,6 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
 
   return (
     <div className="music-player">
-      {/* VU bars — absolutely positioned, growing UP from the top border */}
-      <div className="mp-vu" aria-hidden="true">
-        {[...vuData].reverse().concat(vuData).map((h, i) => (
-          <div key={i} className="mp-vu-bar"
-               style={{height: h + '%', opacity: isPlaying ? 1 : 0.15}} />
-        ))}
-      </div>
-
       <div className="mp-cover">
         {cover
           ? <img src={cover} alt={track.name} />
@@ -3864,10 +3873,10 @@ function App() {
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <div className="page">
-            <StatusBar count={files.length} totalBytes={totalBytes} />
-            <Banner onNav={setRoute} />
-            <Nav current={route} onNav={setRoute} allCats={allCats} />
-            <Marquee />
+            <div className="span-all"><StatusBar count={files.length} totalBytes={totalBytes} /></div>
+            <div className="span-all"><Banner onNav={setRoute} /></div>
+            <div className="span-all"><Nav current={route} onNav={setRoute} allCats={allCats} /></div>
+            <div className="span-all"><Marquee /></div>
 
             <div className="page-three-col">
               {/* Left sidebar */}
@@ -3994,6 +4003,11 @@ function App() {
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}
                       onDownloadAll={bulkDownload} onDeleteAll={bulkDelete} busy={bulkBusy} />
+
+      {/* VU backdrop — sibling of player, z-index LOWER than player so player renders on top */}
+      {currentTrack && (
+        <VUBackdrop analyser={analyserRef} isPlaying={isPlaying} />
+      )}
 
       <MusicPlayer track={currentTrack} queue={effectiveQueue} isPlaying={isPlaying}
                    position={position} duration={duration} volume={volume}

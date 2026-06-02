@@ -267,7 +267,6 @@ input, textarea {
 .page {
   position: relative;
   z-index: 1;
-  padding: 16px 32px 64px;
   max-width: 1280px;
   margin: 0 auto;
 }
@@ -394,33 +393,39 @@ input, textarea {
   100% { transform: translateX(-100%); }
 }
 
-/* ── 3-column page layout ─────────────────────────────────── */
+/* ── Page layout: header full-width, content in 3 columns ─── */
+
+/* .page is the grid container for the whole page */
 .page {
-  padding: 16px 0 64px; /* remove horizontal padding — handled per-column */
+  display: grid;
+  grid-template-columns: 200px 1fr 240px;
+  align-items: start;
+  padding-bottom: 64px;
 }
 
-/* Header elements keep horizontal padding */
-.statusbar, .banner, .nav, .marquee {
+/* Header elements span all 3 columns — no sidebars next to them */
+.span-all {
+  grid-column: 1 / -1;
   padding-left: 24px;
   padding-right: 24px;
 }
+/* First span-all gets the top padding */
+.span-all:first-child { padding-top: 16px; }
 
+/* The three-col wrapper is a sub-grid pass-through (no extra wrapping needed) */
 .page-three-col {
-  display: grid;
-  grid-template-columns: 200px 1fr 240px;
-  gap: 0;
-  align-items: start;
-  width: 100%;
+  display: contents; /* children participate directly in .page grid */
 }
 
 /* Left sidebar column */
 .col-left {
+  grid-column: 1;
   position: sticky;
   top: 16px;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 12px 16px 20px; /* 20px from screen edge, 12px gap to content */
+  padding: 16px 10px 16px 18px;
   scrollbar-width: thin;
   scrollbar-color: var(--fg-primary) transparent;
 }
@@ -429,34 +434,36 @@ input, textarea {
 
 /* Main content column */
 .col-main {
+  grid-column: 2;
   min-width: 0;
-  padding: 0 24px; /* breathing room matching old page padding */
+  padding: 0 22px 0 22px;
 }
 
 /* Right sidebar column */
 .col-right {
+  grid-column: 3;
   position: sticky;
   top: 16px;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 16px 20px 16px 12px; /* 12px gap from content, 20px from screen edge */
+  padding: 16px 18px 16px 10px;
   scrollbar-width: thin;
   scrollbar-color: var(--fg-primary) transparent;
 }
 .col-right::-webkit-scrollbar { width: 3px; }
 .col-right::-webkit-scrollbar-thumb { background: var(--fg-primary); }
 
-/* Responsive */
+/* Responsive breakpoints */
 @media (max-width: 1300px) {
-  .page-three-col { grid-template-columns: 170px 1fr 210px; }
+  .page { grid-template-columns: 170px 1fr 210px; }
 }
 @media (max-width: 1050px) {
-  .page-three-col { grid-template-columns: 0 1fr 210px; }
+  .page { grid-template-columns: 0px 1fr 210px; }
   .col-left { display: none; }
 }
 @media (max-width: 800px) {
-  .page-three-col { grid-template-columns: 1fr; }
+  .page { grid-template-columns: 1fr; }
   .col-right { display: none; }
 }
 
@@ -2465,42 +2472,36 @@ input, textarea {
 }
 .mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
 
-/* VU bars — inside the player, behind all content, growing from the bottom */
-.mp-vu {
-  position: absolute;
-  /* Extend 2px beyond each border edge so bars reach corner-to-corner */
-  left: -2px; right: -2px;
-  bottom: -2px;
-  top: -2px;
+/* VU backdrop — separate fixed element, BEHIND the player */
+.vu-backdrop {
+  position: fixed;
+  /* Align with player left/right including border */
+  left: 10px; right: 10px;
+  /* Bottom aligned with player bottom; container is taller so bars
+     extend upward above the player's top border.
+     The player (higher z-index) paints on top, hiding the lower portion. */
+  bottom: 12px;
+  height: 130px;           /* ~80px player + ~50px bar overhang above */
   display: flex;
-  align-items: flex-end;  /* bars grow upward from the bottom */
+  align-items: flex-end;   /* bars grow upward from bottom */
   gap: 1px;
   pointer-events: none;
-  z-index: 0;             /* above player background, below content (z-index:1) */
-  overflow: hidden;       /* clip to the player box */
-  border-radius: inherit;
+  /* LOWER than .music-player (2147483625) so player renders on top */
+  z-index: 2147483600;
 }
-.mp-vu-bar {
+.vu-backdrop-bar {
   flex: 1;
   min-width: 0;
-  max-height: 55%;        /* bars fill at most 55% of player height */
   background:
     repeating-linear-gradient(
       0deg,
-      rgba(0,0,0,0.32) 0px, rgba(0,0,0,0.32) 1px,
+      rgba(0,0,0,0.28) 0px, rgba(0,0,0,0.28) 1px,
       transparent 1px, transparent 3px
     ),
-    linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 55%, #6b0000 100%);
+    linear-gradient(180deg, var(--fg-accent) 0%, var(--fg-primary) 60%, #6b0000 100%);
   min-height: 2px;
-  box-shadow: 0 0 3px var(--fg-primary);
+  box-shadow: 0 0 4px var(--fg-primary);
   transition: height 0.07s ease-out;
-}
-
-/* All player UI elements must be above the VU bars */
-.mp-cover, .mp-info, .mp-controls, .mp-volume,
-.mp-menu-wrap, .mp-close, .like-btn, .mp-bar {
-  position: relative;
-  z-index: 1;
 }
 
 /* Push page content up when music player visible */
