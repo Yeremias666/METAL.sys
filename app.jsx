@@ -3315,6 +3315,21 @@ function App() {
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
 
+  // Keep --vu-bottom in sync with the player's top border position
+  useEffect(() => {
+    const update = () => {
+      const player = document.querySelector('.music-player');
+      if (player) {
+        const fromBottom = window.innerHeight - player.getBoundingClientRect().top;
+        document.documentElement.style.setProperty('--vu-bottom', fromBottom + 'px');
+      }
+    };
+    update();
+    const id = setInterval(update, 500); // re-check until player appears
+    window.addEventListener('resize', update);
+    return () => { clearInterval(id); window.removeEventListener('resize', update); };
+  }, [currentTrackId]);
+
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
@@ -3873,123 +3888,103 @@ function App() {
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <div className="page">
-            <div className="span-all"><StatusBar count={files.length} totalBytes={totalBytes} /></div>
-            <div className="span-all"><Banner onNav={setRoute} /></div>
-            <div className="span-all"><Nav current={route} onNav={setRoute} allCats={allCats} /></div>
-            <div className="span-all"><Marquee /></div>
+            {/* Left sidebar */}
+            <div className="col-left">
+              <LibraryTree
+                files={files} allCats={allCats}
+                onNav={setRoute} onOpenFile={openFile}
+                onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
+                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
+            </div>
 
-            <div className="page-three-col">
-              {/* Left sidebar */}
-              <div className="col-left">
-                <LibraryTree
-                  files={files} allCats={allCats}
-                  onNav={setRoute} onOpenFile={openFile}
-                  onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
-                  onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
-              </div>
+            {/* Center column: header + page content */}
+            <div className="col-main">
+              <StatusBar count={files.length} totalBytes={totalBytes} />
+              <Banner onNav={setRoute} />
+              <Nav current={route} onNav={setRoute} allCats={allCats} />
+              <Marquee />
+              {route.page === 'INICIO' && (
+                <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
+                          onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+              )}
+              {route.page === 'TODO' && (
+                <TodoPage artists={allArtists} files={files}
+                          onNav={setRoute}
+                          onPlayAll={() => playScope({ type: 'all' }, false)}
+                          onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+              )}
+              {route.page === 'MESGUSTA' && (
+                <MeGustaPage
+                  files={files} likedIds={likedIds}
+                  onOpenFile={openFile} onNav={setRoute}
+                  onPlayAll={() => {
+                    const likedAudio = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
+                    if (likedAudio.length === 0) return;
+                    setManualQueue(likedAudio);
+                    startTrack(likedAudio[0], { type: 'all', shuffle: false });
+                  }}
+                  onToggleLike={toggleLike} />
+              )}
+              {route.page === 'STATS' && (
+                <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} />
+              )}
+              {route.page === 'LOCAL' && (
+                <LocalPage
+                  localFiles={localFiles} dirName={localDirName} scanning={localScanning}
+                  onPickFolder={pickLocalFolder}
+                  onPlayAll={() => { if(localFiles.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
+                  onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
+                  currentId={currentTrackId} isPlaying={isPlaying} />
+              )}
+              {route.page === 'SUBIR' && (
+                <UploadPage allCats={allCats} vault={files}
+                            onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
+                            prefillCat={route.prefillCat} />
+              )}
+              {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
+              {route.page === 'CAT' && (
+                <CategoryPage cat={route.cat} files={files}
+                              onOpenFile={openFile} onNav={setRoute}
+                              selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
+                              onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
+                              onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                              onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)} />
+              )}
+              {route.page === 'DETAIL' && (
+                currentFile
+                  ? <DetailPage file={currentFile}
+                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category })}
+                                onDownload={handleDownload} onDelete={handleDelete}
+                                allCats={allCats} onUpdate={handleUpdate}
+                                onPlayAudio={playTrack}
+                                currentPlayingId={currentTrackId} isPlaying={isPlaying}
+                                id3Tags={id3Cache[currentFile.id]} requestID3={requestID3}
+                                analyser={analyserRef}
+                                likedIds={likedIds} onToggleLike={toggleLike}
+                                bookmarks={bookmarks} onAddBookmark={addBookmark}
+                                onDeleteBookmark={deleteBookmark} onSeekBookmark={seekToBookmark}
+                                clipStore={clipStore} onAddClip={addClip}
+                                onDeleteClip={deleteClip} onPlayClip={playClip}
+                                onStopClip={stopClip} activeClip={activeClip}
+                                position={position} />
+                  : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
+                      Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
+                    </div></div>
+              )}
+              <Terminal files={files} allCats={allCats} />
+              <Footer />
+            </div>
 
-              {/* Main content */}
-              <div className="col-main">
-                {route.page === 'INICIO' && (
-                  <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
-                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
-                )}
-                {route.page === 'TODO' && (
-                  <TodoPage artists={allArtists} files={files}
-                            onNav={setRoute}
-                            onPlayAll={() => playScope({ type: 'all' }, false)}
-                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
-                )}
-                {route.page === 'MESGUSTA' && (
-                  <MeGustaPage
-                    files={files} likedIds={likedIds}
-                    onOpenFile={openFile} onNav={setRoute}
-                    onPlayAll={() => {
-                      const likedAudio = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
-                      if (likedAudio.length === 0) return;
-                      setManualQueue(likedAudio);
-                      startTrack(likedAudio[0], { type: 'all', shuffle: false });
-                    }}
-                    onToggleLike={toggleLike} />
-                )}
-                {route.page === 'STATS' && (
-                  <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} />
-                )}
-                {route.page === 'LOCAL' && (
-                  <LocalPage
-                    localFiles={localFiles}
-                    dirName={localDirName}
-                    scanning={localScanning}
-                    onPickFolder={pickLocalFolder}
-                    onPlayAll={() => {
-                      if (localFiles.length === 0) return;
-                      setManualQueue(null);
-                      playScope({ type: 'local', shuffle: false }, false);
-                    }}
-                    onPlayFile={f => {
-                      setManualQueue(null);
-                      setPlayContext({ type: 'local', shuffle: false });
-                      startTrack(f, { type: 'local', shuffle: false });
-                    }}
-                    currentId={currentTrackId}
-                    isPlaying={isPlaying}
-                  />
-                )}
-                {route.page === 'SUBIR' && (
-                  <UploadPage allCats={allCats} vault={files}
-                              onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
-                              prefillCat={route.prefillCat} />
-                )}
-                {route.page === 'UPLOAD_PROGRESS' && (
-                  <UploadProgressPage progress={uploadProgress} />
-                )}
-                {route.page === 'CAT' && (
-                  <CategoryPage cat={route.cat} files={files}
-                                onOpenFile={openFile} onNav={setRoute}
-                                selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
-                                onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
-                                onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
-                                onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)} />
-                )}
-                {route.page === 'DETAIL' && (
-                  currentFile
-                    ? <DetailPage file={currentFile}
-                                  onBack={() => setRoute({ page: 'CAT', cat: currentFile.category })}
-                                  onDownload={handleDownload} onDelete={handleDelete}
-                                  allCats={allCats} onUpdate={handleUpdate}
-                                  onPlayAudio={playTrack}
-                                  currentPlayingId={currentTrackId}
-                                  isPlaying={isPlaying}
-                                  id3Tags={id3Cache[currentFile.id]}
-                                  requestID3={requestID3}
-                                  analyser={analyserRef}
-                                  likedIds={likedIds} onToggleLike={toggleLike}
-                                  bookmarks={bookmarks} onAddBookmark={addBookmark}
-                                  onDeleteBookmark={deleteBookmark} onSeekBookmark={seekToBookmark}
-                                  clipStore={clipStore} onAddClip={addClip}
-                                  onDeleteClip={deleteClip} onPlayClip={playClip}
-                                  onStopClip={stopClip} activeClip={activeClip}
-                                  position={position} />
-                    : <div className="panel"><div className="panel-body" style={{textAlign:'center', padding: 40}}>
-                        Archivo no encontrado. <button className="mini-btn" onClick={() => setRoute({ page: 'INICIO' })}>VOLVER</button>
-                      </div></div>
-                )}
-                <Terminal files={files} allCats={allCats} />
-                <Footer />
-              </div>
-
-              {/* Right sidebar */}
-              <div className="col-right">
-                <PlayQueue
-                  queue={effectiveQueue}
-                  currentId={currentTrackId}
-                  onJump={file => startTrack(file)}
-                  onReorder={arr => setManualQueue(arr)} />
-                <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
-                <NowStreaming files={files} onOpen={openFile} />
-                <DownloadCounter files={files} />
-                <RecentActivity log={log} files={files} onOpen={openFile} />
-              </div>
+            {/* Right sidebar */}
+            <div className="col-right">
+              <PlayQueue
+                queue={effectiveQueue} currentId={currentTrackId}
+                onJump={file => startTrack(file)}
+                onReorder={arr => setManualQueue(arr)} />
+              <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
+              <NowStreaming files={files} onOpen={openFile} />
+              <DownloadCounter files={files} />
+              <RecentActivity log={log} files={files} onOpen={openFile} />
             </div>
           </div>
         </div>

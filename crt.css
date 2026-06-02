@@ -393,73 +393,34 @@ input, textarea {
   100% { transform: translateX(-100%); }
 }
 
-/* ── Page layout: header full-width, content in 3 columns ─── */
-
-/* .page is the grid container for the whole page */
+/* ── 3-column layout: sidebar | content | sidebar ─────────── */
 .page {
   display: grid;
   grid-template-columns: 200px 1fr 240px;
   align-items: start;
-  padding-bottom: 64px;
+  padding: 0;
 }
 
-/* Header elements span all 3 columns — no sidebars next to them */
-.span-all {
-  grid-column: 1 / -1;
-  padding-left: 24px;
-  padding-right: 24px;
-}
-/* First span-all gets the top padding */
-.span-all:first-child { padding-top: 16px; }
-
-/* The three-col wrapper is a sub-grid pass-through (no extra wrapping needed) */
-.page-three-col {
-  display: contents; /* children participate directly in .page grid */
-}
-
-/* Left sidebar column */
 .col-left {
-  grid-column: 1;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 100px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px 10px 16px 18px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fg-primary) transparent;
-}
-.col-left::-webkit-scrollbar { width: 3px; }
-.col-left::-webkit-scrollbar-thumb { background: var(--fg-primary); }
-
-/* Main content column */
-.col-main {
-  grid-column: 2;
+  padding: 16px 10px 32px 14px;
   min-width: 0;
-  padding: 0 22px 0 22px;
 }
 
-/* Right sidebar column */
+.col-main {
+  min-width: 0;
+  padding: 0 20px 64px;
+}
+
 .col-right {
-  grid-column: 3;
-  position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 100px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 16px 18px 16px 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fg-primary) transparent;
+  padding: 16px 14px 32px 10px;
+  min-width: 0;
 }
-.col-right::-webkit-scrollbar { width: 3px; }
-.col-right::-webkit-scrollbar-thumb { background: var(--fg-primary); }
 
-/* Responsive breakpoints */
 @media (max-width: 1300px) {
   .page { grid-template-columns: 170px 1fr 210px; }
 }
 @media (max-width: 1050px) {
-  .page { grid-template-columns: 0px 1fr 210px; }
+  .page { grid-template-columns: 1fr 210px; }
   .col-left { display: none; }
 }
 @media (max-width: 800px) {
@@ -467,10 +428,10 @@ input, textarea {
   .col-right { display: none; }
 }
 
-/* Legacy — kept for safety */
+/* Legacy */
 .grid { display: block; }
 .right-sidebar-col { display: none; }
-.main-content-only { width: 100%; }
+.span-all { display: contents; }
 
 .panel {
   border: 1px solid var(--fg-dim);
@@ -2442,8 +2403,8 @@ input, textarea {
   text-shadow: 0 0 6px rgba(255,255,255,0.5);
 }
 .mp-controls .mp-play:hover { background: var(--fg-accent); border-color: var(--fg-accent); box-shadow: 0 0 18px var(--fg-accent); }
-.mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; }
-.mp-volume span { font-size: 16px; color: var(--fg-secondary); }
+.mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; color: var(--fg-primary); }
+.mp-volume span { font-size: 16px; color: var(--fg-primary); }
 .mp-volume input[type=range] {
   flex: 1;
   -webkit-appearance: none;
@@ -2475,18 +2436,15 @@ input, textarea {
 /* VU backdrop — separate fixed element, BEHIND the player */
 .vu-backdrop {
   position: fixed;
-  /* Align with player left/right including border */
   left: 10px; right: 10px;
-  /* Bottom aligned with player bottom; container is taller so bars
-     extend upward above the player's top border.
-     The player (higher z-index) paints on top, hiding the lower portion. */
-  bottom: 12px;
-  height: 130px;           /* ~80px player + ~50px bar overhang above */
+  /* --vu-bottom is set by JS to the exact top-border position of the player.
+     Bars grow upward from there, so their bottom aligns with the player's top. */
+  bottom: var(--vu-bottom, 104px);
+  height: 70px;
   display: flex;
-  align-items: flex-end;   /* bars grow upward from bottom */
+  align-items: flex-end;
   gap: 1px;
   pointer-events: none;
-  /* LOWER than .music-player (2147483625) so player renders on top */
   z-index: 2147483600;
 }
 .vu-backdrop-bar {
