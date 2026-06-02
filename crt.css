@@ -3212,7 +3212,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 50% 50%, rgba(214,31,31,0.45) 0%, rgba(214,31,31,0.18) 50%, transparent 100%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(214,31,31,0.22) 0%, rgba(214,31,31,0.08) 50%, transparent 100%);
   opacity: 0;
   z-index: 0;
   mix-blend-mode: screen;

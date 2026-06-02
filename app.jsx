@@ -1924,14 +1924,20 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
 
+  const artist = (tags && tags.artist) || file.artist || null;
+  const title  = (tags && tags.title)  || file.name;
+  const album  = (tags && tags.album)  || file.album  || null;
+  const year   = (tags && tags.year)   || file.year   || null;
+  const genre  = (tags && tags.genre)  || file.genre  || null;
+
   return (
     <div className="radio-body">
       {/* Frequency display */}
       <div className="radio-top">
         <div className="radio-band-label">AM·FM·SW</div>
         <div className="radio-freq-display">
-          <span className="radio-freq-artist">{(tags && tags.artist) || '— SIN METADATOS —'}</span>
-          <div className="radio-freq-title">{(tags && tags.title) || file.name}</div>
+          <span className="radio-freq-artist">{artist || '— SIN METADATOS —'}</span>
+          <div className="radio-freq-title">{title}</div>
         </div>
         <div className="radio-vu">
           {[...vuData].reverse().concat(vuData).map((h, i) => (
@@ -1957,10 +1963,10 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
 
       {/* Info strip — own row above knobs */}
       <div className="radio-info-strip">
-        {tags && tags.album && (
-          <span className="radio-strip-album">◆ {tags.album}{tags.year ? ' · ' + tags.year : ''}</span>
+        {album && (
+          <span className="radio-strip-album">◆ {album}{year ? ' · ' + year : ''}</span>
         )}
-        {tags && tags.genre && <span className="radio-strip-genre">{tags.genre}</span>}
+        {genre && <span className="radio-strip-genre">{genre}</span>}
         <span className="radio-strip-meta" style={{marginLeft:'auto'}}>{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
       </div>
 
@@ -3434,7 +3440,7 @@ function App() {
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i]/128)-1; sum += v*v; }
       const rms = Math.sqrt(sum/data.length);
-      if (pulse) pulse.style.opacity = Math.min(1, rms * 4.0).toFixed(3);
+      if (pulse) pulse.style.opacity = Math.min(1, rms * 2.8).toFixed(3);
       audioSyncRef.current = requestAnimationFrame(tick);
     };
     audioSyncRef.current = requestAnimationFrame(tick);
