@@ -848,8 +848,9 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   );
 }
 
-function TodoPage({ artists, files, onNav, onPlayAll, onPlayArtist }) {
-  const totalSongs = files.filter(isAudioFile).length;
+function TodoPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist }) {
+  const allFiles = [...files, ...localFiles];
+  const totalSongs = allFiles.filter(isAudioFile).length;
   return (
     <div>
       <div className="panel">
@@ -867,7 +868,7 @@ function TodoPage({ artists, files, onNav, onPlayAll, onPlayArtist }) {
 
       <div className="album-grid">
         {artists.map((artist) => {
-          const songs = files.filter((f) => (f.artist || f.category) === artist);
+          const songs = allFiles.filter((f) => (f.artist || f.category) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           return (
             <div key={artist} className="cat-card">
@@ -3672,7 +3673,7 @@ function App() {
     if (context.type === 'album' && context.artist && context.album) {
       return combined.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
     }
-    return all;
+    return combined;
   }, [files, localFiles]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
@@ -3984,7 +3985,7 @@ function App() {
                           localFiles={localFiles} localDirName={localDirName} />
               )}
               {route.page === 'TODO' && (
-                <TodoPage artists={allArtists} files={files}
+                <TodoPage artists={allArtists} files={files} localFiles={localFiles}
                           onNav={setRoute}
                           onPlayAll={() => playScope({ type: 'all' }, false)}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
