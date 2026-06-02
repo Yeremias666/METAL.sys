@@ -273,7 +273,7 @@ input, textarea {
   justify-content: space-between;
   align-items: center;
   border-bottom: 2px solid var(--fg-primary);
-  padding: 0 14px 6px;
+  padding: 6px 14px 6px;
   font-size: 18px;
   color: var(--fg-secondary);
   letter-spacing: 0.05em;
@@ -1124,6 +1124,9 @@ input, textarea {
   font-family: var(--mono);
   font-size: 18px;
   line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .album-card-sub {
   font-family: var(--pixel);
@@ -2246,7 +2249,7 @@ input, textarea {
   justify-content: center;
 }
 .radio-cover-frame {
-  width: 160px; height: 160px;
+  width: 260px; height: 260px;
   border: 3px solid var(--fg-secondary);
   outline: 2px solid var(--fg-primary);
   outline-offset: 3px;
@@ -3209,7 +3212,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   inset: 0;
   pointer-events: none;
   border-radius: inherit;
-  background: radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse at 50% 50%, rgba(214,31,31,0.45) 0%, rgba(214,31,31,0.18) 50%, transparent 100%);
   opacity: 0;
   z-index: 9;
   mix-blend-mode: screen;

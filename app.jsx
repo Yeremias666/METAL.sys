@@ -103,10 +103,20 @@ function fmtTimeSec(sec) {
   const s = Math.floor(sec % 60);
   return `${m}:${String(s).padStart(2, '0')}`;
 }
+function fmtTimeMs(sec) {
+  if (!sec && sec !== 0) return '0:00.000';
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  const ms = Math.round((sec % 1) * 1000);
+  return `${m}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
 function parseTimeSec(str) {
-  const parts = (str || '').split(':').map(Number);
-  if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0);
-  return Number(parts[0]) || 0;
+  if (!str) return 0;
+  const [minSec, msStr] = (str || '').split('.');
+  const parts = minSec.split(':').map(Number);
+  const ms = msStr ? Number(msStr.slice(0, 3).padEnd(3, '0')) / 1000 : 0;
+  if (parts.length === 2) return (parts[0] || 0) * 60 + (parts[1] || 0) + ms;
+  return (Number(parts[0]) || 0) + ms;
 }
 
 function fmtBytes(n) {
@@ -2915,7 +2925,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
       <div className="lib-tree">
         <div className="lib-tree-hd">BIBLIOTECA</div>
         {byArtist.map(({ artist, songs, albums, noAlbum }) => {
-          const open = !collapsed[artist];
+          const open = !!collapsed[artist];
           return (
             <div key={artist} className="lib-artist">
               <div className="lib-artist-row" onClick={() => toggle(artist)}>
@@ -2927,7 +2937,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
                 <div>
                   {albums.map(album => {
                     const aKey = artist + '////' + album;
-                    const albumOpen = !collapsed[aKey];
+                    const albumOpen = !!collapsed[aKey];
                     const albumSongs = songs.filter(f => f.album === album).sort((a,b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
                     return (
                       <div key={album}>
@@ -3164,7 +3174,7 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose }) {
 // ─── BOOKMARK MODAL ─────────────────────────────────────────
 function BookmarkModal({ position, onSave, onClose }) {
   const [name, setName] = useState('');
-  const [time, setTime] = useState(() => fmtTimeSec(Math.floor(position)));
+  const [time, setTime] = useState(() => fmtTimeMs(position));
   useEffect(() => { const k=e=>{if(e.key==='Escape')onClose();}; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[onClose]);
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -3172,7 +3182,7 @@ function BookmarkModal({ position, onSave, onClose }) {
         <div className="modal-hd"><span>◆ CREAR MARCADOR</span><button className="modal-x" onClick={onClose}>✕</button></div>
         <div className="modal-body">
           <div className="field"><div className="field-label">NOMBRE</div><input className="field-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Intro, Coro, Solo..." autoFocus /></div>
-          <div className="field"><div className="field-label">TIEMPO (M:SS)</div><input className="field-input" value={time} onChange={e=>setTime(e.target.value)} placeholder="0:00" /></div>
+          <div className="field"><div className="field-label">TIEMPO (M:SS.mmm)</div><input className="field-input" value={time} onChange={e=>setTime(e.target.value)} placeholder="0:00.000" /></div>
           <div className="form-actions">
             <button className="big-btn" onClick={()=>onSave({id:'BM'+Date.now(),name:name.trim()||'Marcador',time:parseTimeSec(time)})}>✓ GUARDAR</button>
             <button className="big-btn ghost" onClick={onClose}>✕ CANCELAR</button>
@@ -3186,8 +3196,8 @@ function BookmarkModal({ position, onSave, onClose }) {
 // ─── CLIP MODAL ─────────────────────────────────────────────
 function ClipModal({ position, onSave, onClose }) {
   const [name, setName] = useState('');
-  const [start, setStart] = useState(() => fmtTimeSec(Math.max(0,Math.floor(position)-5)));
-  const [end, setEnd]   = useState(() => fmtTimeSec(Math.floor(position)));
+  const [start, setStart] = useState(() => fmtTimeMs(Math.max(0, position - 5)));
+  const [end, setEnd]   = useState(() => fmtTimeMs(position));
   useEffect(() => { const k=e=>{if(e.key==='Escape')onClose();}; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[onClose]);
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -3196,8 +3206,8 @@ function ClipModal({ position, onSave, onClose }) {
         <div className="modal-body">
           <div className="field"><div className="field-label">NOMBRE DEL CLIP</div><input className="field-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Ej. Intro, Solo, Coro..." autoFocus /></div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-            <div className="field"><div className="field-label">INICIO (M:SS)</div><input className="field-input" value={start} onChange={e=>setStart(e.target.value)} placeholder="0:00"/></div>
-            <div className="field"><div className="field-label">FIN (M:SS)</div><input className="field-input" value={end} onChange={e=>setEnd(e.target.value)} placeholder="0:30"/></div>
+            <div className="field"><div className="field-label">INICIO (M:SS.mmm)</div><input className="field-input" value={start} onChange={e=>setStart(e.target.value)} placeholder="0:00.000"/></div>
+            <div className="field"><div className="field-label">FIN (M:SS.mmm)</div><input className="field-input" value={end} onChange={e=>setEnd(e.target.value)} placeholder="0:30.000"/></div>
           </div>
           <div className="form-actions">
             <button className="big-btn" onClick={()=>{const s=parseTimeSec(start),e2=parseTimeSec(end);if(e2>s)onSave({id:'CL'+Date.now(),name:name.trim()||'Clip',start:s,end:e2});}}>✓ GUARDAR CLIP</button>
@@ -3421,7 +3431,7 @@ function App() {
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i]/128)-1; sum += v*v; }
       const rms = Math.sqrt(sum/data.length);
-      if (pulse) pulse.style.opacity = Math.min(1, rms * 2.5).toFixed(3);
+      if (pulse) pulse.style.opacity = Math.min(1, rms * 4.0).toFixed(3);
       audioSyncRef.current = requestAnimationFrame(tick);
     };
     audioSyncRef.current = requestAnimationFrame(tick);
