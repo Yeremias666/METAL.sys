@@ -1172,6 +1172,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             ))}
           </div>
         )}
+      </div>
+    </div>
   );
 }
 
