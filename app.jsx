@@ -679,7 +679,7 @@ function Nav({ current, onNav, allCats }) {
           </button>
         ))}
         <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="MÚSICA" />TODO</button>
-        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />♥ GUSTA</button>
+        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />GUSTA</button>
         <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="OTROS" />STATS</button>
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="SUBIR" />LOCAL</button>
       </div>
@@ -3440,7 +3440,7 @@ function App() {
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i]/128)-1; sum += v*v; }
       const rms = Math.sqrt(sum/data.length);
-      if (pulse) pulse.style.opacity = Math.min(1, rms * 2.8).toFixed(3);
+      if (pulse) pulse.style.opacity = Math.min(0.7, rms * 3.2).toFixed(3);
       audioSyncRef.current = requestAnimationFrame(tick);
     };
     audioSyncRef.current = requestAnimationFrame(tick);
@@ -3961,7 +3961,6 @@ function App() {
   return (
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
-        <div className="crt-audio-pulse"></div>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.length} totalBytes={totalBytes} />
           <div className="page">
@@ -4070,6 +4069,7 @@ function App() {
         {t.rollbar && <div className="crt-rollbar"></div>}
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
+        <div className="crt-audio-pulse"></div>
       </div>
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}
