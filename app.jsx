@@ -922,7 +922,13 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
   const q = normStr(query.trim());
   const albumMatches = q ? albumObjects.filter((a) => normStr(a.name).includes(q)) : [];
-  const songMatches = q ? list.filter((f) => normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
+  const songMatches = q ? list.filter((f) => {
+    const matchesSongName = normStr(f.name).includes(q);
+    const albumName = normStr(f.album || 'SINGLE');
+    const albumMatch = albumMatches.some((a) => normStr(a.name) === albumName);
+    if (albumMatch) return matchesSongName;
+    return matchesSongName || albumName.includes(q);
+  }) : [];
   const suggestions = [...albumMatches.map((a) => ({ type: 'album', album: a })), ...songMatches.map((f) => ({ type: 'song', file: f }))].slice(0, 5);
 
   const selectedAlbumSongs = selAlbums.size > 0 ? list.filter((f) => selAlbums.has(f.album || 'SINGLE')) : [];
@@ -1014,8 +1020,12 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 32, height: 32, display: 'grid', placeItems: 'center' }}>
-                            {item.type === 'album' ? <IconGlyph iconId="disco" size={24} /> : <IconGlyph iconId="nota" size={24} />}
+                          <div className="search-suggestion-thumb">
+                            {item.type === 'album' ? (
+                              item.album.cover ? <img src={item.album.cover.thumbnail || item.album.cover.coverArt} alt={item.album.name} /> : <IconGlyph iconId="disco" size={24} />
+                            ) : (
+                              item.file.thumbnail ? <img src={item.file.thumbnail} alt={item.file.name} /> : <IconGlyph iconId="nota" size={24} />
+                            )}
                           </div>
                           <div style={{ textAlign: 'left' }}>
                             <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>
@@ -1157,20 +1167,37 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             </div>
           </div>
         ) : (
-          <div className="album-grid">
-            {albumObjects.map((album) => (
-              <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
-                <div className="album-card-thumb">
-                  {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
-                  <div className="album-card-vinyl" />
-                </div>
-                <div className="album-card-body">
-                  <div className="album-card-title">{album.name}</div>
-                  <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
-                </div>
-              </button>
-            ))}
-          </div>
+          view === 'grid' ? (
+            <div className="album-grid">
+              {albumObjects.map((album) => (
+                <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
+                  <div className="album-card-thumb">
+                    {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
+                    <div className="album-card-vinyl" />
+                  </div>
+                  <div className="album-card-body">
+                    <div className="album-card-title">{album.name}</div>
+                    <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="album-list">
+              {albumObjects.map((album) => (
+                <button key={album.name} className="album-card album-card-row" onClick={() => openAlbum(album.name)}>
+                  <div className="album-card-thumb album-card-row-thumb">
+                    {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
+                    <div className="album-card-vinyl" />
+                  </div>
+                  <div className="album-card-body">
+                    <div className="album-card-title">{album.name}</div>
+                    <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )
         )}
       </div>
     </div>

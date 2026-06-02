@@ -976,6 +976,18 @@ input, textarea {
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 rgba(214,31,31,0.35), 0 0 16px rgba(214,31,31,0.4);
 }
+.album-card-row {
+  flex-direction: row;
+  align-items: center;
+}
+.album-card-row .album-card-thumb {
+  width: 120px;
+  min-width: 120px;
+  aspect-ratio: auto 1 / 1;
+}
+.album-card-row .album-card-body {
+  flex: 1;
+}
 .album-card-thumb {
   position: relative;
   aspect-ratio: 1 / 1;
@@ -988,33 +1000,33 @@ input, textarea {
 .album-card-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   image-rendering: pixelated;
   image-rendering: -moz-crisp-edges;
   image-rendering: crisp-edges;
 }
 .album-card-vinyl {
   position: absolute;
-  right: -14px;
+  right: -16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border: 2px solid var(--fg-primary);
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.16), transparent 40%), rgba(0,0,0,0.45);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.18), transparent 40%), rgba(0,0,0,0.45);
   clip-path: inset(0 0 0 50% round 50%);
-  box-shadow: inset 0 0 6px rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 10px rgba(255,255,255,0.1);
 }
 .album-card-vinyl::before {
   content: '';
   position: absolute;
-  left: 10px;
-  top: 10px;
-  width: 8px;
-  height: 8px;
+  left: 12px;
+  top: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.3);
 }
 .album-card-body {
   padding: 12px;
@@ -1032,6 +1044,11 @@ input, textarea {
   font-size: 11px;
   letter-spacing: 0.1em;
   color: var(--fg-secondary);
+}
+.album-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 .search-suggestions {
   display: grid;
@@ -1066,6 +1083,24 @@ input, textarea {
   border: 1px solid var(--fg-accent);
   padding: 3px 7px;
   border-radius: 999px;
+}
+.search-suggestion-thumb {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.search-suggestion-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
 }
 
 /* ─── Category page header ───────────────────────────────── */
