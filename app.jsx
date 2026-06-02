@@ -1,6 +1,6 @@
 // app.jsx — METAL.SYS FILE VAULT (categorized, with detail player)
 
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "phosphor": "metal",
@@ -578,6 +578,11 @@ function Nav({ current, onNav, allCats }) {
           <NavGlyph kind={it.glyph} />{it.key}
         </button>
       ))}
+      <button key="TODO"
+              className={current.page === 'TODO' ? 'active' : ''}
+              onClick={() => onNav({ page: 'TODO' })}>
+        <NavGlyph kind="MÚSICA" />TODO
+      </button>
       {/* Dynamic: one button per artist */}
       {allCats.map(artist => (
         <button key={artist}
@@ -600,7 +605,7 @@ function Marquee() {
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist }) {
   const total  = files.reduce((a, f) => a + f.fileSize, 0);
   const recent = files.slice(0, 8);
   const songCount   = files.filter(isAudioFile).length;
@@ -643,8 +648,13 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
                       {cover
                         ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'contain',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
                         : <IconGlyph iconId="nota" size={36} />}
-                      <div className="cat-name">{artist}</div>
-                      <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
+                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%', marginTop: 12}}>
+                        <div>
+                          <div className="cat-name">{artist}</div>
+                          <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
+                        </div>
+                        <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+                      </div>
                     </div>
                   );
                 })}
@@ -687,6 +697,47 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
             )}
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function TodoPage({ artists, files, onNav, onPlayAll, onPlayArtist }) {
+  const totalSongs = files.filter(isAudioFile).length;
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">TODO <span className="dots">/// {artists.length} ARTISTA{artists.length===1?'':'S'}</span></div>
+        <div className="panel-body">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
+            <div>
+              <p>Reproduce toda la biblioteca o abre la categoría de un artista para ver su colección.</p>
+              <p style={{ color:'var(--fg-dim)', fontSize:14 }}>{totalSongs} canción{totalSongs===1?'':'es'} disponibles.</p>
+            </div>
+            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="album-grid">
+        {artists.map((artist) => {
+          const songs = files.filter((f) => (f.artist || f.category) === artist);
+          const cover = songs.find((f) => f.thumbnail || f.coverArt);
+          return (
+            <div key={artist} className="cat-card">
+              <div style={{ display:'flex', alignItems:'center', gap: 10, width:'100%' }}>
+                {cover
+                  ? <img src={cover.thumbnail || cover.coverArt} style={{width:48,height:48,objectFit:'contain',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
+                  : <IconGlyph iconId="nota" size={36} />}
+                <div style={{flex:'1'}}>
+                  <div className="cat-name" style={{cursor:'pointer'}} onClick={() => onNav({ page: 'CAT', cat: artist })}>{artist}</div>
+                  <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'}</div>
+                </div>
+                <button className="mini-btn" onClick={() => onPlayArtist(artist)}>▶</button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -898,7 +949,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -974,16 +1025,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     <div>
       <div className="panel">
         <div className="panel-hd">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button className="cat-upload-btn" title={`Añadir canción de ${cat}`} onClick={() => onNav({ page: 'SUBIR' })}>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="miter">
-                <line x1="1" y1="2" x2="11" y2="2" strokeLinecap="square" />
-                <line x1="6" y1="4" x2="6" y2="11" />
-                <polyline points="3,7 6,4 9,7" />
-              </svg>
-            </button>
-            {cat}
-          </span>
+          <span>{cat}</span>
           <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
         </div>
       </div>
@@ -1086,7 +1128,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <button className="cat-upload-btn" title="Volver a discos" onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>
                   ◀
                 </button>
-                {currentAlbum.name}
+                <button className="mini-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
+                <span>{currentAlbum.name}</span>
               </span>
               <span className="dots">/// {currentSongs.length} CANCIÓN{currentSongs.length===1?'':'ES'}</span>
             </div>
@@ -1170,31 +1213,41 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           view === 'grid' ? (
             <div className="album-grid">
               {albumObjects.map((album) => (
-                <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
+                <div key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
                   <div className="album-card-thumb">
                     {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
                     <div className="album-card-vinyl" />
                   </div>
                   <div className="album-card-body">
-                    <div className="album-card-title">{album.name}</div>
-                    <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <div>
+                        <div className="album-card-title">{album.name}</div>
+                        <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                      </div>
+                      <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayAlbum(cat, album.name); }}>▶</button>
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           ) : (
             <div className="album-list">
               {albumObjects.map((album) => (
-                <button key={album.name} className="album-card album-card-row" onClick={() => openAlbum(album.name)}>
+                <div key={album.name} className="album-card album-card-row" onClick={() => openAlbum(album.name)}>
                   <div className="album-card-thumb album-card-row-thumb">
                     {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
                     <div className="album-card-vinyl" />
                   </div>
                   <div className="album-card-body">
-                    <div className="album-card-title">{album.name}</div>
-                    <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                      <div>
+                        <div className="album-card-title">{album.name}</div>
+                        <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                      </div>
+                      <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayAlbum(cat, album.name); }}>▶</button>
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )
@@ -1911,7 +1964,7 @@ function StatsPanel({ files, allCats }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onVolume, onClose, tags, analyser }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser }) {
   if (!track) return null;
   const BAR_COUNT = 60;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
@@ -1957,6 +2010,8 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-controls">
         <button onClick={onPrev} title="Anterior">◀◀</button>
+        <button onClick={onShuffle} title="Aleatorio">{shuffleActive ? '🔀' : '↻'}</button>
+        <button onClick={onRepeat} title="Repetir">{repeatMode === 'off' ? '⏹' : repeatMode === 'all' ? '🔁' : '🔂'}</button>
         <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
         <button onClick={onNext} title="Siguiente">▶▶</button>
       </div>
@@ -1992,9 +2047,10 @@ function UploadProgressPage({ progress }) {
     const ss = s % 60;
     return `${m}m ${String(ss).padStart(2,'0')}s`;
   };
+  const pct = Math.min(100, Math.max(0, progress.percent));
   return (
     <div className="panel">
-      <div className="panel-hd">TRANSFIRIENDO ARCHIVO <span className="dots">/// {progress.percent.toFixed(1)}%</span></div>
+      <div className="panel-hd">TRANSFIRIENDO ARCHIVO <span className="dots">/// {pct.toFixed(1)}%</span></div>
       <div className="panel-body">
         <div className="upload-progress">
           <div className="up-headline">
@@ -2003,8 +2059,8 @@ function UploadProgressPage({ progress }) {
           </div>
 
           <div className="up-meter">
-            <div className="up-meter-fill" style={{width: progress.percent + '%'}}></div>
-            <div className="up-meter-pct">{progress.percent.toFixed(1)}%</div>
+            <div className="up-meter-fill" style={{ width: pct + '%' }}></div>
+            <div className="up-meter-pct">{pct.toFixed(1)}%</div>
           </div>
 
           <div className="up-stats">
@@ -2480,6 +2536,8 @@ function App() {
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
+  const [playContext, setPlayContext] = useState({ type: 'all', shuffle: false });
+  const [repeatMode, setRepeatMode] = useState('off');
   const [id3Cache, setId3Cache] = useState({}); // {fileId: tags}
 
   useEffect(() => { saveVault(files); }, [files]);
@@ -2504,7 +2562,14 @@ function App() {
     const audio = audioRef.current;
     const onTime = () => setPosition(audio.currentTime);
     const onDur = () => setDuration(audio.duration || 0);
-    const onEnded = () => playNext();
+    const onEnded = () => {
+      if (repeatMode === 'one') {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+        return;
+      }
+      playNext(repeatMode === 'all');
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
     audio.addEventListener('timeupdate', onTime);
@@ -2519,7 +2584,7 @@ function App() {
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
     };
-  }, [currentTrackId]);
+  }, [currentTrackId, repeatMode]);
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
   // Artistas derivados de los archivos; si un archivo antiguo tiene sólo category, se usa eso
@@ -2689,7 +2754,28 @@ function App() {
   };
 
   // ───── MUSIC PLAYER ─────
-  const musicQueue = files.filter(isAudioFile);
+  const shuffleArray = (items) => {
+    const arr = [...items];
+    for (let i = arr.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const getQueueForContext = useCallback((context) => {
+    const all = files.filter(isAudioFile);
+    if (context.type === 'artist' && context.artist) {
+      return all.filter((f) => (f.artist || f.category) === context.artist);
+    }
+    if (context.type === 'album' && context.artist && context.album) {
+      return all.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
+    }
+    return all;
+  }, [files]);
+
+  const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
+  const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
   const currentTrack = currentTrackId ? files.find((f) => f.id === currentTrackId) : null;
 
   const requestID3 = async (file) => {
@@ -2697,6 +2783,42 @@ function App() {
     const tags = await readID3(file.fileData);
     setId3Cache((p) => ({ ...p, [file.id]: tags }));
     return tags;
+  };
+
+  const startTrack = (file, nextContext) => {
+    if (!file) return;
+    if (nextContext) setPlayContext(nextContext);
+    const audio = audioRef.current;
+    ensureAnalyser();
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+    if (currentTrackId === file.id) {
+      audio.play().catch(() => {});
+      return;
+    }
+    audio.src = file.fileData;
+    setCurrentTrackId(file.id);
+    setPosition(0);
+    setDuration(0);
+    audio.play().catch(() => {});
+    requestID3(file);
+  };
+
+  const playScope = (context, shuffle = false) => {
+    const queue = getQueueForContext({ ...context, shuffle: false });
+    if (queue.length === 0) return;
+    setPlayContext({ ...context, shuffle });
+    const nextTrack = shuffle ? shuffleArray(queue)[0] : queue[0];
+    startTrack(nextTrack, { ...context, shuffle });
+  };
+
+  const toggleShuffle = () => {
+    setPlayContext((prev) => ({ ...prev, shuffle: !prev.shuffle }));
+  };
+
+  const toggleRepeat = () => {
+    setRepeatMode((prev) => prev === 'off' ? 'all' : prev === 'all' ? 'one' : 'off');
   };
 
   const playTrack = (file) => {
@@ -2720,17 +2842,17 @@ function App() {
     const audio = audioRef.current;
     if (audio.paused) audio.play().catch(() => {}); else audio.pause();
   };
-  const playNext = () => {
+  const playNext = (wrap = true) => {
     if (musicQueue.length === 0) return;
     const idx = musicQueue.findIndex((f) => f.id === currentTrackId);
-    const next = musicQueue[(idx + 1) % musicQueue.length];
-    if (next) playTrack(next);
+    const next = wrap ? musicQueue[(idx + 1) % musicQueue.length] : musicQueue[idx + 1];
+    if (next) startTrack(next);
   };
   const playPrev = () => {
     if (musicQueue.length === 0) return;
     const idx = musicQueue.findIndex((f) => f.id === currentTrackId);
     const prev = musicQueue[(idx - 1 + musicQueue.length) % musicQueue.length];
-    if (prev) playTrack(prev);
+    if (prev) startTrack(prev);
   };
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
   const stopMusic = () => {
@@ -2762,7 +2884,14 @@ function App() {
             <div className="grid">
               <div>
                 {route.page === 'INICIO' && (
-                  <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute} />
+                  <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
+                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+                )}
+                {route.page === 'TODO' && (
+                  <TodoPage artists={allArtists} files={files}
+                            onNav={setRoute}
+                            onPlayAll={() => playScope({ type: 'all' }, false)}
+                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
                 )}
                 {route.page === 'SUBIR' && (
                   <UploadPage allCats={allCats} vault={files}
@@ -2776,7 +2905,9 @@ function App() {
                   <CategoryPage cat={route.cat} files={files}
                                 onOpenFile={openFile} onNav={setRoute}
                                 selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
-                                onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy} />
+                                onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
+                                onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                                onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)} />
                 )}
                 {route.page === 'DETAIL' && (
                   currentFile
@@ -2818,7 +2949,10 @@ function App() {
       <MusicPlayer track={currentTrack} queue={musicQueue} isPlaying={isPlaying}
                    position={position} duration={duration} volume={volume}
                    onPlayPause={playPause} onSeek={seek}
-                   onPrev={playPrev} onNext={playNext} onVolume={setVolume}
+                   onPrev={playPrev} onNext={playNext}
+                   onShuffle={toggleShuffle} shuffleActive={playContext.shuffle}
+                   onRepeat={toggleRepeat} repeatMode={repeatMode}
+                   onVolume={setVolume}
                    onClose={stopMusic}
                    tags={currentTrackId ? id3Cache[currentTrackId] : null}
                    analyser={analyserRef} />
