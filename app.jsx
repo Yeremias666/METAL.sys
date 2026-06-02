@@ -3306,21 +3306,6 @@ function App() {
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
 
-  // Measure header height for sidebar top offset
-  useEffect(() => {
-    const measure = () => {
-      const page = document.querySelector('.page');
-      const marquee = document.querySelector('.marquee');
-      if (page && marquee) {
-        const top = marquee.getBoundingClientRect().bottom + 8;
-        document.documentElement.style.setProperty('--sidebar-top', top + 'px');
-      }
-    };
-    measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  }, []);
-
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
@@ -3884,7 +3869,18 @@ function App() {
             <Nav current={route} onNav={setRoute} allCats={allCats} />
             <Marquee />
 
-            <div className="main-content-only">
+            <div className="page-three-col">
+              {/* Left sidebar */}
+              <div className="col-left">
+                <LibraryTree
+                  files={files} allCats={allCats}
+                  onNav={setRoute} onOpenFile={openFile}
+                  onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
+                  onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
+              </div>
+
+              {/* Main content */}
+              <div className="col-main">
                 {route.page === 'INICIO' && (
                   <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                             onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
@@ -3969,10 +3965,23 @@ function App() {
                         Archivo no encontrado. <button className="mini-btn" onClick={() => setRoute({ page: 'INICIO' })}>VOLVER</button>
                       </div></div>
                 )}
-            </div>
+                <Terminal files={files} allCats={allCats} />
+                <Footer />
+              </div>
 
-            <Terminal files={files} allCats={allCats} />
-            <Footer />
+              {/* Right sidebar */}
+              <div className="col-right">
+                <PlayQueue
+                  queue={effectiveQueue}
+                  currentId={currentTrackId}
+                  onJump={file => startTrack(file)}
+                  onReorder={arr => setManualQueue(arr)} />
+                <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
+                <NowStreaming files={files} onOpen={openFile} />
+                <DownloadCounter files={files} />
+                <RecentActivity log={log} files={files} onOpen={openFile} />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -3981,26 +3990,6 @@ function App() {
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
         <div className="crt-audio-pulse"></div>
-      </div>
-
-      {/* Margin sidebars — outside crt-screen, truly in the viewport margins */}
-      <div className="margin-sidebar-left">
-        <LibraryTree
-          files={files} allCats={allCats}
-          onNav={setRoute} onOpenFile={openFile}
-          onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
-          onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
-      </div>
-      <div className="margin-sidebar-right">
-        <PlayQueue
-          queue={effectiveQueue}
-          currentId={currentTrackId}
-          onJump={file => startTrack(file)}
-          onReorder={arr => setManualQueue(arr)} />
-        <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
-        <NowStreaming files={files} onOpen={openFile} />
-        <DownloadCounter files={files} />
-        <RecentActivity log={log} files={files} onOpen={openFile} />
       </div>
 
       <MultiSelectBar selected={selectedIds} files={files} onClear={clearSel}
