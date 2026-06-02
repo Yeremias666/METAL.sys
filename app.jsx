@@ -658,7 +658,8 @@ function Nav({ current, onNav, allCats }) {
 
   return (
     <nav className="nav">
-      <div className="nav-left" ref={navLeftRef}>
+      {/* Botones de sistema: siempre visibles, nunca ocultados por overflow */}
+      <div className="nav-system">
         <span className="prompt glow">C:\&gt;</span>
         {[{ key: 'INICIO', glyph: 'INICIO' }, { key: 'SUBIR', glyph: 'SUBIR' }].map(it => (
           <button key={it.key}
@@ -671,6 +672,9 @@ function Nav({ current, onNav, allCats }) {
         <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />♥ GUSTA</button>
         <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="OTROS" />STATS</button>
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="SUBIR" />LOCAL</button>
+      </div>
+      {/* Botones de artistas: solo los que caben, el resto en dropdown */}
+      <div className="nav-left" ref={navLeftRef}>
         {allCats.map(artist => (
           <button key={artist}
                   data-nav-cat={artist}
@@ -1218,9 +1222,9 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       return { name, songs, year, cover };
     })
     .sort((a, b) => {
-      const ya = a.year || '';
-      const yb = b.year || '';
-      return ya.localeCompare(yb) || a.name.localeCompare(b.name);
+      const ya = parseInt(a.year) || 0;
+      const yb = parseInt(b.year) || 0;
+      return (yb - ya) || a.name.localeCompare(b.name);
     });
 
   const q = normStr(query.trim());
@@ -2771,14 +2775,15 @@ function RecentActivity({ log, files, onOpen }) {
 }
 
 // ─── TERMINAL ──────────────────────────────────────────────────
-function Terminal({ files, allCats }) {
-  const total = files.reduce((a, f) => a + f.fileSize, 0);
+function Terminal({ files, localFiles = [], allCats }) {
+  const allFiles = [...files, ...localFiles];
+  const total = allFiles.reduce((a, f) => a + f.fileSize, 0);
   const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
   const folderClasses = ['fold-a', 'fold-b', 'fold-c', 'fold-d', 'fold-e', 'fold-f'];
 
   // Build artist → albums → songs tree
   const byArtist = allCats.map(artist => {
-    const songs = files.filter(f => (f.artist || f.category) === artist);
+    const songs = allFiles.filter(f => (f.artist || f.category) === artist);
     const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
     const noAlbum = songs.filter(f => !f.album);
     return { artist, songs, albums, noAlbum };
@@ -2856,7 +2861,7 @@ function Terminal({ files, allCats }) {
     <div key="summary" className="line">
       <span className="t-num">{allCats.length}</span>{' '}<span className="t-label">artista{allCats.length===1?'':'s'}</span>
       <span className="t-sep"> · </span>
-      <span className="t-num">{files.length}</span>{' '}<span className="t-label">canción{files.length===1?'':'es'}</span>
+      <span className="t-num">{allFiles.length}</span>{' '}<span className="t-label">canción{allFiles.length===1?'':'es'}</span>
       <span className="t-sep"> · </span>
       <span className="t-num">{fmtBytes(total)}</span>{' '}<span className="t-label">usados</span>
       <span className="t-sep"> · </span>
@@ -3552,7 +3557,7 @@ function App() {
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
     addToLog({ kind: 'DEL', name: f.name, size: f.fileSize });
     if (currentTrackId === f.id) stopMusic();
-    if (route.page === 'DETAIL') setRoute({ page: 'CAT', cat: f.category });
+    if (route.page === 'DETAIL') setRoute({ page: 'CAT', cat: f.category || f.artist });
   };
   const handleUpdate = (f) => {
     setFiles((prev) => prev.map((x) => x.id === f.id ? f : x));
@@ -3564,11 +3569,7 @@ function App() {
     setRoute({ page: 'CAT', cat: name });
   };
 
-  const openFile = (id) => {
-    const localFile = localFiles.find(f => f.id === id);
-    if (localFile) { playTrack(localFile); return; }
-    setRoute({ page: 'DETAIL', fileId: id });
-  };
+  const openFile = (id) => setRoute({ page: 'DETAIL', fileId: id });
 
   // ───── MULTI-SELECT ─────
   const toggleSel = (id) => {
@@ -3929,7 +3930,7 @@ function App() {
 
   const totalBytes = files.reduce((a, f) => a + f.fileSize, 0);
   const phosphorClass = `phosphor-${t.phosphor}`;
-  const currentFile = route.page === 'DETAIL' ? files.find((f) => f.id === route.fileId) : null;
+  const currentFile = route.page === 'DETAIL' ? ([...files, ...localFiles].find((f) => f.id === route.fileId) ?? null) : null;
 
   return (
     <div className={`crt-stage ${phosphorClass}`}>
@@ -4001,7 +4002,7 @@ function App() {
               {route.page === 'DETAIL' && (
                 currentFile
                   ? <DetailPage file={currentFile}
-                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category })}
+                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category || currentFile.artist })}
                                 onDownload={handleDownload} onDelete={handleDelete}
                                 allCats={allCats} onUpdate={handleUpdate}
                                 onPlayAudio={playTrack}
@@ -4019,7 +4020,7 @@ function App() {
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
               )}
-              <Terminal files={files} allCats={allCats} />
+              <Terminal files={files} localFiles={localFiles} allCats={allCats} />
               <Footer />
             </div>
 
