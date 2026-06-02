@@ -641,7 +641,7 @@ function HomePage({ files, allCats, onOpenFile, onNav }) {
                   return (
                     <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
                       {cover
-                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'cover',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
+                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'contain',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
                         : <IconGlyph iconId="nota" size={36} />}
                       <div className="cat-name">{artist}</div>
                       <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
@@ -1073,7 +1073,7 @@ function TrackListTable({ files, sort, setSort, onOpen, selectedIds, toggleSel }
                 </td>
                 <td className="col-thumb">
                   {f.thumbnail
-                    ? <img src={f.thumbnail} alt="" style={{width:48,height:36,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}} />
+                    ? <img src={f.thumbnail} alt="" style={{width:48,height:48,objectFit:'contain',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}} />
                     : <div className="list-glyph"><IconGlyph iconId="nota" size={28} /></div>}
                 </td>
                 <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11, width:36, textAlign:'center'}}>{trackNum}</td>
