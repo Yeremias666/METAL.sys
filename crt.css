@@ -394,13 +394,13 @@ input, textarea {
 /* ── 3-column layout: sidebar | content | sidebar ─────────── */
 .page {
   display: grid;
-  grid-template-columns: 200px 1fr 240px;
+  grid-template-columns: 240px 1fr 300px;
   align-items: start;
   padding: 0;
 }
 
 .col-left {
-  padding: 16px 10px 32px 14px;
+  padding: 16px 12px 32px 14px;
   min-width: 0;
 }
 
@@ -410,15 +410,15 @@ input, textarea {
 }
 
 .col-right {
-  padding: 16px 14px 32px 10px;
+  padding: 16px 14px 32px 12px;
   min-width: 0;
 }
 
-@media (max-width: 1300px) {
-  .page { grid-template-columns: 170px 1fr 210px; }
+@media (max-width: 1400px) {
+  .page { grid-template-columns: 210px 1fr 270px; }
 }
-@media (max-width: 1050px) {
-  .page { grid-template-columns: 1fr 210px; }
+@media (max-width: 1150px) {
+  .page { grid-template-columns: 1fr 270px; }
   .col-left { display: none; }
 }
 @media (max-width: 800px) {
@@ -2434,7 +2434,7 @@ input, textarea {
 /* VU backdrop — separate fixed element, BEHIND the player */
 .vu-backdrop {
   position: fixed;
-  left: 10px; right: 10px;
+  left: 12px; right: 12px;
   /* --vu-bottom is set by JS to the exact top-border position of the player.
      Bars grow upward from there, so their bottom aligns with the player's top. */
   bottom: var(--vu-bottom, 104px);

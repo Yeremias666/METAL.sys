@@ -2187,7 +2187,7 @@ function VUBackdrop({ analyser, isPlaying }) {
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   return (
     <div className="vu-backdrop" aria-hidden="true">
-      {[...vuData].reverse().concat(vuData).map((h, i) => (
+      {[...vuData.slice(0,-1)].reverse().concat(vuData.slice(0,-1)).map((h, i) => (
         <div key={i} className="vu-backdrop-bar"
              style={{ height: h + '%', opacity: isPlaying ? 1 : 0.18 }} />
       ))}
