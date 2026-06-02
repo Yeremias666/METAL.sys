@@ -900,99 +900,160 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat }) {
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
 function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
-  const [query, setQuery]       = useState('');
-  const [sort, setSort]         = useState('track-asc');
-  const [view, setView]         = useState('list');
-  const [selAlbum, setSelAlbum] = useState(null);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('track-asc');
+  const [view, setView] = useState('grid');
+  const [selAlbums, setSelAlbums] = useState(new Set());
+  const [selectedAlbum, setSelectedAlbum] = useState(null);
+  const [showResults, setShowResults] = useState(false);
 
-  // Albums by this artist, sorted by year then name
-  const albums = [...new Set(list.map(f => f.album).filter(Boolean))].sort((a, b) => {
-    const ya = (list.find(f => f.album === a) || {}).year || '';
-    const yb = (list.find(f => f.album === b) || {}).year || '';
-    return ya.localeCompare(yb) || a.localeCompare(b);
-  });
+  const albumObjects = [...new Set(list.map((f) => (f.album || 'SINGLE')).filter(Boolean))]
+    .map((name) => {
+      const songs = list.filter((f) => (f.album || 'SINGLE') === name);
+      const year = songs.find((f) => f.year)?.year || '';
+      const cover = songs.find((f) => f.thumbnail || f.coverArt);
+      return { name, songs, year, cover };
+    })
+    .sort((a, b) => {
+      const ya = a.year || '';
+      const yb = b.year || '';
+      return ya.localeCompare(yb) || a.name.localeCompare(b.name);
+    });
 
-  const visibleList = selAlbum ? list.filter(f => f.album === selAlbum) : list;
-  const allExts = [...new Set(visibleList.map(extOf).filter(Boolean))].sort();
+  const q = normStr(query.trim());
+  const albumMatches = q ? albumObjects.filter((a) => normStr(a.name).includes(q)) : [];
+  const songMatches = q ? list.filter((f) => normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
+  const suggestions = [...albumMatches.map((a) => ({ type: 'album', album: a })), ...songMatches.map((f) => ({ type: 'song', file: f }))].slice(0, 5);
 
-  // Custom sort for music: track number aware
-  const sortMusic = (arr, s) => {
-    if (s === 'track-asc') {
-      return [...arr].sort((a, b) => {
-        const ta = parseInt((a.track || '0').split('/')[0]) || 0;
-        const tb = parseInt((b.track || '0').split('/')[0]) || 0;
-        return ta - tb || a.name.localeCompare(b.name);
-      });
-    }
-    return filterAndSort(arr, { query, ext: '', dateRange: 'all', sort: s });
+  const selectedAlbumSongs = selAlbums.size > 0 ? list.filter((f) => selAlbums.has(f.album || 'SINGLE')) : [];
+  const searchSongs = showResults
+    ? (q
+        ? (selAlbums.size > 0
+            ? selectedAlbumSongs.filter((f) => normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q))
+            : songMatches)
+        : selectedAlbumSongs)
+    : [];
+  const searchAlbums = showResults && q ? albumMatches : [];
+
+  const currentAlbum = selectedAlbum ? albumObjects.find((a) => a.name === selectedAlbum) : null;
+  const currentSongs = currentAlbum ? currentAlbum.songs.filter((f) => !q || normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
+
+  const toggleAlbum = (album) => {
+    const next = new Set(selAlbums);
+    if (next.has(album)) next.delete(album);
+    else next.add(album);
+    setSelAlbums(next);
+    setSelectedAlbum(null);
+    setShowResults(false);
   };
 
-  const filtered = sortMusic(
-    query.trim()
-      ? visibleList.filter(f => normStr(f.name).includes(normStr(query)) || normStr(f.album).includes(normStr(query)))
-      : visibleList,
-    sort
-  );
+  const openAlbum = (album) => {
+    setSelectedAlbum(album);
+    setSelAlbums(new Set());
+    setShowResults(false);
+    setQuery('');
+  };
+
+  const clearSearch = () => {
+    setQuery('');
+    setShowResults(false);
+  };
+
+  const submitSearch = () => {
+    setShowResults(true);
+    setSelectedAlbum(null);
+  };
 
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">
-          <span style={{display:'flex', alignItems:'center', gap:8}}>
-            <button className="cat-upload-btn" title={`Añadir canción de ${cat}`}
-              onClick={() => onNav({ page: 'SUBIR' })}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button className="cat-upload-btn" title={`Añadir canción de ${cat}`} onClick={() => onNav({ page: 'SUBIR' })}>
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="miter">
-                <line x1="1" y1="2" x2="11" y2="2" strokeLinecap="square"/>
-                <line x1="6" y1="4" x2="6" y2="11"/>
-                <polyline points="3,7 6,4 9,7"/>
+                <line x1="1" y1="2" x2="11" y2="2" strokeLinecap="square" />
+                <line x1="6" y1="4" x2="6" y2="11" />
+                <polyline points="3,7 6,4 9,7" />
               </svg>
             </button>
             {cat}
           </span>
-          <span className="dots">/// {list.length} CANCIÓN{list.length===1?'':'ES'}</span>
-        </div>
-        <div className="panel-body">
-          {/* Album sub-navigation */}
-          {albums.length > 0 && (
-            <div className="album-subnav">
-              <button className={"album-pill" + (!selAlbum ? " on" : "")} onClick={() => setSelAlbum(null)}>
-                ◆ TODOS
-              </button>
-              {albums.map(a => {
-                const yr = (list.find(f => f.album === a) || {}).year;
-                return (
-                  <button key={a} className={"album-pill" + (selAlbum === a ? " on" : "")}
-                          onClick={() => setSelAlbum(a === selAlbum ? null : a)}>
-                    {a}{yr ? ` · ${yr}` : ''}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
         </div>
       </div>
 
-      {/* Search + sort toolbar */}
       {list.length > 0 && (
         <div className="section">
           <div className="panel searchbar">
             <div className="panel-hd">BUSCADOR <span className="dots">/// FILTROS</span></div>
             <div className="panel-body searchbar-body">
               <div className="search-row">
-                <input className="field-input" placeholder="◆ BUSCAR POR TÍTULO O ÁLBUM..."
-                       value={query} onChange={(e) => setQuery(e.target.value)} />
-                {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
+                <input
+                  className="field-input"
+                  placeholder="◆ BUSCAR POR TÍTULO O ÁLBUM..."
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); if (showResults) setShowResults(false); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
+                />
+                <button className="big-btn" onClick={submitSearch}>BUSCAR</button>
+                {query && <button className="mini-btn alt" onClick={clearSearch}>✕</button>}
               </div>
+
+              {q && !showResults && (
+                <div className="search-suggestions">
+                  {suggestions.length === 0 ? (
+                    <div className="search-suggestion empty">No hay coincidencias todavía.</div>
+                  ) : (
+                    suggestions.map((item, idx) => (
+                      <button
+                        key={idx}
+                        className="search-suggestion"
+                        onClick={() => {
+                          if (item.type === 'album') openAlbum(item.album.name);
+                          else onOpenFile(item.file.id);
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{ width: 32, height: 32, display: 'grid', placeItems: 'center' }}>
+                            {item.type === 'album' ? <IconGlyph iconId="disco" size={24} /> : <IconGlyph iconId="nota" size={24} />}
+                          </div>
+                          <div style={{ textAlign: 'left' }}>
+                            <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>
+                              {item.type === 'album' ? item.album.name : item.file.name}
+                            </div>
+                            <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                              {item.type === 'album' ? item.album.year || 'DISCO' : 'CANCIÓN'}
+                              {item.type === 'song' && item.file.album ? ` · ${item.file.album}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="search-item-type">{item.type === 'album' ? 'DISCO' : 'CANCIÓN'}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
               <div className="search-filters">
-                <div className="filter-group">
-                  <span className="filter-label">ORDEN</span>
-                  <select className="field-input filter-select" value={sort} onChange={(e) => setSort(e.target.value)}>
-                    <option value="track-asc">Nº PISTA ↑</option>
-                    <option value="name-asc">TÍTULO A-Z</option>
-                    <option value="name-desc">TÍTULO Z-A</option>
-                    <option value="date-desc">AÑADIDO ↓</option>
-                    <option value="dl-desc">DESCARGAS ↓</option>
-                  </select>
+                <div className="filter-group" style={{ minWidth: 160 }}>
+                  <span className="filter-label">FILTRO</span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <button
+                      className={"album-pill" + (selAlbums.size === 0 ? ' on' : '')}
+                      onClick={() => { setSelAlbums(new Set()); setShowResults(false); }}
+                    >
+                      TODOS
+                    </button>
+                    {albumObjects.map((album) => (
+                      <button
+                        key={album.name}
+                        className={"album-pill" + (selAlbums.has(album.name) ? ' on' : '')}
+                        onClick={() => toggleAlbum(album.name)}
+                      >
+                        {album.name}{album.year ? ` · ${album.year}` : ''}
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="filter-group">
                   <span className="filter-label">VISTA</span>
@@ -1008,40 +1069,109 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       )}
 
       <div className="section">
-        <div className="panel">
-          <div className="panel-hd">
-            {selAlbum ? selAlbum : cat}
-            <span className="dots">/// {filtered.length} CANCIÓN{filtered.length===1?'':'ES'}</span>
+        {currentAlbum ? (
+          <div className="panel">
+            <div className="panel-hd">
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button className="cat-upload-btn" title="Volver a discos" onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>
+                  ◀
+                </button>
+                {currentAlbum.name}
+              </span>
+              <span className="dots">/// {currentSongs.length} CANCIÓN{currentSongs.length===1?'':'ES'}</span>
+            </div>
+            <div className="panel-body">
+              {currentSongs.length === 0 ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--fg-dim)', fontSize: 22 }}>
+                  ◇ NO HAY CANCIONES PARA ESTE ÁLBUM ◇
+                </div>
+              ) : view === 'grid' ? (
+                <div className="file-grid">
+                  {currentSongs.map((f) => (
+                    <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}> 
+                      <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
+                              onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
+                        {selectedIds.has(f.id) ? '◉' : '◌'}
+                      </button>
+                      <FileCard file={f} onClick={() => onOpenFile(f.id)} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <TrackListTable files={currentSongs} sort={sort} setSort={setSort}
+                                onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
+              )}
+            </div>
           </div>
-          <div className="panel-body">
-            {list.length === 0 ? (
-              <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize: 22}}>
-                ◇ ARTISTA VACÍO — AÑADE CANCIONES ◇
-              </div>
-            ) : filtered.length === 0 ? (
-              <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize: 22}}>
-                ◇ NINGUNA CANCIÓN COINCIDE ◇
-              </div>
-            ) : view === 'grid' ? (
-              <div className="file-grid">
-                {filtered.map((f) => (
-                  <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}>
-                    <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
-                            onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
-                      {selectedIds.has(f.id) ? '◉' : '◌'}
-                    </button>
-                    <FileCard file={f} onClick={() => onOpenFile(f.id)} />
+        ) : showResults ? (
+          <div className="panel">
+            <div className="panel-hd">
+              RESULTADOS <span className="dots">/// {searchAlbums.length + searchSongs.length} COINCIDENCIA{searchAlbums.length + searchSongs.length===1?'':'S'}</span>
+            </div>
+            <div className="panel-body">
+              {searchAlbums.length > 0 && (
+                <>
+                  <div className="field-label" style={{ marginBottom: 10 }}>DISCOS</div>
+                  <div className="album-grid">
+                    {searchAlbums.map((album) => (
+                      <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
+                        <div className="album-card-thumb">
+                          {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
+                          <div className="album-card-vinyl" />
+                        </div>
+                        <div className="album-card-body">
+                          <div className="album-card-title">{album.name}</div>
+                          <div className="album-card-sub">DISCO · {album.year || 'SIN AÑO'}</div>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <TrackListTable files={filtered} sort={sort} setSort={setSort}
-                              onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
-            )}
+                </>
+              )}
+              {searchSongs.length > 0 && (
+                <>
+                  <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
+                  {view === 'grid' ? (
+                    <div className="file-grid">
+                      {searchSongs.map((f) => (
+                        <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}> 
+                          <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
+                                  onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
+                            {selectedIds.has(f.id) ? '◉' : '◌'}
+                          </button>
+                          <FileCard file={f} onClick={() => onOpenFile(f.id)} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <TrackListTable files={searchSongs} sort={sort} setSort={setSort}
+                                    onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
+                  )}
+                </>
+              )}
+              {searchAlbums.length === 0 && searchSongs.length === 0 && (
+                <div style={{ padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22 }}>
+                  ◇ NO HAY COINCIDENCIAS PARA ESTA BÚSQUEDA ◇
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
+        ) : (
+          <div className="album-grid">
+            {albumObjects.map((album) => (
+              <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
+                <div className="album-card-thumb">
+                  {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
+                  <div className="album-card-vinyl" />
+                </div>
+                <div className="album-card-body">
+                  <div className="album-card-title">{album.name}</div>
+                  <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
   );
 }
 
