@@ -28,13 +28,13 @@ const VAULT_CAP = 25 * 1024 * 1024;
 const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
 
 const ASCII_LOGO = String.raw`
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼ \m/
   __  __ _____ _____  _    _
  |  \/  | ____|_   _|/ \  | |
  | |\/| |  _|   | | / _ \ | |
  | |  | | |___  | |/ ___ \| |___
  |_|  |_|_____| |_/_/   \_\_____|
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼ \m/
 `;
 
 const MARQUEE_LINES = [
@@ -3262,10 +3262,11 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
   const sortedUpDates = Object.keys(uploadsByDate).sort();
   const maxUploads = Math.max(1,...Object.values(uploadsByDate));
 
-  // Play log timeline (last 30 days)
-  const today = new Date(); today.setHours(0,0,0,0);
+  // Play log timeline (last 30 days) — usar UTC puro para evitar desfases de zona horaria
+  const todayUTC = new Date().toISOString().slice(0,10);
   const days30 = Array.from({length:30},(_,i)=>{
-    const d=new Date(today); d.setDate(d.getDate()-(29-i));
+    const d = new Date(todayUTC + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - (29-i));
     return d.toISOString().slice(0,10);
   });
   const playsByDayArtist = {};
@@ -3284,10 +3285,11 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
   const likedPlays = audioFiles.filter(f=>likedIds.has(f.id)).reduce((a,f)=>a+(playCounts[f.id]||0),0);
   const likedRatio = totalPlays>0 ? Math.round(likedPlays/totalPlays*100) : 0;
 
-  // Streak
+  // Streak — también UTC
   let streak = 0;
   for (let i = 0; i < 366; i++) {
-    const sd = new Date(today); sd.setDate(sd.getDate() - i);
+    const sd = new Date(todayUTC + 'T12:00:00Z');
+    sd.setUTCDate(sd.getUTCDate() - i);
     const k = sd.toISOString().slice(0, 10);
     if (playsByDayArtist[k]) streak++;
     else break;
@@ -3318,44 +3320,38 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
       </div>
 
       {/* ── Favoritos destacados ── */}
-      {(mostPlayedCount > 0 || topAlbumPlays > 0 || allArtistPlays.length > 0) && (
+      {allArtistsList.length > 0 && (
         <div className="panel section">
           <div className="panel-hd">FAVORITOS <span className="dots">/// TOP PICKS</span></div>
           <div className="panel-body">
             <div className="stats-highlights">
               {/* Artista favorito */}
-              {allArtistPlays[0] && allArtistPlays[0][1]>0 && (
-                <div className="stat-highlight">
-                  <div className="sh-icon" style={{color:artistColorMap[allArtistPlays[0][0]]||'var(--fg-primary)'}}>
-                    <IconGlyph iconId="nota" size={36}/>
-                  </div>
-                  <div className="sh-label">ARTISTA FAVORITO</div>
-                  <div className="sh-name">{allArtistPlays[0][0]}</div>
-                  <div className="sh-sub">▶ {allArtistPlays[0][1]} reproducciones</div>
+              <div className="stat-highlight">
+                <div className="sh-icon" style={{color: allArtistPlays[0] ? (artistColorMap[allArtistPlays[0][0]]||'var(--fg-primary)') : 'var(--fg-dim)'}}>
+                  <IconGlyph iconId="nota" size={36}/>
                 </div>
-              )}
+                <div className="sh-label">ARTISTA FAVORITO</div>
+                <div className="sh-name">{allArtistPlays[0] && allArtistPlays[0][1]>0 ? allArtistPlays[0][0] : '— SIN DATOS —'}</div>
+                {allArtistPlays[0] && allArtistPlays[0][1]>0 && <div className="sh-sub">▶ {allArtistPlays[0][1]} reproducciones</div>}
+              </div>
               {/* Canción favorita */}
-              {mostPlayed && mostPlayedCount>0 && (
-                <div className="stat-highlight">
-                  {(mostPlayed.thumbnail||mostPlayed.coverArt)
-                    ? <img src={mostPlayed.thumbnail||mostPlayed.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
-                    : <div className="sh-icon"><IconGlyph iconId="nota" size={36}/></div>}
-                  <div className="sh-label">CANCIÓN FAVORITA</div>
-                  <div className="sh-name">{mostPlayed.name}</div>
-                  <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.artist||mostPlayed.category||''}</div>
-                </div>
-              )}
+              <div className="stat-highlight">
+                {mostPlayed && mostPlayedCount>0 && (mostPlayed.thumbnail||mostPlayed.coverArt)
+                  ? <img src={mostPlayed.thumbnail||mostPlayed.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
+                  : <div className="sh-icon"><IconGlyph iconId="nota" size={36}/></div>}
+                <div className="sh-label">CANCIÓN FAVORITA</div>
+                <div className="sh-name">{mostPlayed && mostPlayedCount>0 ? mostPlayed.name : '— SIN DATOS —'}</div>
+                {mostPlayed && mostPlayedCount>0 && <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.artist||mostPlayed.category||''}</div>}
+              </div>
               {/* Disco favorito */}
-              {favAlbumName && topAlbumPlays>0 && (
-                <div className="stat-highlight">
-                  {(favAlbumCover?.thumbnail||favAlbumCover?.coverArt)
-                    ? <img src={favAlbumCover.thumbnail||favAlbumCover.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
-                    : <div className="sh-icon"><IconGlyph iconId="disco" size={36}/></div>}
-                  <div className="sh-label">DISCO FAVORITO</div>
-                  <div className="sh-name">{favAlbumName}</div>
-                  <div className="sh-sub">▶ {topAlbumPlays} · {favAlbumArtist}</div>
-                </div>
-              )}
+              <div className="stat-highlight">
+                {favAlbumName && topAlbumPlays>0 && favAlbumCover && (favAlbumCover.thumbnail||favAlbumCover.coverArt)
+                  ? <img src={favAlbumCover.thumbnail||favAlbumCover.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
+                  : <div className="sh-icon"><IconGlyph iconId="disco" size={36}/></div>}
+                <div className="sh-label">DISCO FAVORITO</div>
+                <div className="sh-name">{favAlbumName && topAlbumPlays>0 ? favAlbumName : '— SIN DATOS —'}</div>
+                {favAlbumName && topAlbumPlays>0 && <div className="sh-sub">▶ {topAlbumPlays} · {favAlbumArtist}</div>}
+              </div>
             </div>
           </div>
         </div>
@@ -3416,7 +3412,7 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
       </div>
 
       {/* ── Barras verticales por artista ── */}
-      {topArtists.length > 0 && topArtists.some(([,v])=>v>0) && (
+      {topArtists.length > 0 && (
         <div className="panel section">
           <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// BARRAS</span></div>
           <div className="panel-body">
@@ -3443,7 +3439,7 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
       )}
 
       {/* ── Top géneros ── */}
-      {topGenres.length > 0 && topGenres.some(([,v])=>v>0) && (
+      {topGenres.length > 0 && (
         <div className="panel section">
           <div className="panel-hd">TOP GÉNEROS <span className="dots">/// REPRODUCCIONES</span></div>
           <div className="panel-body">
