@@ -3973,10 +3973,6 @@ function App() {
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.length} totalBytes={totalBytes} />
-          <div className="page-header">
-            <Nav current={route} onNav={setRoute} allCats={allCats} />
-            <Marquee />
-          </div>
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
@@ -3990,6 +3986,8 @@ function App() {
             {/* Center column */}
             <div className="col-main">
               <Banner onNav={setRoute} />
+              <Nav current={route} onNav={setRoute} allCats={allCats} />
+              <Marquee />
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}

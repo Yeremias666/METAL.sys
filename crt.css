@@ -289,11 +289,6 @@ input, textarea {
 }
 @keyframes blink { 50% { opacity: 0.25; } }
 
-/* Full-width header (Banner + Nav + Marquee) — outside the 3-col grid */
-.page-header {
-  padding: 0 20px;
-}
-
 /* Banner */
 .banner {
   display: grid;
