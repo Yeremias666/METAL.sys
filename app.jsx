@@ -652,7 +652,7 @@ function Nav({ current, onNav, allCats }) {
       });
       const vis = visibleRef.current;
       setHiddenCats(allCats.filter(c => !vis.has(c)));
-    }, { root: navLeft, threshold: 0.9 });
+    }, { root: navLeft, threshold: 1.0 });
     navLeft.querySelectorAll('[data-nav-cat]').forEach(el => observer.observe(el));
     return () => { observer.disconnect(); visibleRef.current = new Set(); };
   }, [allCats]);
@@ -679,7 +679,7 @@ function Nav({ current, onNav, allCats }) {
           </button>
         ))}
         <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="MÚSICA" />TODO</button>
-        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />GUSTA</button>
+        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />ME GUSTA</button>
         <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="OTROS" />STATS</button>
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="SUBIR" />LOCAL</button>
       </div>
@@ -727,7 +727,7 @@ function Marquee() {
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '' }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '', onPickFolder }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
   const recent     = files.slice(0, 8);
   const songCount  = files.filter(isAudioFile).length;
@@ -781,7 +781,8 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                 <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Sin límite de tamaño · Sin copias · Sin servidor.</p>
               </>
             )}
-            <button className="big-btn" style={{marginTop:14}} onClick={() => onNav({ page: 'LOCAL' })}>
+            <button className="big-btn" style={{marginTop:14}}
+                    onClick={() => localConnected ? onNav({ page: 'LOCAL' }) : onPickFolder && onPickFolder()}>
               {localConnected ? '↺ GESTIONAR LOCAL' : '📁 CONECTAR CARPETA'}
             </button>
           </div>
@@ -3991,7 +3992,8 @@ function App() {
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
-                          localFiles={localFiles} localDirName={localDirName} />
+                          localFiles={localFiles} localDirName={localDirName}
+                          onPickFolder={pickLocalFolder} />
               )}
               {route.page === 'TODO' && (
                 <TodoPage artists={allArtists} files={files} localFiles={localFiles}
