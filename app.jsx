@@ -28,13 +28,13 @@ const VAULT_CAP = 25 * 1024 * 1024;
 const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
 
 const ASCII_LOGO = String.raw`
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
   __  __ _____ _____  _    _
  |  \/  | ____|_   _|/ \  | |
  | |\/| |  _|   | | / _ \ | |
  | |  | | |___  | |/ ___ \| |___
  |_|  |_|_____| |_/_/   \_\_____|
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
 `;
 
 const MARQUEE_LINES = [
@@ -1060,17 +1060,18 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
         <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
           <div className="upload-grid">
-            {/* LEFT: drop zone + portada */}
-            <div>
+            {/* LEFT: drop zone + portada lado a lado */}
+            <div style={{display:'grid', gridTemplateColumns:'1fr 140px', gap:14, alignItems:'start'}}>
               <div
                 className={"dropzone" + (drag ? " drag" : "") + (file ? " has-file" : "")}
+                style={{minHeight:160}}
                 onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
                 onDragLeave={() => setDrag(false)}
                 onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
                 onClick={() => fileInput.current && fileInput.current.click()}
               >
                 <div className="dz-glyph">
-                  <svg viewBox="0 0 60 60" width="60" height="60" fill="none" stroke="currentColor" strokeWidth="3">
+                  <svg viewBox="0 0 60 60" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="3">
                     <ellipse cx="30" cy="46" rx="18" ry="6"/>
                     <circle cx="30" cy="46" r="3" fill="currentColor" stroke="none"/>
                     <line x1="30" y1="4" x2="30" y2="40"/>
@@ -1079,30 +1080,30 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                   </svg>
                 </div>
                 <div className="dz-title">
-                  {scanning ? "◆ LEYENDO METADATOS..." : file ? "✓ ARCHIVO LISTO" : drag ? "SUELTA EL MP3" : "ARRASTRA UN MP3 AQUÍ"}
+                  {scanning ? "◆ LEYENDO..." : file ? "✓ LISTO" : drag ? "SUELTA EL MP3" : "ARRASTRA UN MP3"}
                 </div>
                 <div className="dz-sub">
-                  {file ? `${file.name} · ${fmtBytes(file.size)}` : "O HAZ CLICK PARA EXPLORAR · MAX 8MB"}
+                  {file ? `${file.name} · ${fmtBytes(file.size)}` : "CLICK PARA EXPLORAR · MAX 8MB"}
                 </div>
                 <input ref={fileInput} type="file" accept="audio/*" style={{display:'none'}}
                        onChange={(e) => handleFile(e.target.files[0])} />
               </div>
 
-              <div style={{marginTop: 14}}>
-                <div className="field-label">PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
-                <div className="thumb-zone" onClick={() => thumbInput.current && thumbInput.current.click()}>
+              <div>
+                <div className="field-label" style={{marginBottom:6}}>PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'OK' : 'OPC'}</span></div>
+                <div className="thumb-zone" style={{width:140, height:140, aspectRatio:'auto'}} onClick={() => thumbInput.current && thumbInput.current.click()}>
                   {thumb
                     ? <img src={thumb} alt="portada" />
-                    : <div className="thumb-empty">
-                        <CameraGlyph size={48} />
-                        <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.1em'}}>
-                          SE EXTRAE DEL MP3 O CLICK PARA ELEGIR
+                    : <div className="thumb-empty" style={{padding:8}}>
+                        <CameraGlyph size={32} />
+                        <div style={{fontFamily:'var(--pixel)', fontSize:8, color:'var(--fg-dim)', marginTop:4, letterSpacing:'0.08em', textAlign:'center'}}>
+                          DEL MP3 O CLICK
                         </div>
                       </div>}
                   <input ref={thumbInput} type="file" accept="image/*" style={{display:'none'}}
                          onChange={(e) => handleThumb(e.target.files[0])} />
                 </div>
-                {thumb && <button className="mini-btn alt" style={{marginTop:8}} onClick={() => setThumb(null)}>✕ QUITAR PORTADA</button>}
+                {thumb && <button className="mini-btn alt" style={{marginTop:6, fontSize:8}} onClick={() => setThumb(null)}>✕ QUITAR</button>}
               </div>
             </div>
 
@@ -1152,19 +1153,6 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                 <button className="big-btn ghost" onClick={clear}>✕ LIMPIAR</button>
               </div>
 
-              {allCats.length > 0 && (
-                <div style={{marginTop:16}}>
-                  <div className="field-label" style={{marginBottom:6}}>ARTISTAS EN LA BIBLIOTECA</div>
-                  <div style={{display:'flex', flexWrap:'wrap', gap:6}}>
-                    {allCats.map(a => (
-                      <button key={a} className="cat-pill" style={{fontSize:11}}
-                              onClick={() => setArtist(a)}>
-                        {a}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -3206,10 +3194,12 @@ function MeGustaPage({ files, likedIds, onOpenFile, onNav, onPlayAll, onToggleLi
 // ─── STATS PAGE ─────────────────────────────────────────────
 const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
 
-function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
-  const audioFiles = files.filter(isAudioFile);
+function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog = [] }) {
+  const allFiles = [...files, ...localFiles];
+  const audioFiles = allFiles.filter(isAudioFile);
   const totalPlays = Object.values(playCounts).reduce((a,v)=>a+v,0);
-  const firstUpload = files.length > 0 ? Math.min(...files.map(f=>f.uploadedAt)) : null;
+  const withTs = allFiles.filter(f=>f.uploadedAt);
+  const firstUpload = withTs.length > 0 ? Math.min(...withTs.map(f=>f.uploadedAt)) : null;
   const totalSize = audioFiles.reduce((a,f)=>a+f.fileSize,0);
   const avgSize = audioFiles.length ? totalSize/audioFiles.length : 0;
   const upCount = log.filter(e=>e.kind==='UP').length;
@@ -3254,7 +3244,7 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
 
   // Upload timeline
   const uploadsByDate = {};
-  files.forEach(f => {
+  withTs.forEach(f => {
     const d = new Date(f.uploadedAt);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     uploadsByDate[key]=(uploadsByDate[key]||0)+1;
@@ -4301,7 +4291,7 @@ function App() {
                   onToggleLike={toggleLike} />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} />
+                <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
