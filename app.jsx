@@ -3784,7 +3784,7 @@ function KonamiGame({ onClose }) {
       speed:5,acct:0,
       player:{y:GY,vy:0,jumps:0,duck:false,frame:0,ftick:0,deadTick:0},
       obstacles:[],nextObs:130,lastSpawnX:W+300,
-      tick:0,ftick:0,deathBones:null};
+      tick:0,ftick:0};
   }
 
   useEffect(()=>{
@@ -3814,63 +3814,6 @@ function KonamiGame({ onClose }) {
       }
       if(duck){ spr(ctx,SK.dk,x,y-SK_H_D); }
       else     { spr(ctx,fr===0?SK.r0:SK.r1,x,y-SK_H_S); }
-    }
-
-    function initDeathBones(){
-      const cx=PX+SK_W/2,by=GY;
-      const bone=(type,x,y,vx,vy,rv,tx,ty,tr)=>
-        ({type,x,y,vx,vy,rot:0,rv,tx:cx+tx,ty:by+ty,tr});
-      return[
-        bone('skull', cx-4,  by-SK_H_S,      (Math.random()-.5)*2,-11,(Math.random()-.5)*.12,  0,-20, .05),
-        bone('long',  cx-3,  by-SK_H_S*.65, -3.5,-5,  .10, -3,-5,  .30),
-        bone('long',  cx+2,  by-SK_H_S*.60,  3.5,-4, -.10,  5,-5, -.40),
-        bone('rib',   cx-5,  by-SK_H_S*.55, -2.5,-6,  .09, -7,-4,  1.1),
-        bone('rib',   cx+3,  by-SK_H_S*.50,  2.5,-5, -.08,  4,-3, -.90),
-        bone('leg',   cx-4,  by-SK_H_S*.28,  -4, -3,  .07,-12,-2,  .60),
-        bone('leg',   cx+2,  by-SK_H_S*.25,   4, -4, -.07, 10,-2, -.50),
-        bone('shard', cx-6,  by-SK_H_S*.7,   -5, -2,  .20, -5,-1,  .80),
-        bone('shard', cx+5,  by-SK_H_S*.7,    5, -2, -.18,  5,-1, -.70),
-        bone('shard', cx,    by-SK_H_S*.4,  (Math.random()-.5)*3,-3,.15,-2,-7, 1.2),
-      ];
-    }
-
-    function updateBones(bones,dt,tick){
-      for(const b of bones){
-        if(tick<50){
-          b.vy+=GRAV*dt; b.x+=b.vx*dt; b.y+=b.vy*dt; b.rot+=b.rv*dt;
-          if(b.y>=GY-3){b.y=GY-3;b.vy*=-.2;b.vx*=.7;b.rv*=.55;}
-          b.x=Math.max(0,Math.min(W,b.x));
-        }else{
-          b.x+=(b.tx-b.x)*.12; b.y+=(b.ty-b.y)*.12; b.rot+=(b.tr-b.rot)*.12;
-        }
-      }
-    }
-
-    function drawBone(ctx,b){
-      ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rot);
-      if(b.type==='skull'){
-        // cráneo
-        ctx.fillStyle='#e8e2d4'; ctx.fillRect(-10,-13,20,13);
-        // mandíbula
-        ctx.fillStyle='#ddd7c8'; ctx.fillRect(-7,-1,14,6);
-        // cuencas oculares
-        ctx.fillStyle='#08070a'; ctx.fillRect(-7,-10,6,5); ctx.fillRect(1,-10,6,5);
-        // nasal
-        ctx.fillRect(-1,-5,2,3);
-        // dientes
-        ctx.fillRect(-7,1,3,4); ctx.fillRect(-1,1,3,4); ctx.fillRect(4,1,3,4);
-      }else if(b.type==='long'||b.type==='leg'){
-        const hw=b.type==='long'?11:9;
-        ctx.fillStyle='#d0cab8'; ctx.fillRect(-hw,-2,hw*2,4);
-        ctx.fillStyle='#e0dace';
-        ctx.fillRect(-hw-4,-4,8,8); ctx.fillRect(hw-4,-4,8,8);
-      }else if(b.type==='rib'){
-        ctx.fillStyle='#c8c0ae'; ctx.fillRect(-7,-1,14,3);
-        ctx.fillStyle='#d8d0be'; ctx.fillRect(-9,-2,4,5); ctx.fillRect(5,-2,4,5);
-      }else{
-        ctx.fillStyle='#b0a898'; ctx.fillRect(-4,-1,8,3);
-      }
-      ctx.restore();
     }
 
     function drawFire(x,h,afr){
@@ -3980,38 +3923,9 @@ function KonamiGame({ onClose }) {
         else drawDemon(o.x,o.y,o.frame||0);
       }
 
-      if(!s.dead){
-        drawSkel(PX,s.player.y,s.player.duck,s.player.frame,false);
-      }else{
-        const p=s.player;
-        p.deadTick=(p.deadTick||0)+dt;
-        if(!s.deathBones)s.deathBones=initDeathBones();
-        updateBones(s.deathBones,dt,p.deadTick);
-        // huesos primero (quedarán bajo el overlay)
-        const nonSk=s.deathBones.filter(b=>b.type!=='skull');
-        const skull=s.deathBones.find(b=>b.type==='skull');
-        nonSk.forEach(b=>drawBone(ctx,b));
-        const dk=p.deadTick;
-        if(dk>100){
-          const t=Math.min(1,(dk-100)/20);
-          ctx.fillStyle=`rgba(0,0,0,${(.72*t).toFixed(2)})`; ctx.fillRect(0,0,W,H);
-          ctx.textAlign='center';
-          ctx.font='15px "Press Start 2P",monospace';
-          ctx.fillStyle=`rgba(214,31,31,${t.toFixed(2)})`;
-          ctx.fillText('GAME OVER',W/2,H/2-40);
-          ctx.font='9px "Press Start 2P",monospace';
-          ctx.fillStyle=`rgba(184,182,173,${t.toFixed(2)})`;
-          ctx.fillText('SCORE: '+s.score,W/2,H/2);
-          if(dk>150){
-            const t2=Math.min(1,(dk-150)/15);
-            ctx.fillStyle=`rgba(90,58,58,${t2.toFixed(2)})`;
-            ctx.fillText('PRESS SPACE TO RESET',W/2,H/2+28);
-          }
-        }
-        // calavera siempre encima de todo
-        if(skull)drawBone(ctx,skull);
-      }
+      drawSkel(PX,s.player.y,s.player.duck,s.player.frame,s.dead);
       hud(s.score,s.hiScore);
+      if(s.dead) overlay('GAME OVER',`SCORE: ${s.score}`,'PRESS SPACE TO RESTART');
 
       rafRef.current=requestAnimationFrame(loop);
     }
@@ -4025,7 +3939,7 @@ function KonamiGame({ onClose }) {
       if(e.key===' '||e.key==='ArrowUp'){
         e.preventDefault();
         if(!s.started){s.started=true;return;}
-        if(s.dead){if((s.player.deadTick||0)>140){stRef.current={...fresh(),started:true,hiScore:s.hiScore};}return;}
+        if(s.dead){stRef.current={...fresh(),started:true,hiScore:s.hiScore};return;}
         if(s.player.jumps<2){s.player.vy=JV;s.player.jumps++;}
       }
     };
