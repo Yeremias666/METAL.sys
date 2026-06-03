@@ -28,13 +28,13 @@ const VAULT_CAP = 25 * 1024 * 1024;
 const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
 
 const ASCII_LOGO = String.raw`
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
   __  __ _____ _____  _    _
  |  \/  | ____|_   _|/ \  | |
  | |\/| |  _|   | | / _ \ | |
  | |  | | |___  | |/ ___ \| |___
  |_|  |_|_____| |_/_/   \_\_____|
- \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
 `;
 
 const MARQUEE_LINES = [
@@ -1059,100 +1059,102 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
       <div className="panel">
         <div className="panel-hd">AÑADIR CANCIÓN <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
-          <div className="upload-grid">
-            {/* LEFT: drop zone + portada lado a lado */}
-            <div style={{display:'grid', gridTemplateColumns:'1fr 140px', gap:14, alignItems:'start'}}>
-              <div
-                className={"dropzone" + (drag ? " drag" : "") + (file ? " has-file" : "")}
-                style={{minHeight:160}}
-                onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-                onDragLeave={() => setDrag(false)}
-                onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
-                onClick={() => fileInput.current && fileInput.current.click()}
-              >
-                <div className="dz-glyph">
-                  <svg viewBox="0 0 60 60" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="3">
-                    <ellipse cx="30" cy="46" rx="18" ry="6"/>
-                    <circle cx="30" cy="46" r="3" fill="currentColor" stroke="none"/>
-                    <line x1="30" y1="4" x2="30" y2="40"/>
-                    <line x1="42" y1="4" x2="42" y2="24"/>
-                    <line x1="30" y1="4" x2="42" y2="4"/>
-                  </svg>
-                </div>
-                <div className="dz-title">
-                  {scanning ? "◆ LEYENDO..." : file ? "✓ LISTO" : drag ? "SUELTA EL MP3" : "ARRASTRA UN MP3"}
-                </div>
-                <div className="dz-sub">
-                  {file ? `${file.name} · ${fmtBytes(file.size)}` : "CLICK PARA EXPLORAR · MAX 8MB"}
-                </div>
-                <input ref={fileInput} type="file" accept="audio/*" style={{display:'none'}}
-                       onChange={(e) => handleFile(e.target.files[0])} />
-              </div>
-
+          <div>
+            {/* FILA SUPERIOR: portada + metadatos */}
+            <div style={{display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'start', marginBottom:16}}>
+              {/* Portada */}
               <div>
-                <div className="field-label" style={{marginBottom:6}}>PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'OK' : 'OPC'}</span></div>
-                <div className="thumb-zone" style={{width:140, height:140, aspectRatio:'auto'}} onClick={() => thumbInput.current && thumbInput.current.click()}>
+                <div className="field-label" style={{marginBottom:6}}>PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
+                <div className="thumb-zone" style={{width:'100%', aspectRatio:'1/1'}} onClick={() => thumbInput.current && thumbInput.current.click()}>
                   {thumb
                     ? <img src={thumb} alt="portada" />
-                    : <div className="thumb-empty" style={{padding:8}}>
-                        <CameraGlyph size={32} />
-                        <div style={{fontFamily:'var(--pixel)', fontSize:8, color:'var(--fg-dim)', marginTop:4, letterSpacing:'0.08em', textAlign:'center'}}>
+                    : <div className="thumb-empty">
+                        <CameraGlyph size={40} />
+                        <div style={{fontFamily:'var(--pixel)', fontSize:9, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.08em', textAlign:'center'}}>
                           DEL MP3 O CLICK
                         </div>
                       </div>}
                   <input ref={thumbInput} type="file" accept="image/*" style={{display:'none'}}
                          onChange={(e) => handleThumb(e.target.files[0])} />
                 </div>
-                {thumb && <button className="mini-btn alt" style={{marginTop:6, fontSize:8}} onClick={() => setThumb(null)}>✕ QUITAR</button>}
+                {thumb && <button className="mini-btn alt" style={{marginTop:8}} onClick={() => setThumb(null)}>✕ QUITAR PORTADA</button>}
+              </div>
+
+              {/* Metadatos */}
+              <div>
+                <div className="field">
+                  <div className="field-label">TÍTULO</div>
+                  <input className="field-input" value={name} onChange={(e) => setName(e.target.value)}
+                         placeholder="Nombre de la canción..." maxLength={120} />
+                </div>
+                <div className="field">
+                  <div className="field-label">ARTISTA <span style={{color:'var(--fg-primary)'}}>*</span></div>
+                  <input className="field-input" value={artist} onChange={(e) => setArtist(e.target.value)}
+                         placeholder="Nombre del artista o banda..." maxLength={100} />
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div className="field">
+                    <div className="field-label">ÁLBUM</div>
+                    <input className="field-input" value={album} onChange={(e) => setAlbum(e.target.value)}
+                           placeholder="Nombre del álbum..." maxLength={100} />
+                  </div>
+                  <div className="field">
+                    <div className="field-label">AÑO</div>
+                    <input className="field-input" value={year} onChange={(e) => setYear(e.target.value)}
+                           placeholder="Ej. 1996" maxLength={4} />
+                  </div>
+                </div>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                  <div className="field">
+                    <div className="field-label">PISTA #</div>
+                    <input className="field-input" value={track} onChange={(e) => setTrack(e.target.value)}
+                           placeholder="Ej. 4/14" maxLength={10} />
+                  </div>
+                  <div className="field">
+                    <div className="field-label">GÉNERO</div>
+                    <input className="field-input" value={genre} onChange={(e) => setGenre(e.target.value)}
+                           placeholder="Ej. Heavy Metal" maxLength={60} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* RIGHT: metadata form */}
-            <div className="upload-form">
-              <div className="field">
-                <div className="field-label">TÍTULO</div>
-                <input className="field-input" value={name} onChange={(e) => setName(e.target.value)}
-                       placeholder="Nombre de la canción..." maxLength={120} />
+            {/* FILA INFERIOR: dropzone MP3 ancho completo */}
+            <div
+              className={"dropzone" + (drag ? " drag" : "") + (file ? " has-file" : "")}
+              style={{padding:'18px 24px', display:'flex', alignItems:'center', gap:20, justifyContent:'center'}}
+              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
+              onClick={() => fileInput.current && fileInput.current.click()}
+            >
+              <div className="dz-glyph" style={{marginBottom:0}}>
+                <svg viewBox="0 0 60 60" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="3">
+                  <ellipse cx="30" cy="46" rx="18" ry="6"/>
+                  <circle cx="30" cy="46" r="3" fill="currentColor" stroke="none"/>
+                  <line x1="30" y1="4" x2="30" y2="40"/>
+                  <line x1="42" y1="4" x2="42" y2="24"/>
+                  <line x1="30" y1="4" x2="42" y2="4"/>
+                </svg>
               </div>
-              <div className="field">
-                <div className="field-label">ARTISTA <span style={{color:'var(--fg-primary)'}}>*</span></div>
-                <input className="field-input" value={artist} onChange={(e) => setArtist(e.target.value)}
-                       placeholder="Nombre del artista o banda..." maxLength={100} />
-              </div>
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <div className="field">
-                  <div className="field-label">ÁLBUM</div>
-                  <input className="field-input" value={album} onChange={(e) => setAlbum(e.target.value)}
-                         placeholder="Nombre del álbum..." maxLength={100} />
+              <div>
+                <div className="dz-title" style={{marginBottom:2}}>
+                  {scanning ? "◆ LEYENDO METADATOS..." : file ? "✓ ARCHIVO LISTO" : drag ? "SUELTA EL MP3 AQUÍ" : "ARRASTRA UN MP3 AQUÍ"}
                 </div>
-                <div className="field">
-                  <div className="field-label">AÑO</div>
-                  <input className="field-input" value={year} onChange={(e) => setYear(e.target.value)}
-                         placeholder="Ej. 1996" maxLength={4} />
-                </div>
-              </div>
-              <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
-                <div className="field">
-                  <div className="field-label">PISTA #</div>
-                  <input className="field-input" value={track} onChange={(e) => setTrack(e.target.value)}
-                         placeholder="Ej. 4/14" maxLength={10} />
-                </div>
-                <div className="field">
-                  <div className="field-label">GÉNERO</div>
-                  <input className="field-input" value={genre} onChange={(e) => setGenre(e.target.value)}
-                         placeholder="Ej. Heavy Metal" maxLength={60} />
+                <div className="dz-sub">
+                  {file ? `${file.name} · ${fmtBytes(file.size)}` : "O HAZ CLICK PARA EXPLORAR · MAX 8MB"}
                 </div>
               </div>
+              <input ref={fileInput} type="file" accept="audio/*" style={{display:'none'}}
+                     onChange={(e) => handleFile(e.target.files[0])} />
+            </div>
 
-              {err && <div className="dz-err">! {err}</div>}
-
-              <div className="form-actions">
-                <button className="big-btn" disabled={scanning} onClick={submit}>
-                  {scanning ? "◆ LEYENDO..." : "↑ AÑADIR"}
-                </button>
-                <button className="big-btn ghost" onClick={clear}>✕ LIMPIAR</button>
-              </div>
-
+            {err && <div className="dz-err" style={{marginTop:10}}>! {err}</div>}
+            <div className="form-actions">
+              <button className="big-btn" disabled={scanning} onClick={submit}>
+                {scanning ? "◆ LEYENDO..." : "↑ AÑADIR"}
+              </button>
+              <button className="big-btn ghost" onClick={clear}>✕ LIMPIAR</button>
             </div>
           </div>
         </div>
@@ -3309,6 +3311,49 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         </div>
       </div>
 
+      {/* ── Podio Top 3 canciones ── */}
+      {(() => {
+        const top3 = [...audioFiles].filter(f=>(playCounts[f.id]||0)>0).sort((a,b)=>(playCounts[b.id]||0)-(playCounts[a.id]||0)).slice(0,3);
+        if (top3.length === 0) return null;
+        const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+        const heights = [56, 80, 40];
+        const medals = ['🥈','🥇','🥉'];
+        const colors = ['#b0b8c8','#ffd700','#cd7f32'];
+        const ranks  = [2, 1, 3];
+        return (
+          <div className="panel section">
+            <div className="panel-hd">TOP 3 CANCIONES <span className="dots">/// PODIO</span></div>
+            <div className="panel-body">
+              <div style={{display:'flex', alignItems:'flex-end', justifyContent:'center', gap:8, padding:'12px 0 0'}}>
+                {podiumOrder.map((song, i) => {
+                  const rank = ranks[i];
+                  const h = heights[i];
+                  const color = colors[i];
+                  const plays = playCounts[song.id]||0;
+                  return (
+                    <div key={song.id} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6, flex:'0 0 auto', width:180}}>
+                      {/* Cover + info */}
+                      <div style={{textAlign:'center', maxWidth:160}}>
+                        {(song.thumbnail||song.coverArt)
+                          ? <img src={song.thumbnail||song.coverArt} alt="" style={{width:56,height:56,objectFit:'cover',border:`2px solid ${color}`,imageRendering:'pixelated',boxShadow:`0 0 10px ${color}55`}}/>
+                          : <div style={{width:56,height:56,border:`2px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center',color}}><IconGlyph iconId="nota" size={32}/></div>}
+                        <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--fg-text)',marginTop:4,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{song.name}</div>
+                        <div style={{fontFamily:'var(--pixel)',fontSize:8,color:'var(--fg-dim)',letterSpacing:'0.08em',marginTop:2}}>{song.artist||song.category||''}</div>
+                        <div style={{fontFamily:'var(--pixel)',fontSize:10,color,marginTop:3,textShadow:`0 0 8px ${color}`}}>▶ {plays}×</div>
+                      </div>
+                      {/* Pedestal */}
+                      <div style={{width:'100%',height:h,background:`linear-gradient(180deg,${color}33,${color}11)`,border:`1px solid ${color}`,borderBottom:'none',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 12px ${color}44`}}>
+                        <span style={{fontFamily:'var(--pixel)',fontSize:rank===1?22:16,color,textShadow:`0 0 10px ${color}`}}>{medals[i]}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Favoritos destacados ── */}
       {allArtistsList.length > 0 && (
         <div className="panel section">
@@ -3402,31 +3447,39 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
       </div>
 
       {/* ── Barras verticales por artista ── */}
-      {topArtists.length > 0 && (
-        <div className="panel section">
-          <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// BARRAS</span></div>
-          <div className="panel-body">
-            <div style={{overflowX:'auto'}}>
-              <svg viewBox={`0 0 ${Math.max(300,topArtists.length*56)} 110`} style={{width:'100%',minWidth:280,display:'block'}}>
-                {topArtists.map(([artist,plays],i)=>{
-                  const bw=40, gap=56, x=i*gap+8;
-                  const bh=Math.max(2,Math.round((plays/maxAP)*72));
-                  const color=artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
-                  return (
-                    <g key={artist}>
-                      <rect x={x} y={76-bh} width={bw} height={bh} fill={color} opacity="0.85"/>
-                      <text x={x+bw/2} y={72-bh} textAnchor="middle" fontSize="9" fill={color} fontFamily="var(--pixel)">{plays}</text>
-                      <text x={x+bw/2} y={90} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.5)" fontFamily="var(--pixel)"
-                            style={{overflow:'hidden'}}>{artist.slice(0,7)}{artist.length>7?'…':''}</text>
-                    </g>
-                  );
-                })}
-                <line x1={0} x2={topArtists.length*56} y1={76} y2={76} stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
-              </svg>
+      {(() => {
+        const playedArtists = topArtists.filter(([,v])=>v>0);
+        if (playedArtists.length === 0) return null;
+        const maxPA = Math.max(1,...playedArtists.map(([,v])=>v));
+        const n = playedArtists.length;
+        const barW = n <= 3 ? 40 : n <= 6 ? 28 : n <= 10 ? 20 : 14;
+        const labelLen = n <= 4 ? 14 : n <= 7 ? 10 : 7;
+        const fontSize = n <= 4 ? 9 : n <= 7 ? 8 : 7;
+        return (
+          <div className="panel section">
+            <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// {playedArtists.length}</span></div>
+            <div className="panel-body">
+              <div className="timeline-wrap">
+                <div className="timeline-chart" style={{gap: n <= 4 ? 10 : n <= 7 ? 6 : 4}}>
+                  {playedArtists.map(([artist,plays],i)=>{
+                    const h = Math.max(4, Math.round((plays/maxPA)*80));
+                    const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
+                    return (
+                      <div key={artist} className="tl-bar-col" title={`${artist}: ${plays}`}>
+                        <span className="tl-count" style={{color, fontSize}}>{plays}</span>
+                        <div className="tl-bar" style={{height:h, width:barW, background:color, boxShadow:`0 0 6px ${color}`}}></div>
+                        <span className="tl-label" style={{fontSize, color:'rgba(255,255,255,0.6)'}}>
+                          {artist.slice(0,labelLen)}{artist.length>labelLen?'…':''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Top géneros ── */}
       {topGenres.length > 0 && (
