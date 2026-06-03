@@ -19,6 +19,7 @@ const CATS_KEY     = 'metalsys_cats_v2';
 const LOG_KEY      = 'metalsys_log_v2';
 const LIKES_KEY    = 'metalsys_likes_v1';
 const COUNTS_KEY   = 'metalsys_playcounts_v1';
+const PLOG_KEY     = 'metalsys_plog_v1';
 const BMRK_KEY     = 'metalsys_bookmarks_v1';
 const CLIPS_KEY    = 'metalsys_clips_v1';
 const SIZE_CAP  = 8 * 1024 * 1024;
@@ -60,6 +61,8 @@ function loadLikes() { try { return new Set(JSON.parse(localStorage.getItem(LIKE
 function saveLikes(s) { try { localStorage.setItem(LIKES_KEY, JSON.stringify([...s])); } catch {} }
 function loadCounts() { try { return JSON.parse(localStorage.getItem(COUNTS_KEY) || '{}'); } catch { return {}; } }
 function saveCounts(c) { try { localStorage.setItem(COUNTS_KEY, JSON.stringify(c)); } catch {} }
+function loadPLog() { try { return JSON.parse(localStorage.getItem(PLOG_KEY) || '[]'); } catch { return []; } }
+function savePLog(l) { try { localStorage.setItem(PLOG_KEY, JSON.stringify(l.slice(0, 2000))); } catch {} }
 function loadBookmarks() { try { return JSON.parse(localStorage.getItem(BMRK_KEY) || '{}'); } catch { return {}; } }
 function saveBookmarks(b) { try { localStorage.setItem(BMRK_KEY, JSON.stringify(b)); } catch {} }
 function loadClipStore() { try { return JSON.parse(localStorage.getItem(CLIPS_KEY) || '{}'); } catch { return {}; } }
@@ -1386,7 +1389,10 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     <div>
       <div className="panel">
         <div className="panel-hd">
-          <span>{cat}</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button className="mini-btn alt" style={{ fontSize: 9 }} onClick={() => onNav({ page: 'INICIO' })}>◀ VOLVER</button>
+            <span>{cat}</span>
+          </span>
           <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
         </div>
       </div>
@@ -1491,9 +1497,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd">
               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button className="cat-upload-btn" title="Volver a discos" onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>
-                  ◀
-                </button>
+                <button className="mini-btn alt" style={{ fontSize: 9 }} onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>◀ VOLVER</button>
                 <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
                 <span>{currentAlbum.name}</span>
               </span>
@@ -2612,9 +2616,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:14, marginBottom: 18, flexWrap:'wrap'}}>
-            <button className="mini-btn" onClick={onBack}>◀ VOLVER</button>
-            <button className="mini-btn" onClick={() => setEditing(!editing)}>{editing ? '✕ CANCELAR' : '✎ EDITAR'}</button>
-            {editing && <button className="mini-btn" style={{borderColor:'var(--fg-accent)', color:'var(--fg-accent)'}} onClick={saveEdit}>✓ GUARDAR</button>}
+            <button className="mini-btn alt" onClick={onBack}>◀ VOLVER</button>
           </div>
 
           <div className="player">
@@ -3202,50 +3204,264 @@ function MeGustaPage({ files, likedIds, onOpenFile, onNav, onPlayAll, onToggleLi
 }
 
 // ─── STATS PAGE ─────────────────────────────────────────────
-function StatsPage({ files, playCounts, log, likedIds }) {
+const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
+
+function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
   const audioFiles = files.filter(isAudioFile);
   const totalPlays = Object.values(playCounts).reduce((a,v)=>a+v,0);
   const firstUpload = files.length > 0 ? Math.min(...files.map(f=>f.uploadedAt)) : null;
   const totalSize = audioFiles.reduce((a,f)=>a+f.fileSize,0);
   const avgSize = audioFiles.length ? totalSize/audioFiles.length : 0;
+  const upCount = log.filter(e=>e.kind==='UP').length;
+  const dlCount = log.filter(e=>e.kind==='DL').length;
+  const delCount = log.filter(e=>e.kind==='DEL').length;
+
+  // All artists
+  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category).filter(Boolean))];
+  const artistColorMap = {};
+  allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
+
+  // Artist plays
+  const artistPlays = {};
+  audioFiles.forEach(f => { const a=f.artist||f.category||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
+  const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
+  const topArtists = allArtistPlays.slice(0,10);
+  const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
+
+  // Fav song
+  const mostPlayed = [...audioFiles].sort((a,b)=>(playCounts[b.id]||0)-(playCounts[a.id]||0))[0];
+  const mostPlayedCount = mostPlayed ? (playCounts[mostPlayed.id]||0) : 0;
+
+  // Fav album
+  const albumPlays = {};
+  audioFiles.forEach(f => {
+    const key = `${f.artist||f.category}||${f.album||'SINGLE'}`;
+    albumPlays[key] = (albumPlays[key]||0) + (playCounts[f.id]||0);
+  });
+  const [topAlbumKey='||', topAlbumPlays=0] = Object.entries(albumPlays).sort((a,b)=>b[1]-a[1])[0] || [];
+  const [favAlbumArtist='', favAlbumName=''] = topAlbumKey.split('||');
+  const favAlbumCover = audioFiles.find(f=>(f.artist||f.category)===favAlbumArtist&&(f.album||'SINGLE')===favAlbumName&&(f.thumbnail||f.coverArt));
+
+  // Genres
+  const genrePlays = {};
+  audioFiles.forEach(f => {
+    if (!f.genre) return;
+    const g = f.genre.toUpperCase().slice(0,18);
+    genrePlays[g]=(genrePlays[g]||0)+(playCounts[f.id]||0);
+  });
+  const topGenres = Object.entries(genrePlays).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxGP = Math.max(1,...topGenres.map(([,v])=>v));
+
+  // Upload timeline
   const uploadsByDate = {};
   files.forEach(f => {
     const d = new Date(f.uploadedAt);
     const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    uploadsByDate[key] = (uploadsByDate[key]||0)+1;
+    uploadsByDate[key]=(uploadsByDate[key]||0)+1;
   });
-  const sortedDates = Object.keys(uploadsByDate).sort();
+  const sortedUpDates = Object.keys(uploadsByDate).sort();
   const maxUploads = Math.max(1,...Object.values(uploadsByDate));
-  const artistPlays = {};
-  audioFiles.forEach(f => { const a=f.artist||f.category; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
-  const topArtists = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
-  const upCount = log.filter(e=>e.kind==='UP').length;
-  const dlCount = log.filter(e=>e.kind==='DL').length;
-  const delCount = log.filter(e=>e.kind==='DEL').length;
-  const mostPlayed = [...audioFiles].sort((a,b)=>(playCounts[b.id]||0)-(playCounts[a.id]||0))[0];
-  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category))];
+
+  // Play log timeline (last 30 days)
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days30 = Array.from({length:30},(_,i)=>{
+    const d=new Date(today); d.setDate(d.getDate()-(29-i));
+    return d.toISOString().slice(0,10);
+  });
+  const playsByDayArtist = {};
+  playLog.forEach(entry => {
+    const d = new Date(entry.ts).toISOString().slice(0,10);
+    if (!days30.includes(d)) return;
+    if (!playsByDayArtist[d]) playsByDayArtist[d]={};
+    const a = entry.artist||'OTRO';
+    playsByDayArtist[d][a]=(playsByDayArtist[d][a]||0)+1;
+  });
+  const playDayTotals = days30.map(d=>Object.values(playsByDayArtist[d]||{}).reduce((a,v)=>a+v,0));
+  const maxPlaysDay = Math.max(1,...playDayTotals);
+  const playArtists = [...new Set(playLog.map(e=>e.artist).filter(Boolean))].slice(0,8);
+
+  // Liked ratio
+  const likedPlays = audioFiles.filter(f=>likedIds.has(f.id)).reduce((a,f)=>a+(playCounts[f.id]||0),0);
+  const likedRatio = totalPlays>0 ? Math.round(likedPlays/totalPlays*100) : 0;
+
+  // Streak
+  let streak=0, streakD=new Date(today);
+  while(true){const k=streakD.toISOString().slice(0,10);if(!playsByDayArtist[k]&&streak>0)break;if(playsByDayArtist[k])streak++;streakD.setDate(streakD.getDate()-1);if(streak>365)break;}
+
+  const CHART_W=500, CHART_H=80;
+  const px=(i)=> Math.round((i/(days30.length-1))*CHART_W);
+  const py=(v)=> Math.round(CHART_H - (v/maxPlaysDay)*CHART_H);
+
   return (
     <div className="stats-page">
+
+      {/* ── Métricas clave ── */}
       <div className="panel">
         <div className="panel-hd">ESTADÍSTICAS <span className="dots">/// VAULT ANALYTICS</span></div>
         <div className="panel-body">
           <div className="stats-facts-grid">
-            {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',likedIds.size],['SUBIDAS (LOG)',upCount],['DESCARGAS (LOG)',dlCount],['BORRADAS (LOG)',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
+            {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',likedIds.size],['SUBIDAS',upCount],['DESCARGAS',dlCount],['BORRADAS',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
               <div key={lbl} className="stat-fact"><div className="sf-label">{lbl}</div><div className="sf-val">{val}</div></div>
             ))}
           </div>
-          {firstUpload && <div className="stat-fact" style={{marginBottom:8}}><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:18}}>{fmtLongDate(firstUpload)}</div></div>}
-          {mostPlayed && (playCounts[mostPlayed.id]||0)>0 && <div className="stat-fact" style={{marginBottom:8}}><div className="sf-label">MÁS ESCUCHADA</div><div className="sf-val" style={{fontSize:18}}>{mostPlayed.name} <span style={{color:'var(--fg-success)',fontSize:14}}>▶{playCounts[mostPlayed.id]}</span></div></div>}
+          <div style={{display:'flex',gap:12,marginTop:14,flexWrap:'wrap'}}>
+            {firstUpload && <div className="stat-fact" style={{flex:1,minWidth:200}}><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:16}}>{fmtLongDate(firstUpload)}</div></div>}
+            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">% PLAYS LIKED</div><div className="sf-val" style={{color:'var(--fg-primary)'}}>{likedRatio}%</div></div>
+            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">RACHA ACTUAL</div><div className="sf-val" style={{color:'var(--fg-accent)'}}>{streak} DÍA{streak===1?'':'S'}</div></div>
+          </div>
         </div>
       </div>
-      {sortedDates.length>0 && (
+
+      {/* ── Favoritos destacados ── */}
+      {(mostPlayedCount > 0 || topAlbumPlays > 0 || allArtistPlays.length > 0) && (
+        <div className="panel section">
+          <div className="panel-hd">FAVORITOS <span className="dots">/// TOP PICKS</span></div>
+          <div className="panel-body">
+            <div className="stats-highlights">
+              {/* Artista favorito */}
+              {allArtistPlays[0] && allArtistPlays[0][1]>0 && (
+                <div className="stat-highlight">
+                  <div className="sh-icon" style={{color:artistColorMap[allArtistPlays[0][0]]||'var(--fg-primary)'}}>
+                    <IconGlyph iconId="nota" size={36}/>
+                  </div>
+                  <div className="sh-label">ARTISTA FAVORITO</div>
+                  <div className="sh-name">{allArtistPlays[0][0]}</div>
+                  <div className="sh-sub">▶ {allArtistPlays[0][1]} reproducciones</div>
+                </div>
+              )}
+              {/* Canción favorita */}
+              {mostPlayed && mostPlayedCount>0 && (
+                <div className="stat-highlight">
+                  {(mostPlayed.thumbnail||mostPlayed.coverArt)
+                    ? <img src={mostPlayed.thumbnail||mostPlayed.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
+                    : <div className="sh-icon"><IconGlyph iconId="nota" size={36}/></div>}
+                  <div className="sh-label">CANCIÓN FAVORITA</div>
+                  <div className="sh-name">{mostPlayed.name}</div>
+                  <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.artist||mostPlayed.category||''}</div>
+                </div>
+              )}
+              {/* Disco favorito */}
+              {favAlbumName && topAlbumPlays>0 && (
+                <div className="stat-highlight">
+                  {(favAlbumCover?.thumbnail||favAlbumCover?.coverArt)
+                    ? <img src={favAlbumCover.thumbnail||favAlbumCover.coverArt} alt="" style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}}/>
+                    : <div className="sh-icon"><IconGlyph iconId="disco" size={36}/></div>}
+                  <div className="sh-label">DISCO FAVORITO</div>
+                  <div className="sh-name">{favAlbumName}</div>
+                  <div className="sh-sub">▶ {topAlbumPlays} · {favAlbumArtist}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Timeline reproducciones (30 días) ── */}
+      <div className="panel section">
+        <div className="panel-hd">REPRODUCCIONES DIARIAS <span className="dots">/// ÚLTIMOS 30 DÍAS</span></div>
+        <div className="panel-body">
+          {playLog.length === 0 ? (
+            <div style={{color:'var(--fg-dim)',fontSize:18,padding:'18px 0'}}>◇ Sin datos aún — los datos se acumulan a partir de ahora al escuchar canciones.</div>
+          ) : (
+            <>
+              <div style={{overflowX:'auto'}}>
+                <svg viewBox={`0 0 ${CHART_W} ${CHART_H+24}`} style={{width:'100%',minWidth:320,display:'block',fontFamily:'var(--mono)'}}>
+                  {/* grid lines */}
+                  {[0,0.25,0.5,0.75,1].map(t=>(
+                    <line key={t} x1={0} x2={CHART_W} y1={py(maxPlaysDay*t)} y2={py(maxPlaysDay*t)}
+                          stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+                  ))}
+                  {/* line per artist */}
+                  {playArtists.map((artist,ai) => {
+                    const pts = days30.map((d,i)=>`${px(i)},${py((playsByDayArtist[d]||{})[artist]||0)}`).join(' ');
+                    return <polyline key={artist} points={pts} fill="none"
+                                     stroke={artistColorMap[artist]||STAT_COLORS[ai%STAT_COLORS.length]}
+                                     strokeWidth="1.5" strokeLinejoin="round" opacity="0.85"/>;
+                  })}
+                  {/* total line */}
+                  {(() => {
+                    const pts = days30.map((d,i)=>`${px(i)},${py(playDayTotals[i])}`).join(' ');
+                    return <polyline points={pts} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="3,3"/>;
+                  })()}
+                  {/* x-axis labels (every 5 days) */}
+                  {days30.map((d,i)=>i%5===0&&(
+                    <text key={d} x={px(i)} y={CHART_H+18} textAnchor="middle" fontSize="9"
+                          fill="rgba(255,255,255,0.35)">{d.slice(5)}</text>
+                  ))}
+                </svg>
+              </div>
+              {/* Leyenda */}
+              {playArtists.length > 0 && (
+                <div style={{display:'flex',flexWrap:'wrap',gap:'6px 16px',marginTop:10}}>
+                  {playArtists.map((a,i)=>(
+                    <span key={a} style={{fontSize:14,fontFamily:'var(--pixel)',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:5}}>
+                      <span style={{display:'inline-block',width:20,height:3,background:artistColorMap[a]||STAT_COLORS[i%STAT_COLORS.length],borderRadius:2}}/>
+                      {a}
+                    </span>
+                  ))}
+                  <span style={{fontSize:14,fontFamily:'var(--pixel)',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:5}}>
+                    <span style={{display:'inline-block',width:20,height:2,background:'rgba(255,255,255,0.35)',borderRadius:2,borderTop:'1px dashed rgba(255,255,255,0.35)'}}/>
+                    TOTAL
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Barras verticales por artista ── */}
+      {topArtists.length > 0 && topArtists.some(([,v])=>v>0) && (
+        <div className="panel section">
+          <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// BARRAS</span></div>
+          <div className="panel-body">
+            <div style={{overflowX:'auto'}}>
+              <svg viewBox={`0 0 ${Math.max(300,topArtists.length*56)} 110`} style={{width:'100%',minWidth:280,display:'block'}}>
+                {topArtists.map(([artist,plays],i)=>{
+                  const bw=40, gap=56, x=i*gap+8;
+                  const bh=Math.max(2,Math.round((plays/maxAP)*72));
+                  const color=artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
+                  return (
+                    <g key={artist}>
+                      <rect x={x} y={76-bh} width={bw} height={bh} fill={color} opacity="0.85"/>
+                      <text x={x+bw/2} y={72-bh} textAnchor="middle" fontSize="9" fill={color} fontFamily="var(--pixel)">{plays}</text>
+                      <text x={x+bw/2} y={90} textAnchor="middle" fontSize="8" fill="rgba(255,255,255,0.5)" fontFamily="var(--pixel)"
+                            style={{overflow:'hidden'}}>{artist.slice(0,7)}{artist.length>7?'…':''}</text>
+                    </g>
+                  );
+                })}
+                <line x1={0} x2={topArtists.length*56} y1={76} y2={76} stroke="rgba(255,255,255,0.15)" strokeWidth="1"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Top géneros ── */}
+      {topGenres.length > 0 && topGenres.some(([,v])=>v>0) && (
+        <div className="panel section">
+          <div className="panel-hd">TOP GÉNEROS <span className="dots">/// REPRODUCCIONES</span></div>
+          <div className="panel-body">
+            {topGenres.map(([genre,plays],i)=>(
+              <div key={genre} className="artist-plays-row">
+                <span className="ap-rank" style={{color:STAT_COLORS[i%STAT_COLORS.length]}}>{i+1}</span>
+                <span className="ap-name">{genre}</span>
+                <div className="ap-bar-bg"><div className="ap-bar-fill" style={{width:(plays/maxGP*100)+'%',background:STAT_COLORS[i%STAT_COLORS.length]}}></div></div>
+                <span className="ap-count">▶{plays}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Timeline subidas ── */}
+      {sortedUpDates.length > 0 && (
         <div className="panel section">
           <div className="panel-hd">TIMELINE DE SUBIDAS <span className="dots">/// POR DÍA</span></div>
           <div className="panel-body">
             <div className="timeline-wrap">
               <div className="timeline-chart">
-                {sortedDates.map(d => {
+                {sortedUpDates.map(d=>{
                   const count=uploadsByDate[d]; const h=Math.max(4,(count/maxUploads)*76);
                   return (<div key={d} className="tl-bar-col" title={`${d}: ${count}`}><span className="tl-count">{count}</span><div className="tl-bar" style={{height:h}}></div><span className="tl-label">{d.slice(5)}</span></div>);
                 })}
@@ -3254,20 +3470,7 @@ function StatsPage({ files, playCounts, log, likedIds }) {
           </div>
         </div>
       )}
-      {topArtists.length>0 && (
-        <div className="panel section">
-          <div className="panel-hd">TOP ARTISTAS <span className="dots">/// REPRODUCCIONES</span></div>
-          <div className="panel-body">
-            {topArtists.map(([artist,plays],i)=>(
-              <div key={artist} className="artist-plays-row">
-                <span className="ap-rank">{i+1}</span><span className="ap-name">{artist}</span>
-                <div className="ap-bar-bg"><div className="ap-bar-fill" style={{width:(plays/maxAP*100)+'%'}}></div></div>
-                <span className="ap-count">▶{plays}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+
       <div className="section"><StatsPanel files={files} allCats={allArtistsList.sort()} /></div>
     </div>
   );
@@ -3476,6 +3679,7 @@ function App() {
   // ── New feature state ──────────────────────────────────────
   const [likedIds, setLikedIds]     = useState(loadLikes);
   const [playCounts, setPlayCounts] = useState(loadCounts);
+  const [playLog,    setPlayLog]    = useState(loadPLog);
   const [bookmarks, setBookmarks]   = useState(loadBookmarks);   // {fileId: [{id,name,time}]}
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
@@ -3798,7 +4002,13 @@ function App() {
 
   const countPlay = (id) => {
     if (!id) return;
-    setPlayCounts(prev => ({ ...prev, [id]: (prev[id] || 0) + 1 }));
+    setPlayCounts(prev => { const n = { ...prev, [id]: (prev[id] || 0) + 1 }; saveCounts(n); return n; });
+    const file = [...files, ...localFiles].find(f => f.id === id);
+    setPlayLog(prev => {
+      const n = [{ id, artist: file?.artist || file?.category || '', ts: Date.now() }, ...prev].slice(0, 2000);
+      savePLog(n);
+      return n;
+    });
   };
 
   const startTrack = (file, nextContext) => {
@@ -4090,7 +4300,7 @@ function App() {
                   onToggleLike={toggleLike} />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} />
+                <StatsPage files={files} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
