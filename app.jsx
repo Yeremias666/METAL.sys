@@ -28,13 +28,13 @@ const VAULT_CAP = 25 * 1024 * 1024;
 const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
 
 const ASCII_LOGO = String.raw`
- \m/  ▲▼▲▼▲▼▲▼▲▼  \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
   __  __ _____ _____  _    _
  |  \/  | ____|_   _|/ \  | |
  | |\/| |  _|   | | / _ \ | |
  | |  | | |___  | |/ ___ \| |___
  |_|  |_|_____| |_/_/   \_\_____|
- \m/  ▲▼▲▼▲▼▲▼▲▼  \m/
+ \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
 `;
 
 const MARQUEE_LINES = [
@@ -944,21 +944,21 @@ function TodoPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArt
         </div>
       </div>
 
-      <div className="album-grid">
+      <div className="cat-grid" style={{marginTop:14}}>
         {artists.map((artist) => {
           const songs = allFiles.filter((f) => (f.artist || f.category) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           return (
-            <div key={artist} className="cat-card">
-              <div style={{ display:'flex', alignItems:'center', gap: 10, width:'100%' }}>
+            <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
+              <div className="cat-card-img">
                 {cover
-                  ? <img src={cover.thumbnail || cover.coverArt} style={{width:48,height:48,objectFit:'contain',imageRendering:'pixelated',border:'1px solid var(--fg-primary)'}} alt={artist} />
-                  : <IconGlyph iconId="nota" size={36} />}
-                <div style={{flex:'1'}}>
-                  <div className="cat-name" style={{cursor:'pointer'}} onClick={() => onNav({ page: 'CAT', cat: artist })}>{artist}</div>
-                  <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'}</div>
-                </div>
-                <button className="mini-btn" onClick={() => onPlayArtist(artist)}>▶</button>
+                  ? <img src={cover.thumbnail || cover.coverArt} alt={artist} />
+                  : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+                <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+              </div>
+              <div className="cat-card-info">
+                <div className="cat-name">{artist}</div>
+                <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'}</div>
               </div>
             </div>
           );
@@ -1390,7 +1390,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel">
         <div className="panel-hd">
           <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="mini-btn alt" style={{ fontSize: 9 }} onClick={() => onNav({ page: 'INICIO' })}>◀ VOLVER</button>
+            <button className="cat-upload-btn" style={{ width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em', gap:4 }} onClick={() => onNav({ page: 'INICIO' })}>◀ VOLVER</button>
             <span>{cat}</span>
           </span>
           <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
@@ -1497,7 +1497,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd">
               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button className="mini-btn alt" style={{ fontSize: 9 }} onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>◀ VOLVER</button>
+                <button className="cat-upload-btn" style={{ width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em' }} onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>◀ VOLVER</button>
                 <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
                 <span>{currentAlbum.name}</span>
               </span>
@@ -2361,7 +2361,7 @@ function VUBackdrop({ analyser, isPlaying }) {
 function IconShuffle({ active }) {
   const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" style={{ opacity: active ? 1 : 0.45 }}>
+    <svg width="18" height="18" viewBox="0 0 24 24" style={{ opacity: active ? 1 : 0.6 }}>
       {/* arrow 1: left→right (top path) */}
       <polyline points="16,3 21,3 21,8" {...s} />
       <path d="M3 12 Q3 3 12 3 L21 3" {...s} />
@@ -2375,7 +2375,7 @@ function IconShuffle({ active }) {
   );
 }
 function IconRepeatOff() {
-  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: 0.4 };
+  const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round', opacity: 0.6 };
   return (
     <svg width="18" height="18" viewBox="0 0 24 24">
       <polyline points="17,1 21,5 17,9" {...s} />
@@ -3285,8 +3285,13 @@ function StatsPage({ files, playCounts, log, likedIds, playLog = [] }) {
   const likedRatio = totalPlays>0 ? Math.round(likedPlays/totalPlays*100) : 0;
 
   // Streak
-  let streak=0, streakD=new Date(today);
-  while(true){const k=streakD.toISOString().slice(0,10);if(!playsByDayArtist[k]&&streak>0)break;if(playsByDayArtist[k])streak++;streakD.setDate(streakD.getDate()-1);if(streak>365)break;}
+  let streak = 0;
+  for (let i = 0; i < 366; i++) {
+    const sd = new Date(today); sd.setDate(sd.getDate() - i);
+    const k = sd.toISOString().slice(0, 10);
+    if (playsByDayArtist[k]) streak++;
+    else break;
+  }
 
   const CHART_W=500, CHART_H=80;
   const px=(i)=> Math.round((i/(days30.length-1))*CHART_W);
@@ -4328,7 +4333,7 @@ function App() {
               {route.page === 'DETAIL' && (
                 currentFile
                   ? <DetailPage file={currentFile}
-                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category || currentFile.artist })}
+                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category || currentFile.artist, album: currentFile.album || undefined })}
                                 onDownload={handleDownload} onDelete={handleDelete}
                                 allCats={allCats} onUpdate={handleUpdate}
                                 onPlayAudio={playTrack}

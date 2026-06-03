@@ -2552,10 +2552,22 @@ input, textarea {
 }
 .mp-controls button:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); }
 .mp-controls .mp-play {
-  width: 48px; height: 48px;
-  font-size: 18px;
+  width: 38px; height: 38px;
+  font-size: 14px;
 }
 .mp-controls .mp-play:hover { background: var(--fg-primary); border-color: var(--fg-primary); box-shadow: 0 0 18px var(--fg-primary); color: #000; }
+.mp-controls .like-btn {
+  width: 38px; height: 38px;
+  padding: 0;
+  align-self: auto;
+  font-size: 16px;
+  background: rgba(214,31,31,0.15);
+  border: 1px solid var(--fg-primary);
+  color: var(--fg-primary);
+  text-shadow: 0 0 6px var(--fg-primary);
+}
+.mp-controls .like-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
+.mp-controls .like-btn.liked { background: rgba(214,31,31,0.35); box-shadow: 0 0 10px var(--fg-primary); }
 .mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; color: var(--fg-primary); }
 .mp-volume span { font-size: 16px; color: var(--fg-primary); }
 .mp-volume input[type=range] {
@@ -2576,15 +2588,17 @@ input, textarea {
 }
 .mp-close {
   font-family: var(--mono);
-  font-size: 18px;
-  background: transparent;
-  border: 1px solid var(--fg-dim);
-  color: var(--fg-dim);
-  width: 30px; height: 30px;
+  font-size: 16px;
+  background: rgba(214,31,31,0.15);
+  border: 1px solid var(--fg-primary);
+  color: var(--fg-primary);
+  width: 38px; height: 38px;
   cursor: pointer;
   padding: 0;
+  text-shadow: 0 0 6px var(--fg-primary);
+  transition: all 0.08s;
 }
-.mp-close:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
+.mp-close:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
 
 /* VU backdrop — separate fixed element, BEHIND the player */
 .vu-backdrop {
@@ -3226,16 +3240,18 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ─── Player Menu (3-dot dropdown) ──────────────────────────── */
 .mp-menu-wrap { position: relative; }
 .mp-menu-btn {
-  background: transparent;
-  border: 1px solid rgba(214,31,31,0.4);
-  color: var(--fg-secondary);
+  background: rgba(214,31,31,0.15);
+  border: 1px solid var(--fg-primary);
+  color: var(--fg-primary);
   font-size: 16px;
-  padding: 4px 8px;
+  width: 38px; height: 38px;
+  padding: 0;
   cursor: pointer;
   letter-spacing: 0.1em;
-  transition: border-color 0.15s, color 0.15s;
+  text-shadow: 0 0 6px var(--fg-primary);
+  transition: all 0.08s;
 }
-.mp-menu-btn:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
+.mp-menu-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
 .mp-menu-dropdown {
   position: absolute;
   bottom: calc(100% + 6px);
