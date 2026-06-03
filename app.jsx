@@ -734,6 +734,29 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   const artistCount = allCats.length;
   const localConnected = localFiles.length > 0 || localDirName;
 
+  const [gQuery, setGQuery] = useState('');
+  const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
+  const gq = normStr(gQuery.trim());
+
+  const gSuggestions = useMemo(() => {
+    if (!gq) return [];
+    const artistHits = allCats.filter(a => normStr(a).includes(gq))
+      .slice(0, 2).map(a => {
+        const cover = allFiles.find(f => (f.artist || f.category) === a && f.thumbnail);
+        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+      });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const songHits = allFiles.filter(f => normStr(f.name).includes(gq))
+      .slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...songHits].slice(0, 5);
+  }, [gq, allCats, allFiles]);
+
   return (
     <div>
       <div className="panel">
@@ -785,6 +808,57 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                     onClick={() => localConnected ? onNav({ page: 'LOCAL' }) : onPickFolder && onPickFolder()}>
               {localConnected ? '↺ GESTIONAR LOCAL' : '📁 CONECTAR CARPETA'}
             </button>
+          </div>
+        </div>
+      </div>
+
+      {/* BUSCADOR GLOBAL */}
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input
+                className="field-input"
+                placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                value={gQuery}
+                onChange={(e) => setGQuery(e.target.value)}
+              />
+              {gQuery && <button className="mini-btn alt" onClick={() => setGQuery('')}>✕</button>}
+            </div>
+            {gq && (
+              <div className="search-suggestions">
+                {gSuggestions.length === 0 ? (
+                  <div className="search-suggestion empty">Sin coincidencias.</div>
+                ) : gSuggestions.map((item, idx) => (
+                  <button key={idx} className="search-suggestion" onClick={() => {
+                    setGQuery('');
+                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
+                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                    else onOpenFile(item.file.id);
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="search-suggestion-thumb">
+                        {item.type === 'artist'
+                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                          : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                          {item.type === 'artist' ? 'ARTISTA'
+                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="search-item-type">
+                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1374,20 +1448,22 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               )}
 
               <div className="search-filters">
-                <div className="filter-group">
-                  <span className="filter-label">ORDENAR</span>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                    <select className="sort-select" value={albumSort} onChange={e => setAlbumSort(e.target.value)}>
-                      <option value="year">AÑO</option>
-                      <option value="alpha">ALFABÉTICO</option>
-                      <option value="songs">Nº CANCIONES</option>
-                    </select>
-                    <button className="dir-btn" title={albumDir === 'asc' ? 'Ascendente' : 'Descendente'}
-                            onClick={() => setAlbumDir(d => d === 'asc' ? 'desc' : 'asc')}>
-                      {albumDir === 'asc' ? '▲' : '▼'}
-                    </button>
+                {!currentAlbum && (
+                  <div className="filter-group">
+                    <span className="filter-label">ORDENAR</span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <select className="sort-select" value={albumSort} onChange={e => setAlbumSort(e.target.value)}>
+                        <option value="year">AÑO</option>
+                        <option value="alpha">ALFABÉTICO</option>
+                        <option value="songs">Nº CANCIONES</option>
+                      </select>
+                      <button className="dir-btn" title={albumDir === 'asc' ? 'Ascendente' : 'Descendente'}
+                              onClick={() => setAlbumDir(d => d === 'asc' ? 'desc' : 'asc')}>
+                        {albumDir === 'asc' ? '▲' : '▼'}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="filter-group">
                   <span className="filter-label">VISTA</span>
                   <div className="view-toggle">
