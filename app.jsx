@@ -1240,7 +1240,7 @@ function FolderImportSection({ vault, onUpload }) {
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, prefillAlbum }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -1441,7 +1441,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 </div>
               ) : (
                 <TrackListTable files={sortedSongs} sort={sort} setSort={setSort}
-                                onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
+                                onOpen={onOpenFile} onPlay={onPlayFile}
+                                selectedIds={selectedIds} toggleSel={toggleSel} />
               )}
             </div>
           </div>
@@ -1547,7 +1548,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 }
 
 // ─── TRACK LIST TABLE (música) ─────────────────────────────────
-function TrackListTable({ files, sort, setSort, onOpen, selectedIds, toggleSel }) {
+function TrackListTable({ files, sort, setSort, onOpen, onPlay, selectedIds, toggleSel }) {
   return (
     <div className="file-list-wrap">
       <table className="file-list">
@@ -1584,7 +1585,7 @@ function TrackListTable({ files, sort, setSort, onOpen, selectedIds, toggleSel }
                 <td style={{color:'var(--fg-secondary)', fontSize:18}}>{f.album || '—'}</td>
                 <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10}}>{f.year || '—'}</td>
                 <td>{fmtBytes(f.fileSize)}</td>
-                <td><button className="mini-btn" onClick={(e) => { e.stopPropagation(); onOpen(f.id); }}>▶</button></td>
+                <td><button className="mini-btn alt" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button></td>
               </tr>
             );
           })}
@@ -3973,7 +3974,6 @@ function App() {
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.length} totalBytes={totalBytes} />
           <div className="page-header">
-            <Banner onNav={setRoute} />
             <Nav current={route} onNav={setRoute} allCats={allCats} />
             <Marquee />
           </div>
@@ -3989,6 +3989,7 @@ function App() {
 
             {/* Center column */}
             <div className="col-main">
+              <Banner onNav={setRoute} />
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
@@ -4035,7 +4036,8 @@ function App() {
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
                               onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
-                              onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)} />
+                              onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)}
+                              onPlayFile={(f) => { setManualQueue([f]); startTrack(f); }} />
               )}
               {route.page === 'DETAIL' && (
                 currentFile
