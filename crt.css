@@ -289,6 +289,11 @@ input, textarea {
 }
 @keyframes blink { 50% { opacity: 0.25; } }
 
+/* Full-width header (Banner + Nav + Marquee) — outside the 3-col grid */
+.page-header {
+  padding: 0 20px;
+}
+
 /* Banner */
 .banner {
   display: grid;
@@ -982,34 +987,91 @@ input, textarea {
 /* ─── Category cards (home page) ─────────────────────────── */
 .cat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 14px;
 }
 .cat-card {
   border: 2px solid var(--fg-primary);
-  padding: 14px 10px;
-  text-align: center;
   cursor: pointer;
-  background: rgba(214,31,31,0.04);
-  transition: background 0.15s, box-shadow 0.15s;
-  color: var(--fg-primary);
+  background: rgba(0,0,0,0.45);
+  transition: transform 0.12s, box-shadow 0.15s;
+  color: var(--fg-text);
+  overflow: hidden;
+  padding: 0;
+  text-align: left;
 }
 .cat-card:hover {
-  background: rgba(214,31,31,0.16);
-  box-shadow: inset 0 0 0 1px var(--fg-accent), 0 0 12px rgba(214,31,31,0.5);
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 rgba(214,31,31,0.4), 0 0 16px rgba(214,31,31,0.55);
+}
+.cat-card-img {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: linear-gradient(135deg, rgba(214,31,31,0.14) 0%, #08070a 100%);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 2px solid var(--fg-primary);
+}
+.cat-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+.cat-card-no-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-primary);
+  opacity: 0.7;
+}
+.cat-card-play {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  background: var(--fg-primary);
+  border: 2px solid var(--fg-accent);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 14px rgba(214,31,31,0.8);
+  padding: 0;
+}
+.cat-card:hover .cat-card-play {
+  opacity: 1;
+}
+.cat-card-info {
+  padding: 10px 12px 12px;
+  background: rgba(0,0,0,0.55);
 }
 .cat-card .cat-name {
   font-family: var(--pixel);
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.1em;
   color: var(--fg-text);
-  margin-top: 8px;
+  margin-top: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cat-card .cat-count {
   font-family: var(--mono);
-  font-size: 17px;
+  font-size: 16px;
   color: var(--fg-dim);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 
 /* ─── Album sub-navigation ───────────────────────────────── */
@@ -3060,11 +3122,15 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   border: 1px solid var(--fg-dim);
   color: var(--fg-dim);
-  font-size: 18px;
+  font-size: 22px;
   line-height: 1;
-  padding: 2px 7px;
+  padding: 2px 14px;
   cursor: pointer;
   transition: color 0.15s, border-color 0.15s, text-shadow 0.15s;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .like-btn:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
 .like-btn.liked {

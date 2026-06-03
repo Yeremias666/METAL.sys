@@ -805,15 +805,15 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                   const cover    = allSongs.find(f => f.thumbnail);
                   return (
                     <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
-                      {cover
-                        ? <img src={cover.thumbnail} style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)'}} alt={artist} />
-                        : <IconGlyph iconId="nota" size={36} />}
-                      <div style={{display:'flex', justifyContent:'space-between', alignItems:'flex-start', width:'100%', marginTop:12}}>
-                        <div>
-                          <div className="cat-name">{artist}</div>
-                          <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
-                        </div>
-                        <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+                      <div className="cat-card-img">
+                        {cover
+                          ? <img src={cover.thumbnail} alt={artist} />
+                          : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+                        <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+                      </div>
+                      <div className="cat-card-info">
+                        <div className="cat-name">{artist}</div>
+                        <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
                       </div>
                     </div>
                   );
@@ -1244,7 +1244,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
-  const [view, setView] = useState('grid');
+  const [view, setView] = useState('list');
   const [albumSort, setAlbumSort] = useState('year');
   const [albumDir, setAlbumDir] = useState('desc');
   const [selectedAlbum, setSelectedAlbum] = useState(prefillAlbum || null);
@@ -3909,35 +3909,13 @@ function App() {
   };
 
   const playTrack = (file) => {
-    const audio = audioRef.current;
-    ensureAnalyser();
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
     if (currentTrackId === file.id) {
-      if (audio.paused) audio.play(); else audio.pause();
+      const audio = audioRef.current;
+      if (audio.paused) audio.play().catch(() => {}); else audio.pause();
       return;
     }
-    if (file.isLocal && file.fileHandle) {
-      (async () => {
-        try {
-          const f = await file.fileHandle.getFile();
-          if (localBlobRef.current) URL.revokeObjectURL(localBlobRef.current);
-          const url = URL.createObjectURL(f);
-          localBlobRef.current = url;
-          audio.src = url;
-          audio.play().catch(() => {});
-        } catch {}
-      })();
-      setCurrentTrackId(file.id); setPosition(0); setDuration(0);
-      return;
-    }
-    audio.src = file.fileData;
-    setCurrentTrackId(file.id);
-    setPosition(0);
-    setDuration(0);
-    audio.play().catch(() => {});
-    requestID3(file);
+    setManualQueue([file]);
+    startTrack(file);
   };
   const playPause = () => {
     const audio = audioRef.current;
@@ -3978,6 +3956,11 @@ function App() {
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.length} totalBytes={totalBytes} />
+          <div className="page-header">
+            <Banner onNav={setRoute} />
+            <Nav current={route} onNav={setRoute} allCats={allCats} />
+            <Marquee />
+          </div>
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
@@ -3988,11 +3971,8 @@ function App() {
                 onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
             </div>
 
-            {/* Center column: header + page content */}
+            {/* Center column */}
             <div className="col-main">
-              <Banner onNav={setRoute} />
-              <Nav current={route} onNav={setRoute} allCats={allCats} />
-              <Marquee />
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}

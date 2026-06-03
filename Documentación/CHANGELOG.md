@@ -148,3 +148,4 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 - Estética CRT completa, TweaksPanel
 - Visualizadores: imagen, vídeo, PDF, Markdown, texto, ZIP
 - Multi-select, bulk download ZIP, bulk delete
+![alt text](image.png)
