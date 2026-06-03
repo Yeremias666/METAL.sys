@@ -1244,7 +1244,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
-  const [view, setView] = useState('list');
+  const [albumView, setAlbumView] = useState('grid');
+  const [songView, setSongView] = useState('list');
   const [albumSort, setAlbumSort] = useState('year');
   const [albumDir, setAlbumDir] = useState('desc');
   const [selectedAlbum, setSelectedAlbum] = useState(prefillAlbum || null);
@@ -1282,6 +1283,12 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
   const currentAlbum = selectedAlbum ? albumObjects.find((a) => a.name === selectedAlbum) : null;
   const currentSongs = currentAlbum ? currentAlbum.songs.filter((f) => !q || normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
+  const sortedSongs = useMemo(() => {
+    const arr = [...currentSongs];
+    if (sort === 'track-asc') arr.sort((a, b) => (parseInt(a.track) || 999) - (parseInt(b.track) || 999));
+    else if (sort === 'name-asc') arr.sort((a, b) => normStr(a.name).localeCompare(normStr(b.name)));
+    return arr;
+  }, [currentSongs, sort]);
 
   const openAlbum = (album) => {
     setSelectedAlbum(album);
@@ -1383,8 +1390,17 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <div className="filter-group">
                   <span className="filter-label">VISTA</span>
                   <div className="view-toggle">
-                    <button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>▦ GRID</button>
-                    <button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>≡ LISTA</button>
+                    {currentAlbum ? (
+                      <>
+                        <button className={songView === 'grid' ? 'on' : ''} onClick={() => setSongView('grid')}>▦ GRID</button>
+                        <button className={songView === 'list' ? 'on' : ''} onClick={() => setSongView('list')}>≡ LISTA</button>
+                      </>
+                    ) : (
+                      <>
+                        <button className={albumView === 'grid' ? 'on' : ''} onClick={() => setAlbumView('grid')}>▦ GRID</button>
+                        <button className={albumView === 'list' ? 'on' : ''} onClick={() => setAlbumView('list')}>≡ LISTA</button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1411,10 +1427,10 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--fg-dim)', fontSize: 22 }}>
                   ◇ NO HAY CANCIONES PARA ESTE ÁLBUM ◇
                 </div>
-              ) : view === 'grid' ? (
+              ) : songView === 'grid' ? (
                 <div className="file-grid">
-                  {currentSongs.map((f) => (
-                    <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}> 
+                  {sortedSongs.map((f) => (
+                    <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}>
                       <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
                               onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
                         {selectedIds.has(f.id) ? '◉' : '◌'}
@@ -1424,7 +1440,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   ))}
                 </div>
               ) : (
-                <TrackListTable files={currentSongs} sort={sort} setSort={setSort}
+                <TrackListTable files={sortedSongs} sort={sort} setSort={setSort}
                                 onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
               )}
             </div>
@@ -1457,7 +1473,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               {searchSongs.length > 0 && (
                 <>
                   <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                  {view === 'grid' ? (
+                  {songView === 'grid' ? (
                     <div className="file-grid">
                       {searchSongs.map((f) => (
                         <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}> 
@@ -1483,7 +1499,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             </div>
           </div>
         ) : (
-          view === 'grid' ? (
+          albumView === 'grid' ? (
             <div className="album-grid">
               {albumObjects.map((album) => (
                 <div key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
