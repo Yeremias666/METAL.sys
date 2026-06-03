@@ -3695,211 +3695,247 @@ const KONAMI_SEQ = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','Arr
 
 function KonamiGame({ onClose }) {
   const canvasRef = useRef(null);
-  const stRef    = useRef(null);
-  const rafRef   = useRef(null);
+  const stRef = useRef(null);
+  const rafRef = useRef(null);
+  const keysRef = useRef({});
 
-  const W = 800, H = 260, GY = 210;
-  const PX = 80, GRAV = 0.55, JUMPV = -13;
+  const W=800, H=260, GY=205;
+  const PX=72, S=3, GRAV=0.58, JV=-13.5, MIN_GAP=380;
 
-  function fresh() {
-    return {
-      started:false, dead:false, score:0,
-      hiScore: stRef.current ? stRef.current.hiScore : 0,
-      speed:5, speedTimer:0,
-      player:{ y:GY, vy:0, jumps:0, frame:0, ftick:0 },
-      obstacles:[], nextObs:120, tick:0,
-    };
+  // ── Pixel palette ──
+  const P={'.':[0,0,0,0],'R':[214,31,31],'r':[255,80,80],'B':[8,7,10],'W':[232,226,212],
+           'Y':[255,238,0],'y':[255,204,0],'O':[255,136,0],'o':[255,170,60],
+           'D':[42,6,6],'d':[90,16,16],'M':[255,43,214],'m':[255,160,238],
+           'E':[255,0,60],'e':[255,100,130],'G':[90,58,58]};
+
+  function px(ctx,x,y,ch){
+    const c=P[ch]; if(!c||c.length<3)return;
+    ctx.fillStyle=`rgb(${c[0]},${c[1]},${c[2]})`;
+    ctx.fillRect(x,y,S,S);
+  }
+  function spr(ctx,rows,ox,oy){
+    rows.forEach((row,ri)=>[...row].forEach((ch,ci)=>px(ctx,ox+ci*S,oy+ri*S,ch)));
   }
 
-  useEffect(() => {
-    const cv = canvasRef.current; if (!cv) return;
-    const ctx = cv.getContext('2d');
-    stRef.current = fresh();
+  // ── SPRITES ────────────────────────────────────────────────────
+  // Skeleton 8w×14h (stand) / 8w×8h (duck) — scale 3 = 24×42 / 24×24 px
+  const SK={
+    r0:['.RRRRRR.','RRRRRRRr','RBBrBBRr','RrrrrRRr','.RRRRR..',
+        '..RRR...','RRRRRRRR','R.RR.Rr.','rRRRRRRr','.RRrRR..',
+        'RR....RR','R......R','.RR..RR.','..RRRR..'],
+    r1:['.RRRRRR.','RRRRRRRr','RBBrBBRr','RrrrrRRr','.RRRRR..',
+        '..RRR...','RRRRRRRR','R.RR.Rr.','rRRRRRRr','.RRrRR..',
+        'RR....RR','R......R','RR..RR..','.RRRR...'],
+    dk:['.RRRRRR.','RRRRRRRr','RBBrBBRr','RrrrrRRr','.RRRRR..',
+        'RRRRRRRR','.RRrRR..','RRRRRRRR'],
+    dd:[  // dead (fallen)
+        'R......R','.RRRRRR.','RRrRRRRR','R......R',
+        '.RR..RR.','.R....R.','RRRRRRRR','.RRRRRR.'],
+  };
 
-    function scanlines() {
-      ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      for (let i = 0; i < H; i += 3) ctx.fillRect(0, i, W, 1);
+  // Fire 8w×12h — 2 anim frames
+  const FR={
+    a:['...YY...','..YYYY..','..YyOY..','yYOOOOyY',
+       'OOOOOOoO','OOORROoo','RRRRRRR.','RdRRRdR.',
+       'RRRRRRRR','dDRRRDd.','RRRRRRRR','DDDDDDDD'],
+    b:['....YY..','..YYYYP.','..yYOYY.','YyOOOOyY',
+       'OOOOOoOO','OORROoOo','RRRRRRR.','RRRdRRR.',
+       'RdRRRRRR','DdRRRDdd','RRRRRRRR','DDDDDDDD'],
+  };
+
+  // Demon 18w×12h — wings up/down
+  const DM={
+    a:['MM..........MM..','MMm........mMM..','mMMMM....MMMMm..',
+       '.MmMMMMMMMmM....','..M..MMMM..M....','..M.MEEM.M......',
+       '..MMMMMMM.M.....','...MMMMMMM......','....MMMM........',
+       '.....MM.........','......mM........','......MM........'],
+    b:['................','................','.MM..........MM.',
+       'mMMMM......MMMMm','..MMMmMMMmMMM...','...MMEEMM.......',
+       '...MMMMMM.......','...MMMMMMMM.....','..MM.....MM.....',
+       '.MM.......MM....','MM...........MM.','................'],
+  };
+
+  // Sprite bounding boxes (px)
+  const SK_W=8*S, SK_H_S=14*S, SK_H_D=8*S;
+  const FR_W=8*S, DM_W=18*S, DM_H=12*S;
+
+  function fresh(){
+    return{started:false,dead:false,score:0,
+      hiScore:stRef.current?stRef.current.hiScore:0,
+      speed:5,acct:0,
+      player:{y:GY,vy:0,jumps:0,duck:false,frame:0,ftick:0,deadTick:0},
+      obstacles:[],nextObs:130,lastSpawnX:W+300,
+      tick:0,ftick:0};
+  }
+
+  useEffect(()=>{
+    const cv=canvasRef.current; if(!cv)return;
+    const ctx=cv.getContext('2d');
+    stRef.current=fresh();
+
+    function bg(){
+      ctx.fillStyle='#08070a'; ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='rgba(0,0,0,0.2)';
+      for(let i=0;i<H;i+=3)ctx.fillRect(0,i,W,1);
+      // ground line with glow
+      ctx.fillStyle='#d61f1f'; ctx.fillRect(0,GY+1,W,2);
+      ctx.fillStyle='#5a1010'; ctx.fillRect(0,GY+4,W,1);
+      ctx.fillStyle='#2a0606'; ctx.fillRect(0,GY+6,W,1);
     }
 
-    function ground() {
-      ctx.strokeStyle = '#d61f1f'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(0, GY); ctx.lineTo(W, GY); ctx.stroke();
-      ctx.strokeStyle = '#4a0a0a'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(0, GY+3); ctx.lineTo(W, GY+3); ctx.stroke();
-    }
-
-    function skeleton(x, y, fr, dead) {
-      const c = dead ? '#ff6060' : '#d61f1f';
-      ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.lineCap = 'round';
-      const fy = y;
-      if (dead) {
-        ctx.save(); ctx.translate(x+10, fy-20); ctx.rotate(Math.PI/2);
-        ctx.beginPath(); ctx.moveTo(-18,0); ctx.lineTo(18,0); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-12,-8); ctx.lineTo(12,8); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(-12,8); ctx.lineTo(12,-8); ctx.stroke();
-        ctx.restore(); return;
+    function drawSkel(x,y,duck,fr,dead){
+      if(dead){
+        // fallen — rotate sprite sideways
+        ctx.save();
+        ctx.translate(x+SK_W/2, y-SK_H_S/2);
+        ctx.rotate(Math.PI/2);
+        spr(ctx,SK.dd,-SK_H_S/2,-SK_W/2);
+        ctx.restore();
+        return;
       }
-      // skull
-      ctx.beginPath(); ctx.arc(x+10, fy-54, 9, 0, Math.PI*2); ctx.stroke();
-      ctx.fillStyle='#08070a';
-      ctx.beginPath(); ctx.arc(x+7,  fy-55, 2.2, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(x+13, fy-55, 2.2, 0, Math.PI*2); ctx.fill();
-      ctx.strokeStyle=c;
-      ctx.beginPath(); ctx.moveTo(x+4,fy-46); ctx.lineTo(x+7,fy-43); ctx.lineTo(x+10,fy-44); ctx.lineTo(x+13,fy-43); ctx.lineTo(x+16,fy-46); ctx.stroke();
-      // spine
-      ctx.beginPath(); ctx.moveTo(x+10,fy-44); ctx.lineTo(x+10,fy-18); ctx.stroke();
-      // ribs
-      for (let r=0;r<3;r++){const ry=fy-38+r*7;ctx.beginPath();ctx.moveTo(x+10,ry);ctx.lineTo(x+3,ry+4);ctx.stroke();ctx.beginPath();ctx.moveTo(x+10,ry);ctx.lineTo(x+17,ry+4);ctx.stroke();}
-      // pelvis
-      ctx.beginPath(); ctx.moveTo(x+4,fy-18); ctx.lineTo(x+16,fy-18); ctx.stroke();
-      // arms
-      const as = fr===0?7:-7;
-      ctx.beginPath(); ctx.moveTo(x+10,fy-36); ctx.lineTo(x+3-as*0.4, fy-27+Math.abs(as)*0.3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x+10,fy-36); ctx.lineTo(x+17+as*0.4, fy-27+Math.abs(as)*0.3); ctx.stroke();
-      // legs
-      if (fr===0){
-        ctx.beginPath();ctx.moveTo(x+7,fy-18);ctx.lineTo(x+1,fy-7);ctx.lineTo(x-3,fy);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(x+13,fy-18);ctx.lineTo(x+19,fy-7);ctx.lineTo(x+23,fy);ctx.stroke();
-      } else {
-        ctx.beginPath();ctx.moveTo(x+7,fy-18);ctx.lineTo(x+13,fy-7);ctx.lineTo(x+17,fy);ctx.stroke();
-        ctx.beginPath();ctx.moveTo(x+13,fy-18);ctx.lineTo(x+7,fy-7);ctx.lineTo(x+3,fy);ctx.stroke();
-      }
+      if(duck){ spr(ctx,SK.dk,x,y-SK_H_D); }
+      else     { spr(ctx,fr===0?SK.r0:SK.r1,x,y-SK_H_S); }
     }
 
-    function flame(x, w, h) {
-      const by = GY;
-      const g = ctx.createLinearGradient(x+w/2, by-h, x+w/2, by);
-      g.addColorStop(0,'#ffff44'); g.addColorStop(0.25,'#ff8800'); g.addColorStop(0.65,'#d61f1f'); g.addColorStop(1,'#3a0808');
-      ctx.fillStyle = g; ctx.strokeStyle = '#ff6600'; ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(x, by);
-      ctx.bezierCurveTo(x, by-h*0.3, x+w*0.1, by-h*0.65, x+w*0.28, by-h);
-      ctx.bezierCurveTo(x+w*0.35, by-h*0.72, x+w*0.5, by-h*1.1, x+w*0.5, by-h*0.88);
-      ctx.bezierCurveTo(x+w*0.65, by-h*1.05, x+w*0.7, by-h*0.65, x+w, by);
-      ctx.closePath(); ctx.fill(); ctx.stroke();
-      ctx.fillStyle='rgba(255,220,0,0.45)';
-      ctx.beginPath();
-      ctx.moveTo(x+w*0.28, by);
-      ctx.bezierCurveTo(x+w*0.2, by-h*0.5, x+w*0.4, by-h*0.7, x+w*0.5, by-h*0.78);
-      ctx.bezierCurveTo(x+w*0.6, by-h*0.7, x+w*0.75, by-h*0.45, x+w*0.72, by);
-      ctx.fill();
+    function drawFire(x,h,afr){
+      const sp=afr===0?FR.a:FR.b;
+      const scaleY=h/(sp.length*S);
+      ctx.save();
+      ctx.translate(x,GY+1);
+      ctx.scale(1,scaleY);
+      spr(ctx,sp,0,-sp.length*S);
+      ctx.restore();
     }
 
-    function demon(x, y, fr) {
-      const cx=x+22, cy=y;
-      ctx.strokeStyle='#ff2bd6'; ctx.lineWidth=2; ctx.lineCap='round';
-      // wings
-      const wY = fr===0 ? -20 : 12;
-      ctx.beginPath(); ctx.moveTo(cx-6,cy); ctx.bezierCurveTo(cx-18,cy+wY,cx-36,cy+wY*0.6,cx-32,cy+10); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx+6,cy); ctx.bezierCurveTo(cx+18,cy+wY,cx+36,cy+wY*0.6,cx+32,cy+10); ctx.stroke();
-      // body
-      ctx.beginPath(); ctx.ellipse(cx,cy+6,11,7,0,0,Math.PI*2); ctx.stroke();
-      // head
-      ctx.beginPath(); ctx.arc(cx,cy-8,8,0,Math.PI*2); ctx.stroke();
-      // horns
-      ctx.beginPath(); ctx.moveTo(cx-4,cy-15); ctx.lineTo(cx-7,cy-24); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(cx+4,cy-15); ctx.lineTo(cx+7,cy-24); ctx.stroke();
-      // eyes
-      ctx.fillStyle='#ff0044';
-      ctx.beginPath(); ctx.arc(cx-3,cy-9,2,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(cx+3,cy-9,2,0,Math.PI*2); ctx.fill();
-      // tail
-      ctx.beginPath(); ctx.moveTo(cx+10,cy+11); ctx.bezierCurveTo(cx+22,cy+18,cx+26,cy+4,cx+20,cy-4); ctx.stroke();
+    function drawDemon(x,y,fr){
+      spr(ctx,fr===0?DM.a:DM.b,x,y-DM_H);
     }
 
-    function hud(score, hi) {
-      ctx.font = '11px "Press Start 2P",monospace';
-      ctx.fillStyle = '#d61f1f'; ctx.textAlign = 'right';
-      ctx.fillText(`HI ${String(hi).padStart(5,'0')}  ${String(score).padStart(5,'0')}`, W-16, 24);
+    function hud(score,hi){
+      ctx.font='11px "Press Start 2P",monospace';
+      ctx.fillStyle='#d61f1f'; ctx.textAlign='right';
+      ctx.fillText(`HI ${String(hi).padStart(5,'0')}  ${String(score).padStart(5,'0')}`,W-16,24);
     }
 
-    function overlay(title, sub1, sub2) {
-      ctx.fillStyle='rgba(0,0,0,0.72)'; ctx.fillRect(0,0,W,H);
+    function overlay(t1,t2,t3){
+      ctx.fillStyle='rgba(0,0,0,0.76)'; ctx.fillRect(0,0,W,H);
       ctx.textAlign='center';
-      ctx.font='16px "Press Start 2P",monospace'; ctx.fillStyle='#d61f1f';
-      ctx.fillText(title, W/2, H/2-36);
-      ctx.font='9px "Press Start 2P",monospace'; ctx.fillStyle='#b8b6ad';
-      ctx.fillText(sub1, W/2, H/2);
-      if (sub2) { ctx.fillStyle='#5a3a3a'; ctx.fillText(sub2, W/2, H/2+28); }
+      ctx.font='15px "Press Start 2P",monospace'; ctx.fillStyle='#d61f1f'; ctx.fillText(t1,W/2,H/2-40);
+      ctx.font='9px "Press Start 2P",monospace'; ctx.fillStyle='#b8b6ad'; ctx.fillText(t2,W/2,H/2);
+      if(t3){ctx.fillStyle='#5a3a3a'; ctx.fillText(t3,W/2,H/2+28);}
     }
 
-    function hitTest(p, o) {
-      const px=PX+4, py=p.y-52, pw=18, ph=52;
-      if (o.type==='flame') {
-        const ox=o.x+4, oy=GY-o.h, ow=o.w-8, oh=o.h;
-        return !(px+pw<ox||ox+ow<px||py+ph<oy||oy+oh<py);
+    function hit(p,o){
+      const duck=p.duck;
+      const ph=duck?SK_H_D:SK_H_S;
+      const px1=PX+3, py1=p.y-ph+3, px2=PX+SK_W-3, py2=p.y-2;
+      if(o.type==='flame'){
+        const ox1=o.x+3,oy1=GY-o.h+4,ox2=o.x+FR_W-3,oy2=GY;
+        return!(px2<ox1||ox2<px1||py2<oy1||oy2<py1);
       }
-      const ox=o.x+4, oy=o.y-14, ow=36, oh=22;
-      return !(px+pw<ox||ox+ow<px||py+ph<oy||oy+oh<py);
+      const ox1=o.x+4,oy1=o.y-DM_H+3,ox2=o.x+DM_W-4,oy2=o.y-3;
+      return!(px2<ox1||ox2<px1||py2<oy1||oy2<py1);
     }
 
     let last=0;
-    function loop(ts) {
-      const dt = Math.min((ts-last)/16,3); last=ts;
-      const s = stRef.current;
-      ctx.fillStyle='#08070a'; ctx.fillRect(0,0,W,H);
-      scanlines(); ground();
+    function loop(ts){
+      const dt=Math.min((ts-last)/16,3); last=ts;
+      const s=stRef.current;
+      bg();
 
-      if (!s.started) {
-        skeleton(PX, GY, Math.floor(s.tick/9)%2, false);
-        hud(0, s.hiScore);
-        overlay('METAL.SYS','PRESS SPACE TO START','↑ / SPACE = SALTAR · DOBLE SALTO');
+      if(!s.started){
+        drawSkel(PX,GY,false,Math.floor(s.tick/8)%2,false);
+        hud(0,s.hiScore);
+        overlay('\\m/ METAL.exe \\m/','SPACE/↑=SALTAR  ↓=AGACHARSE','PRESS SPACE TO START');
         s.tick++; rafRef.current=requestAnimationFrame(loop); return;
       }
 
-      if (!s.dead) {
+      if(!s.dead){
         s.tick++; s.score=Math.floor(s.tick/6);
-        s.speedTimer+=dt; if(s.speedTimer>90){s.speed=Math.min(16,s.speed+0.5);s.speedTimer=0;}
+        s.ftick+=dt; s.acct+=dt;
+        if(s.acct>85){s.speed=Math.min(15,s.speed+0.4);s.acct=0;}
+
         const p=s.player;
-        p.vy+=GRAV*dt; p.y+=p.vy*dt;
-        if(p.y>=GY){p.y=GY;p.vy=0;p.jumps=0;}
-        p.ftick+=dt; if(p.ftick>4){p.frame=(p.frame+1)%2;p.ftick=0;}
-        s.nextObs-=s.speed*dt;
-        if(s.nextObs<=0){
-          if(Math.random()<0.32){
-            s.obstacles.push({type:'demon',x:W+60,y:GY-55-Math.random()*55,frame:0,ftick:0});
-          } else {
-            s.obstacles.push({type:'flame',x:W+60,h:28+Math.random()*44,w:22+Math.random()*22});
-          }
-          s.nextObs=140+Math.random()*180;
+        const downHeld=!!keysRef.current['ArrowDown'];
+        p.duck=downHeld&&p.jumps===0;
+
+        if(!p.duck){
+          p.vy+=GRAV*dt; p.y+=p.vy*dt;
+          if(p.y>=GY){p.y=GY;p.vy=0;p.jumps=0;}
+        } else {
+          p.y=GY; p.vy=0;
         }
+
+        if(!p.duck){p.ftick+=dt;if(p.ftick>5){p.frame=(p.frame+1)%2;p.ftick=0;}}
+
+        // Spawn — enforce MIN_GAP from last obstacle
+        s.nextObs-=s.speed*dt;
+        const lastX=s.obstacles.length?s.obstacles[s.obstacles.length-1].x:0;
+        if(s.nextObs<=0&&(s.obstacles.length===0||lastX<W-MIN_GAP)){
+          const roll=Math.random();
+          if(roll<0.30){
+            // LOW demon → must DUCK (bottom between SK_H_S and SK_H_D above GY)
+            const dY=GY-(SK_H_D+4+Math.random()*8);
+            s.obstacles.push({type:'demon',x:W+60,y:dY,frame:0,ftick:0,low:true});
+          } else if(roll<0.55){
+            // HIGH demon → must JUMP
+            const dY=GY-SK_H_S-20-Math.random()*50;
+            s.obstacles.push({type:'demon',x:W+60,y:dY,frame:0,ftick:0,low:false});
+          } else {
+            // Fire — variable height
+            s.obstacles.push({type:'flame',x:W+60,h:28+Math.random()*42});
+          }
+          s.nextObs=120+Math.random()*160;
+        }
+
         for(const o of s.obstacles){
           o.x-=s.speed*dt;
           if(o.type==='demon'){o.ftick=(o.ftick||0)+dt;if(o.ftick>7){o.frame=(o.frame+1)%2;o.ftick=0;}}
         }
-        s.obstacles=s.obstacles.filter(o=>o.x>-80);
-        for(const o of s.obstacles) if(hitTest(p,o)){s.dead=true;s.hiScore=Math.max(s.hiScore,s.score);break;}
+        s.obstacles=s.obstacles.filter(o=>o.x>-100);
+        for(const o of s.obstacles)if(hit(p,o)){s.dead=true;s.hiScore=Math.max(s.hiScore,s.score);break;}
       }
 
-      for(const o of s.obstacles) o.type==='flame'?flame(o.x,o.w,o.h):demon(o.x,o.y,o.frame||0);
-      skeleton(PX, s.player.y, s.player.frame, s.dead);
-      hud(s.score, s.hiScore);
+      // Draw fire anim frame
+      const afr=Math.floor(s.ftick/4)%2;
+      for(const o of s.obstacles){
+        if(o.type==='flame') drawFire(o.x,o.h,afr);
+        else drawDemon(o.x,o.y,o.frame||0);
+      }
+
+      drawSkel(PX,s.player.y,s.player.duck,s.player.frame,s.dead);
+      hud(s.score,s.hiScore);
       if(s.dead) overlay('GAME OVER',`SCORE: ${s.score}`,'PRESS SPACE TO RESTART');
+
       rafRef.current=requestAnimationFrame(loop);
     }
     rafRef.current=requestAnimationFrame(loop);
 
-    const onKey = e => {
+    const kd=e=>{
+      keysRef.current[e.key]=true;
       const s=stRef.current;
       if(e.key==='Escape'){onClose();return;}
+      if(e.key==='ArrowDown')e.preventDefault();
       if(e.key===' '||e.key==='ArrowUp'){
         e.preventDefault();
         if(!s.started){s.started=true;return;}
         if(s.dead){stRef.current={...fresh(),started:true,hiScore:s.hiScore};return;}
-        if(s.player.jumps<2){s.player.vy=JUMPV;s.player.jumps++;}
+        if(s.player.jumps<2){s.player.vy=JV;s.player.jumps++;}
       }
     };
-    window.addEventListener('keydown',onKey);
-    return()=>{window.removeEventListener('keydown',onKey);cancelAnimationFrame(rafRef.current);};
+    const ku=e=>{delete keysRef.current[e.key];};
+    window.addEventListener('keydown',kd);
+    window.addEventListener('keyup',ku);
+    return()=>{window.removeEventListener('keydown',kd);window.removeEventListener('keyup',ku);cancelAnimationFrame(rafRef.current);};
   },[onClose]);
 
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.93)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2147483647}}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.94)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',zIndex:2147483647}}>
       <div style={{fontFamily:'var(--pixel)',fontSize:9,color:'var(--fg-dim)',marginBottom:10,letterSpacing:'0.1em'}}>
-        \m/ METAL.SYS RUNNER \m/ · ESC PARA SALIR
+        \m/ METAL.SYS RUNNER \m/ · ESC PARA SALIR · ↑/SPACE SALTAR · ↓ AGACHARSE
       </div>
       <canvas ref={canvasRef} width={800} height={260}
-        style={{border:'2px solid var(--fg-primary)',boxShadow:'0 0 40px rgba(214,31,31,0.6)',maxWidth:'95vw'}} />
+        style={{border:'2px solid #d61f1f',boxShadow:'0 0 40px rgba(214,31,31,0.5)',maxWidth:'95vw',imageRendering:'pixelated'}}/>
     </div>
   );
 }
