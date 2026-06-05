@@ -831,7 +831,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
             <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
               <button className="big-btn"
                       onClick={() => localConnected ? onNav({ page: 'LOCAL' }) : onPickFolder && onPickFolder()}>
-                <span style={{verticalAlign:'middle', lineHeight:1}}>♪</span> {localConnected ? 'GESTIONAR LOCAL' : 'CONECTAR CARPETA'}
+                {localConnected ? <><span style={{verticalAlign:'middle', lineHeight:1}}>♪</span> GESTIONAR LOCAL</> : <>📁 CONECTAR CARPETA</>}
               </button>
               {localConnected && (
                 <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-dim)', color:'var(--fg-dim)'}}
@@ -1169,6 +1169,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                 {scanning ? "◆ LEYENDO..." : "↑ AÑADIR"}
               </button>
               <button className="big-btn ghost" onClick={clear}>✕ LIMPIAR</button>
+              <button className="big-btn ghost" onClick={() => onNav({ page: 'INICIO' })}>◀ CANCELAR</button>
             </div>
           </div>
         </div>
@@ -1330,11 +1331,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
 
   const onEnter = useCallback(() => {
-    const el = cardRef.current; if (!el) return;
-    el.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1), box-shadow 0.48s';
-    el.style.transform  = 'translateY(-6px) scale(1.03)';
-    el.style.boxShadow  = '0 12px 40px rgba(214,31,31,0.5), 0 0 24px rgba(214,31,31,0.25)';
-    const vinyl = el.querySelector('.album-card-vinyl');
+    const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
 
@@ -1343,9 +1340,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
-    // El lift (-6px) se mantiene durante el parallax para que todo el contenedor siga elevado
     el.style.transition = 'box-shadow 0.06s';
-    el.style.transform  = `perspective(700px) rotateX(${-dy * 10}deg) rotateY(${dx * 10}deg) translateY(-6px) scale(1.03)`;
+    el.style.transform  = `perspective(700px) rotateX(${-dy * 10}deg) rotateY(${dx * 10}deg) translateY(-8px) scale(1.04)`;
     el.style.boxShadow  = `${-dx * 10}px ${-dy * 8}px 36px rgba(214,31,31,0.6), 0 0 22px rgba(214,31,31,0.3)`;
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 8}px,${dy * 6}px)`; }
@@ -1353,12 +1349,10 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 
   const onLeave = useCallback(() => {
     const el = cardRef.current; if (!el) return;
-    const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
-    el.style.transition = `${ease}, box-shadow 0.55s`;
-    el.style.transform  = '';
-    el.style.boxShadow  = '';
+    el.style.transform = '';
+    el.style.boxShadow = '';
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
   const coverEl = album.cover
@@ -3164,7 +3158,7 @@ function Footer() {
         </a>
       </div>
       <div style={{color:'var(--fg-dim)', fontSize:16}}>
-        © METAL.SYS 2026 ◆ Reproductor web personal by Yeremias \m/
+        © METAL.SYS 2026 ◆ Reproductor web by Yeremias \m/
       </div>
     </div>
   );
@@ -4603,7 +4597,7 @@ function App() {
   // Clear multi-select when leaving CAT
   useEffect(() => { if (route.page !== 'CAT') clearSel(); }, [route.page, route.cat]);
 
-  const totalBytes = files.reduce((a, f) => a + f.fileSize, 0);
+  const totalBytes = [...files, ...localFiles].reduce((a, f) => a + (f.fileSize || 0), 0);
   const phosphorClass = `phosphor-${t.phosphor}`;
   const currentFile = route.page === 'DETAIL' ? ([...files, ...localFiles].find((f) => f.id === route.fileId) ?? null) : null;
 
