@@ -5,6 +5,19 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-05 — Migración Vercel → Cloudflare Pages Functions
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos creados:** `functions/api/audio.js`, `functions/api/files.js`
+
+### Cambios
+- Convertido formato Vercel (`module.exports`, `req`/`res`, `process.env`) al formato Cloudflare Pages Functions (`export async function onRequest(context)`, `Response`, `context.env`).
+- Reemplazado módulo `crypto` de Node.js por Web Crypto API (`crypto.subtle`): `importKey` + `sign` para HMAC-SHA256, `digest` para SHA-256.
+- Reemplazado `Buffer.from(...).toString('base64')` por `btoa()` + iteración `Uint8Array` (Buffer no existe en Workers).
+- Los archivos `/api/audio.js` y `/api/files.js` originales (Vercel) se pueden eliminar.
+
+---
+
 ## 2026-06-05 — Migración B2 → Cloudflare R2
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
