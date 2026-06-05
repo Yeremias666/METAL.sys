@@ -301,7 +301,7 @@ export async function onRequest({ request, env }) {
           fileSize:    size,
           fileType:    'audio/mpeg',
           fileData:    null,
-          b2Path:      key,   // mantenido por compatibilidad con app.jsx
+          r2Path:      key,
           thumbnail:   tags.coverArt || null,
           coverArt:    tags.coverArt || null,
           uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),

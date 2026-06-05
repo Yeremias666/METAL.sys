@@ -238,9 +238,8 @@ async function processThumb(file) {
 function downloadFile(f) {
   const a = document.createElement('a');
   a.download = f.fileName || f.name;
-  if (f.b2Path) {
-    // Para archivos B2: obtener URL firmada antes de descargar
-    fetch(`/api/audio?path=${encodeURIComponent(f.b2Path)}`)
+  if (f.r2Path) {
+    fetch(`/api/audio?path=${encodeURIComponent(f.r2Path)}`)
       .then(r => r.json())
       .then(({ url }) => { a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); })
       .catch(() => {});
@@ -3949,7 +3948,7 @@ function App() {
   const audioRef = useRef(null);
   if (!audioRef.current) {
     audioRef.current = new Audio();
-    audioRef.current.crossOrigin = 'anonymous'; // necesario para Web Audio API con URLs de B2
+    audioRef.current.crossOrigin = 'anonymous'; // necesario para Web Audio API con URLs de R2
   }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
@@ -3995,7 +3994,7 @@ function App() {
   const audioSyncRef     = useRef(null);
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
-  // Waveform en tiempo real para archivos B2 (sin descarga extra)
+  // Waveform en tiempo real para archivos R2 (sin descarga extra)
   const waveformBufRef   = useRef(null);  // Float32Array(300) en construcción
   const waveformIdRef    = useRef(null);  // id de la pista que se está muestreando
   const waveformFrRef    = useRef(0);     // contador de frames para throttle
@@ -4033,24 +4032,24 @@ function App() {
   }, [customCats]);
   useEffect(() => { saveLog(log); }, [log]);
 
-  // Cargar biblioteca de Backblaze B2 al arrancar
+  // Cargar biblioteca de Cloudflare R2 al arrancar
   useEffect(() => {
     fetch('/api/files')
       .then(r => r.ok ? r.json() : [])
-      .then(b2 => {
-        if (!Array.isArray(b2) || !b2.length) return;
+      .then(r2 => {
+        if (!Array.isArray(r2) || !r2.length) return;
 
-        // Fusionar con vault: los archivos b2 reemplazan versiones cacheadas antiguas
+        // Fusionar con vault: los archivos r2 reemplazan versiones cacheadas antiguas
         setFiles(prev => {
-          const nonB2 = prev.filter(f => !f.id.startsWith('b2:'));
-          return [...nonB2, ...b2];
+          const nonR2 = prev.filter(f => !f.id.startsWith('r2:'));
+          return [...nonR2, ...r2];
         });
 
         // Pre-poblar id3Cache con los metadatos ya leídos server-side
         // Así el reproductor tiene portada y tags sin petición adicional
         setId3Cache(prev => {
           const updates = {};
-          for (const f of b2) {
+          for (const f of r2) {
             updates[f.id] = {
               title:      f.name,
               artist:     f.artist,
@@ -4065,7 +4064,7 @@ function App() {
           return { ...prev, ...updates };
         });
       })
-      .catch(() => {}); // silencioso si no hay API (desarrollo local sin Vercel)
+      .catch(() => {}); // silencioso si la API no está disponible
   }, []);
 
   useEffect(() => {
@@ -4099,7 +4098,7 @@ function App() {
       const rms = Math.sqrt(sum/data.length);
       if (pulse) pulse.style.opacity = Math.min(0.7, rms * 3.2).toFixed(3);
 
-      // Waveform en tiempo real para archivos B2 (sin descarga extra)
+      // Waveform en tiempo real para archivos R2 (sin descarga extra)
       if (waveformBufRef.current && audio && audio.duration > 0) {
         const idx = Math.min(299, Math.floor((audio.currentTime / audio.duration) * 300));
         if (rms > (waveformBufRef.current[idx] || 0)) waveformBufRef.current[idx] = rms;
@@ -4356,9 +4355,9 @@ function App() {
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
     let src = file.fileData;
-    if (file.b2Path) {
+    if (file.r2Path) {
       try {
-        const r = await fetch(`/api/audio?path=${encodeURIComponent(file.b2Path)}`);
+        const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
         const d = await r.json();
         src = d.url;
       } catch { return null; }
@@ -4424,18 +4423,18 @@ function App() {
     setActiveClip(null);
     requestID3(file);
 
-    if (file.b2Path) {
-      // Archivo B2: obtener URL firmada → el navegador hace streaming directo desde B2
+    if (file.r2Path) {
+      // Archivo R2: obtener URL firmada → el navegador hace streaming directo desde R2
       waveformBufRef.current = new Float32Array(300);
       waveformIdRef.current  = file.id;
       waveformFrRef.current  = 0;
       (async () => {
         try {
-          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.b2Path)}`);
+          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
           const { url } = await r.json();
           audio.src = url;
           audio.play().catch(() => {});
-        } catch (e) { console.error('[B2] signed URL error:', e); }
+        } catch (e) { console.error('[R2] signed URL error:', e); }
       })();
       return;
     }
