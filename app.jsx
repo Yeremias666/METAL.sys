@@ -814,7 +814,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
     if (!gq) return [];
     const artistHits = allCats.filter(a => normStr(a).includes(gq))
       .slice(0, 2).map(a => {
-        const cover = allFiles.find(f => (f.artist || f.category) === a && f.thumbnail);
+        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
         return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
       });
     const albumMap = new Map();
@@ -954,7 +954,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
               <>
                 <div className="cat-grid">
                   {(showAllArtists ? allCats : allCats.slice(0, ARTIST_LIMIT)).map((artist) => {
-                    const allSongs = [...files, ...localFiles].filter(f => (f.artist || f.category) === artist);
+                    const allSongs = [...files, ...localFiles].filter(f => (f.category || f.artist) === artist);
                     const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
                     const cover    = allSongs.find(f => f.thumbnail);
                     return (
@@ -1052,7 +1052,7 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
 
       <div className="cat-grid" style={{marginTop:14}}>
         {artists.map((artist) => {
-          const songs = allFiles.filter((f) => (f.artist || f.category) === artist);
+          const songs = allFiles.filter((f) => (f.category || f.artist) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
           return (
@@ -1502,7 +1502,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
 function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta }) {
-  const list = files.filter((f) => (f.artist || f.category) === cat);
+  const list = files.filter((f) => (f.category || f.artist) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
   const [albumSort, setAlbumSort] = useState('year');
@@ -3137,7 +3137,7 @@ function Terminal({ files, localFiles = [], allCats }) {
 
   // Build artist → albums → songs tree
   const byArtist = allCats.map(artist => {
-    const songs = allFiles.filter(f => (f.artist || f.category) === artist);
+    const songs = allFiles.filter(f => (f.category || f.artist) === artist);
     const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
     const noAlbum = songs.filter(f => !f.album);
     return { artist, songs, albums, noAlbum };
@@ -3260,7 +3260,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
   const toggle = (key) => setCollapsed(p => ({ ...p, [key]: !p[key] }));
   const allFiles = [...files, ...localFiles];
   const byArtist = allCats.map(artist => {
-    const songs = allFiles.filter(f => (f.artist || f.category) === artist);
+    const songs = allFiles.filter(f => (f.category || f.artist) === artist);
     const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
     const noAlbum = songs.filter(f => !f.album).sort(sortByDiscTrack);
     return { artist, songs, albums, noAlbum };
@@ -4179,7 +4179,7 @@ function App() {
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
   // Artistas derivados del vault y de la carpeta local
-  const allArtists = [...new Set([...files, ...localFiles].map(f => f.artist || f.category).filter(Boolean))].sort();
+  const allArtists = [...new Set([...files, ...localFiles].map(f => f.category || f.artist).filter(Boolean))].sort();
   const allCats = allArtists;
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
@@ -4363,10 +4363,10 @@ function App() {
     const all = files.filter(isAudioFile);
     const combined = [...all, ...localFiles.filter(isAudioFile)];
     if (context.type === 'artist' && context.artist) {
-      return combined.filter((f) => (f.artist || f.category) === context.artist).sort(sortByDiscTrack);
+      return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByDiscTrack);
     }
     if (context.type === 'album' && context.artist && context.album) {
-      return combined.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
+      return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return combined;
   }, [files, localFiles]);
@@ -4663,11 +4663,11 @@ function App() {
     if (audio.paused) {
       audio.play().catch(() => {});
       const f = currentTrack;
-      if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.artist || f.category || '' });
+      if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.category || f.artist || '' });
     } else {
       audio.pause();
       const f = currentTrack;
-      if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.artist || f.category || '' });
+      if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.category || f.artist || '' });
     }
   };
   const playNext = (wrap = true, { autoAdvance = false } = {}) => {
