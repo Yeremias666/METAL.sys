@@ -241,12 +241,21 @@ MusicPlayer barra, playContext, shuffle/repeat, TodoPage, botones ▶ en tarjeta
 
 ---
 
-## Estado actual (2026-06-02)
+## Estado actual (2026-06-05)
 
 Todo lo descrito está implementado. No hay funcionalidades en progreso.
 
-**Sugerencias futuras (del README):**
-- Cola de reproducción visible y editable (ya implementada en cola del sidebar)
+### Nuevas claves de localStorage (sesión 2026-06-05)
+| Clave | Contenido |
+|---|---|
+| `metalsys_artist_meta_v1` | `{ [artistName]: { image: dataURL, description: string } }` |
+
+### Componentes nuevos/renombrados
+- `PlayQueueWithNowPlaying` — fusiona NowStreaming + PlayQueue (sidebar derecho)
+- `PlaysCounter` — contador de escuchas totales (reemplaza DownloadCounter)
+- `RecentActivity` — rediseñado como log tail -f con timestamps y eventos de música
+
+**Sugerencias futuras:**
 - Historial de reproducción persistente
 - Soporte offline con Service Worker
 - Exportar/importar bóveda completa como ZIP

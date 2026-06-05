@@ -1,4 +1,6 @@
-﻿// app.jsx — METAL.SYS FILE VAULT (categorized, with detail player)
+﻿// app.jsx — METAL.SYS Reproductor web personal
+// Toda la lógica y UI en un solo archivo JSX transpilado por Babel en el navegador.
+// No hay bundler ni npm. Todas las dependencias se cargan por CDN en index.html.
 
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
@@ -22,10 +24,12 @@ const COUNTS_KEY   = 'metalsys_playcounts_v1';
 const PLOG_KEY     = 'metalsys_plog_v1';
 const BMRK_KEY     = 'metalsys_bookmarks_v1';
 const CLIPS_KEY    = 'metalsys_clips_v1';
+const ARTIST_META_KEY = 'metalsys_artist_meta_v1';
 const SIZE_CAP  = 8 * 1024 * 1024;
 const VAULT_CAP = 25 * 1024 * 1024;
 
-const DEFAULT_CATS = []; // categorías derivadas dinámicamente de los metadatos de los archivos
+// Categorías derivadas dinámicamente de los metadatos de los archivos (no hay categorías fijas)
+const DEFAULT_CATS = [];
 
 const ASCII_LOGO = String.raw`
  \m/ ▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼▲▼ \m/
@@ -45,7 +49,9 @@ const MARQUEE_LINES = [
   "DRAG · DROP · TAG · SHARE \\m/ ALL FILES STORED ON YOUR LOCAL DECK ◆ DO NOT CLEAR CACHE",
 ];
 
-// ─── STORAGE ───────────────────────────────────────────────────
+// ─── ALMACENAMIENTO ────────────────────────────────────────────
+// Funciones simples de lectura/escritura de localStorage.
+// Todos los datos del vault, categorías, likes, etc. viven aquí.
 function loadVault() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
 function saveVault(f) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(f)); return true; } catch { return false; } }
 function loadCats() {
@@ -67,8 +73,11 @@ function loadBookmarks() { try { return JSON.parse(localStorage.getItem(BMRK_KEY
 function saveBookmarks(b) { try { localStorage.setItem(BMRK_KEY, JSON.stringify(b)); } catch {} }
 function loadClipStore() { try { return JSON.parse(localStorage.getItem(CLIPS_KEY) || '{}'); } catch { return {}; } }
 function saveClipStore(c) { try { localStorage.setItem(CLIPS_KEY, JSON.stringify(c)); } catch {} }
+function loadArtistMeta() { try { return JSON.parse(localStorage.getItem(ARTIST_META_KEY) || '{}'); } catch { return {}; } }
+function saveArtistMeta(m) { try { localStorage.setItem(ARTIST_META_KEY, JSON.stringify(m)); } catch {} }
 
-// IndexedDB helper for storing File System Access handles
+// IndexedDB: se usa exclusivamente para guardar el handle de carpeta local
+// (localStorage no admite objetos FileSystemDirectoryHandle)
 function getIDB() {
   return new Promise((res, rej) => {
     const req = indexedDB.open('metalsys_fs', 1);
@@ -237,7 +246,7 @@ function downloadFile(f) {
   document.body.removeChild(a);
 }
 
-// File type helpers
+// ─── DETECCIÓN DE TIPO DE ARCHIVO ──────────────────────────────
 const TEXT_EXTS = ['txt','md','log','csv','json','xml','html','htm','css','js','jsx','ts','tsx','py','rb','go','java','c','cpp','h','hpp','rs','sh','bash','zsh','yaml','yml','toml','ini','cfg','conf','rst','tex','sql','lua','php','svg','m3u','srt','vtt','env','gitignore','license','readme'];
 function isTextFile(f) {
   const ext = (f.fileName.split('.').pop() || '').toLowerCase();
@@ -275,8 +284,10 @@ function normStr(s) {
   return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
-// Minimal ID3v2 tag parser — extracts title/artist/album/year + cover art if present
-// Core ID3 parser \u2014 accepts an ArrayBuffer directly
+// ─── PARSER ID3v2 ──────────────────────────────────────────────
+// Parser nativo: lee título, artista, álbum, año, género, pista y portada (APIC)
+// directamente desde un ArrayBuffer. Sin librerías externas.
+// Core ID3 parser\u2014 accepts an ArrayBuffer directly
 async function _parseID3Buffer(buf) {
   if (buf.byteLength < 10) return {};
   const view = new DataView(buf);
@@ -392,8 +403,8 @@ async function readID3(src) {
 let _catIconRegistry = {};
 function getCatIcon(cat) { return _catIconRegistry[cat] || null; }
 
-// ─── ICONS ─────────────────────────────────────────────────────
-// ─── ICONS ────────────────────────────────────
+// ─── ICONOS ────────────────────────────────────────────────────
+// Componentes SVG inline para no depender de librerías de iconos externas.
 function CameraGlyph({ size = 48 }) {
   const sw = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.5, strokeLinejoin: 'miter' };
   const f = { fill: 'currentColor' };
@@ -605,6 +616,10 @@ function NavGlyph({ kind }) {
     case 'VIDEOS': return <svg {...p}><rect x="3" y="6" width="13" height="12" {...s}/><polygon points="16,9 21,6 21,18 16,15" {...f}/></svg>;
     case 'OTROS': return <svg {...p}><circle cx="12" cy="12" r="9" {...s}/><circle cx="12" cy="16" r="1" {...f}/><path d="M9 9 Q12 6 15 9 Q15 12 12 13" {...s}/></svg>;
     case 'CREAR': return <svg {...p}><line x1="12" y1="4" x2="12" y2="20" {...s}/><line x1="4" y1="12" x2="20" y2="12" {...s}/></svg>;
+    case 'CORAZON': return <svg {...p}><path d="M12 20 Q4 13 4 8 Q4 4 8 4 Q10 4 12 6 Q14 4 16 4 Q20 4 20 8 Q20 13 12 20 Z" {...f}/></svg>;
+    case 'GRAFICO': return <svg {...p}><rect x="3" y="12" width="4" height="9" {...f}/><rect x="9" y="8" width="4" height="13" {...f}/><rect x="15" y="4" width="4" height="17" {...f}/><line x1="2" y1="21" x2="22" y2="21" {...s}/></svg>;
+    case 'CARPETA': return <svg {...p}><path d="M2 6 H9 L11 4 H20 V18 H2 Z" {...s}/><line x1="2" y1="10" x2="20" y2="10" {...s}/></svg>;
+    case 'NOTA': return <svg {...p}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)" {...f}/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)" {...f}/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
   }
 }
@@ -619,12 +634,11 @@ function StatusBar({ count, totalBytes }) {
   return (
     <div className="statusbar">
       <div className="left">
-        <span><span className="blob"></span> VAULT ONLINE</span>
-        <span>NODE 03</span>
-        <span>{count} ARCHIVO{count===1?'':'S'} :: {fmtBytes(totalBytes)}</span>
+        <span><span className="blob"></span> SYSTEM ONLINE</span>
+        <span>NODE 01</span>
+        <span>{count} CANCIÓN{count===1?'':'ES'} :: {fmtBytes(totalBytes)}</span>
       </div>
       <div className="right">
-        <span>LIBRE: {fmtBytes(Math.max(0, VAULT_CAP - totalBytes))}</span>
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
       </div>
@@ -638,8 +652,8 @@ function Banner({ onNav }) {
       <pre className="ascii-logo chroma">{ASCII_LOGO}</pre>
       <div>
         <div className="banner-title glow">METAL.SYS</div>
-        <div className="banner-sub">// UNDERGROUND FILE VAULT BY SYSOP <span style={{color:'var(--fg-primary)'}}>D.CORPSE</span> \m/</div>
-        <div className="banner-sub" style={{fontSize:18, color:'var(--fg-dim)'}}>EST. 1986 ◆ ZONA DE INTERCAMBIO ◆ HEAVY · LOUD · UNCENSORED</div>
+        <div className="banner-sub">// Reproductor web by <span style={{color:'var(--fg-primary)'}}>Yeremias</span> \m/</div>
+        <div className="banner-sub" style={{fontSize:16, color:'var(--fg-dim)'}}>EST. 27/06/2026 ◆ METAL · HEAVY METAL · TRASH METAL · NU METAL · INDUSTRIAL METAL · ROCK TRANSGRESIVO · ROCK URBANO · ROCK</div>
       </div>
     </div>
   );
@@ -684,17 +698,12 @@ function Nav({ current, onNav, allCats }) {
       {/* Botones de sistema: siempre visibles, nunca ocultados por overflow */}
       <div className="nav-system">
         <span className="prompt glow">C:\&gt;</span>
-        {[{ key: 'INICIO', glyph: 'INICIO' }, { key: 'SUBIR', glyph: 'SUBIR' }].map(it => (
-          <button key={it.key}
-                  className={current.page === it.key ? 'active' : ''}
-                  onClick={() => onNav({ page: it.key })}>
-            <NavGlyph kind={it.glyph} />{it.key}
-          </button>
-        ))}
-        <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="MÚSICA" />TODO</button>
-        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="OTROS" />ME GUSTA</button>
-        <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="OTROS" />STATS</button>
-        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="SUBIR" />LOCAL</button>
+        <button className={current.page === 'INICIO'   ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
+        <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
+        <button className={current.page === 'SUBIR'    ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
+        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
+        <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
+        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -740,12 +749,13 @@ function Marquee() {
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '', onPickFolder }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {} }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
-  const recent     = files.slice(0, 8);
-  const songCount  = files.filter(isAudioFile).length;
+  const songCount  = [...files, ...localFiles].filter(isAudioFile).length;
   const artistCount = allCats.length;
   const localConnected = localFiles.length > 0 || localDirName;
+  const [showAllArtists, setShowAllArtists] = useState(false);
+  const ARTIST_LIMIT = 12;
 
   const [gQuery, setGQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
@@ -795,7 +805,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
             <p>Sube un MP3 y los metadatos se detectan solos: artista, álbum, pista, año y portada.</p>
             <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Máximo 8 MB por archivo · 25 MB en total.</p>
             <button className="big-btn" style={{marginTop:14}} onClick={() => onNav({ page: 'SUBIR' })}>
-              ♪ AÑADIR CANCIÓN
+              <span style={{verticalAlign:'middle', lineHeight:1}}>♪</span> AÑADIR CANCIÓN
             </button>
           </div>
         </div>
@@ -805,11 +815,8 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
           <div className="panel-body">
             {localConnected ? (
               <>
-                <p>
-                  <span style={{color:'var(--fg-accent)'}}>{localDirName}</span>
-                  {localFiles.length > 0 && <> · <span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span></>}
-                </p>
-                <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Archivos leídos directamente del disco — sin límite de tamaño.</p>
+                <p>Carpeta conectada: <span style={{color:'var(--fg-accent)'}}>{localDirName}</span>{localFiles.length > 0 && <> · <span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span></>}</p>
+                <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Archivos leídos directamente del disco — sin límite de tamaño · Sin copias · Sin servidor.</p>
               </>
             ) : (
               <>
@@ -817,10 +824,18 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                 <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Sin límite de tamaño · Sin copias · Sin servidor.</p>
               </>
             )}
-            <button className="big-btn" style={{marginTop:14}}
-                    onClick={() => localConnected ? onNav({ page: 'LOCAL' }) : onPickFolder && onPickFolder()}>
-              {localConnected ? '↺ GESTIONAR LOCAL' : '📁 CONECTAR CARPETA'}
-            </button>
+            <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
+              <button className="big-btn"
+                      onClick={() => localConnected ? onNav({ page: 'LOCAL' }) : onPickFolder && onPickFolder()}>
+                <span style={{verticalAlign:'middle', lineHeight:1}}>♪</span> {localConnected ? 'GESTIONAR LOCAL' : 'CONECTAR CARPETA'}
+              </button>
+              {localConnected && (
+                <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-dim)', color:'var(--fg-dim)'}}
+                        onClick={() => onDisconnectFolder && onDisconnectFolder()}>
+                  ✕ DESCONECTAR
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -887,52 +902,42 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                 ◇ BIBLIOTECA VACÍA — SUBE TU PRIMER MP3
               </div>
             ) : (
-              <div className="cat-grid">
-                {allCats.map((artist) => {
-                  const allSongs = [...files, ...localFiles].filter(f => (f.artist || f.category) === artist);
-                  const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
-                  const cover    = allSongs.find(f => f.thumbnail);
-                  return (
-                    <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
-                      <div className="cat-card-img">
-                        {cover
-                          ? <img src={cover.thumbnail} alt={artist} />
-                          : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
-                        <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+              <>
+                <div className="cat-grid">
+                  {(showAllArtists ? allCats : allCats.slice(0, ARTIST_LIMIT)).map((artist) => {
+                    const allSongs = [...files, ...localFiles].filter(f => (f.artist || f.category) === artist);
+                    const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
+                    const cover    = allSongs.find(f => f.thumbnail);
+                    return (
+                      <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
+                        <div className="cat-card-img">
+                          {(artistMeta[artist]?.image || cover)
+                            ? <img src={artistMeta[artist]?.image || cover?.thumbnail} alt={artist} />
+                            : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+                          <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+                        </div>
+                        <div className="cat-card-info">
+                          <div className="cat-name">{artist}</div>
+                          <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
+                        </div>
                       </div>
-                      <div className="cat-card-info">
-                        <div className="cat-name">{artist}</div>
-                        <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                {artistCount > ARTIST_LIMIT && (
+                  <div style={{textAlign:'center', marginTop:14}}>
+                    <button className="big-btn" style={{fontSize:14}}
+                            onClick={() => setShowAllArtists(p => !p)}>
+                      {showAllArtists ? `▲ MOSTRAR MENOS` : `▼ VER ${artistCount - ARTIST_LIMIT} MÁS`}
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
       </div>
 
-      <div className="section">
-        <StatsPanel files={files} allCats={allCats} />
-      </div>
-
-      <div className="section">
-        <div className="panel">
-          <div className="panel-hd">AÑADIDAS RECIENTEMENTE <span className="dots">// {Math.min(files.length, 8)} DE {files.length}</span></div>
-          <div className="panel-body">
-            {recent.length === 0 ? (
-              <div style={{padding:'24px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:20}}>
-                ◇ BIBLIOTECA VACÍA ◇<br/>SUBE TU PRIMER MP3 ARRIBA
-              </div>
-            ) : (
-              <div className="file-grid">
-                {recent.map((f) => <FileCard key={f.id} file={f} onClick={() => onOpenFile(f.id)} />)}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -1140,13 +1145,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
               onClick={() => fileInput.current && fileInput.current.click()}
             >
               <div className="dz-glyph" style={{marginBottom:0}}>
-                <svg viewBox="0 0 60 60" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="3">
-                  <ellipse cx="30" cy="46" rx="18" ry="6"/>
-                  <circle cx="30" cy="46" r="3" fill="currentColor" stroke="none"/>
-                  <line x1="30" y1="4" x2="30" y2="40"/>
-                  <line x1="42" y1="4" x2="42" y2="24"/>
-                  <line x1="30" y1="4" x2="42" y2="4"/>
-                </svg>
+                <IconGlyph iconId="nota" size={40} />
               </div>
               <div>
                 <div className="dz-title" style={{marginBottom:2}}>
@@ -1327,7 +1326,11 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
 
   const onEnter = useCallback(() => {
-    const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
+    const el = cardRef.current; if (!el) return;
+    el.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1), box-shadow 0.48s';
+    el.style.transform  = 'translateY(-3px) scale(1.02)';
+    el.style.boxShadow  = '0 8px 36px rgba(214,31,31,0.45), 0 0 20px rgba(214,31,31,0.2)';
+    const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
 
@@ -1352,6 +1355,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     el.style.boxShadow  = '';
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
+    const glow = el.querySelector('.ac-vinyl-glow');
+    if (glow) { glow.style.opacity = '0'; }
   }, []);
 
   const coverEl = album.cover
@@ -1362,7 +1367,12 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const subtitle   = searchMode
     ? `DISCO · ${album.year || 'SIN AÑO'}`
     : `${album.songs.length} canción${album.songs.length === 1 ? '' : 'es'} · ${album.year || 'SIN AÑO'}`;
-  const vinylEl = <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>;
+  const vinylEl = (
+    <div className="album-card-vinyl">
+      <div className="ac-vinyl-glow" />
+      <div className="ac-vinyl-disc" />
+    </div>
+  );
 
   const animStyle = { animationDelay: `${index * 40}ms` };
 
@@ -1387,14 +1397,15 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
          style={animStyle}
          onClick={() => onOpen(album.name)}
          onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
-      <div className={thumbClass}>{vinylEl}{coverEl}</div>
+      <div className={thumbClass}>
+        {vinylEl}
+        {coverEl}
+        <button className="ac-play-btn" onClick={(e) => { e.stopPropagation(); onPlay(cat, album.name); }}>▶</button>
+      </div>
       <div className="album-card-body">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-          <div>
-            <div className="album-card-title">{album.name}</div>
-            <div className="album-card-sub">{subtitle}</div>
-          </div>
-          <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlay(cat, album.name); }}>▶</button>
+        <div style={{ minWidth: 0 }}>
+          <div className="album-card-title">{album.name}</div>
+          <div className="album-card-sub">{subtitle}</div>
         </div>
       </div>
     </div>
@@ -1402,7 +1413,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -1410,6 +1421,11 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const [albumDir, setAlbumDir] = useState('desc');
   const [selectedAlbum, setSelectedAlbum] = useState(prefillAlbum || null);
   const [showResults, setShowResults] = useState(false);
+  const [showEditArtist, setShowEditArtist] = useState(false);
+  const [editImage, setEditImage] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const editImgInput = useRef(null);
+  const meta = artistMeta[cat] || {};
   useEffect(() => { if (prefillAlbum) setSelectedAlbum(prefillAlbum); }, [prefillAlbum]);
 
   const albumObjects = [...new Set(list.map((f) => (f.album || 'SINGLE')).filter(Boolean))]
@@ -1467,16 +1483,77 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     setSelectedAlbum(null);
   };
 
+  // Función para guardar la edición del artista
+  const saveArtistEdit = () => {
+    onUpdateArtistMeta && onUpdateArtistMeta(cat, { image: editImage || meta.image, description: editDesc });
+    setShowEditArtist(false);
+  };
+
+  // Imagen del artista: meta personalizada > portada de un disco
+  const defaultCover = list.find(f => f.thumbnail || f.coverArt);
+  const artistImage = meta.image || defaultCover?.thumbnail || defaultCover?.coverArt || null;
+
   return (
     <div>
+      {/* Modal de edición del artista */}
+      {showEditArtist && (
+        <div className="modal-overlay" onClick={() => setShowEditArtist(false)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
+            <div className="modal-hd">EDITAR ARTISTA <span style={{color:'var(--fg-primary)'}}>{cat}</span></div>
+            <div className="modal-body">
+              <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'start'}}>
+                <div>
+                  <div className="field-label" style={{marginBottom:6}}>IMAGEN DEL ARTISTA</div>
+                  <div className="thumb-zone" style={{width:120, height:120}} onClick={() => editImgInput.current?.click()}>
+                    {(editImage || meta.image)
+                      ? <img src={editImage || meta.image} alt={cat} style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                      : <div className="thumb-empty"><IconGlyph iconId="usuario" size={40} /></div>}
+                    <input ref={editImgInput} type="file" accept="image/*" style={{display:'none'}} onChange={async e => {
+                      const f = e.target.files[0]; if (!f) return;
+                      const url = await readAsDataURL(f); setEditImage(url);
+                    }} />
+                  </div>
+                  {(editImage || meta.image) && (
+                    <button className="mini-btn alt" style={{marginTop:6}} onClick={() => setEditImage('')}>✕ QUITAR</button>
+                  )}
+                </div>
+                <div style={{flex:1}}>
+                  <div className="field-label">DESCRIPCIÓN / BIO</div>
+                  <textarea className="field-input" style={{width:'100%', height:100, resize:'vertical', marginTop:6}}
+                            value={editDesc} onChange={e => setEditDesc(e.target.value)}
+                            placeholder="Descripción del artista, género, origen..." />
+                </div>
+              </div>
+              <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+                <button className="mini-btn alt" onClick={() => setShowEditArtist(false)}>CANCELAR</button>
+                <button className="big-btn" onClick={saveArtistEdit}>✓ GUARDAR</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="panel">
         <div className="panel-hd">
-          <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <button className="cat-upload-btn" style={{ width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em', gap:4 }} onClick={() => onNav({ page: 'INICIO' })}>◀ VOLVER</button>
+          <span style={{display:'flex', alignItems:'center', gap:10}}>
+            {artistImage && (
+              <img src={artistImage} alt={cat} style={{width:32, height:32, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
+            )}
             <span>{cat}</span>
           </span>
-          <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
+          <span style={{display:'flex', alignItems:'center', gap:8}}>
+            <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
+            <button className="cat-upload-btn" style={{width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
+                    onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
+              ✎ EDITAR
+            </button>
+          </span>
         </div>
+        {meta.description && (
+          <div style={{padding:'6px 14px 10px', color:'var(--fg-secondary)', fontSize:17, borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
+            {meta.description}
+          </div>
+        )}
       </div>
 
       {list.length > 0 && (
@@ -2431,6 +2508,8 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   const BAR_COUNT = 90;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
+  const barRef = useRef(null);
+  const draggingRef = useRef(false);
 
   const fmtTime = (s) => {
     if (!s || !isFinite(s)) return '0:00';
@@ -2439,6 +2518,24 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
     return `${m}:${String(ss).padStart(2, '0')}`;
   };
   const progressPct = duration > 0 ? (position / duration) * 100 : 0;
+
+  const seekFromEvent = useCallback((e) => {
+    if (!barRef.current || !duration) return;
+    const r = barRef.current.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    onSeek(pct * duration);
+  }, [duration, onSeek]);
+
+  useEffect(() => {
+    const onMove = (e) => { if (draggingRef.current) seekFromEvent(e); };
+    const onUp   = () => { draggingRef.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+  }, [seekFromEvent]);
 
   return (
     <div className="music-player">
@@ -2452,10 +2549,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
         <div className="mp-progress">
           <span className="mp-time">{fmtTime(position)}</span>
-          <div className="mp-bar" onClick={(e) => {
-            const r = e.currentTarget.getBoundingClientRect();
-            onSeek((e.clientX - r.left) / r.width * duration);
-          }}>
+          <div className="mp-bar" ref={barRef}
+            onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
+            style={{cursor: 'pointer'}}>
             {waveform && (
               <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
                 <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
@@ -2619,24 +2715,6 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
           </div>
 
           <div className="player">
-            {/* Top: cassette */}
-            <div className="player-cassette">
-              <div className="player-cassette-brand">TDK SA-90 ◆ VAULT MASTER ◆ NODE 03</div>
-              <div className="player-cassette-reels">
-                <div className="reel"></div>
-                <div className="player-cassette-window">
-                  {(file.coverArt || file.thumbnail)
-                    ? <img src={file.coverArt || file.thumbnail} alt={file.name} />
-                    : <>
-                        <div className="player-cassette-glyph"><CategoryGlyph cat={file.category} size={52} /></div>
-                        <div className="player-cassette-cat">▸ {file.category}</div>
-                      </>
-                  }
-                </div>
-                <div className="reel"></div>
-              </div>
-            </div>
-
             {/* Track info bar */}
             <div className="player-track">
               <div className="vu-bars">
@@ -2820,89 +2898,140 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
 }
 
 // ─── SIDEBAR WIDGETS ───────────────────────────────────────────
-function NowStreaming({ currentTrack, isPlaying, onOpen }) {
+
+// Cola de reproducción unificada con cassette arriba
+function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, onJump, onReorder, onOpen }) {
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
   const hasCover = currentTrack && (currentTrack.coverArt || currentTrack.thumbnail);
+  const handleDragStart = (i) => setDragIdx(i);
+  const handleDragOver  = (e, i) => { e.preventDefault(); setOverIdx(i); };
+  const handleDrop = (e, i) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return; }
+    const arr = [...queue]; const [moved] = arr.splice(dragIdx, 1); arr.splice(i, 0, moved);
+    onReorder(arr); setDragIdx(null); setOverIdx(null);
+  };
   return (
-    <div className="widget">
-      <div className="panel">
-        <div className="panel-hd">REPRODUCIENDO <span className="dots">::</span></div>
-        <div className="panel-body">
-          <div className={`cassette${!isPlaying ? ' paused' : ''}`}
-               onClick={() => currentTrack && onOpen(currentTrack.id)}
-               style={{cursor: currentTrack ? 'pointer' : 'default'}}>
-            <div className="label">TDK SA-90 ◆ VAULT MASTER ◆ NODE 03</div>
-            <div className="reels">
-              <div className="reel"></div>
-              {hasCover
-                ? <img src={currentTrack.coverArt || currentTrack.thumbnail}
-                       alt={currentTrack.name}
-                       style={{width:56, height:56, objectFit:'cover', border:'1px solid var(--fg-secondary)', flexShrink:0}} />
-                : <div style={{width:56, height:56, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--fg-dim)', fontSize:22}}>♪</div>
-              }
-              <div className="reel"></div>
-            </div>
-            <div className="track">
-              <strong style={{wordBreak:'break-all'}}>
-                {currentTrack ? currentTrack.name : '— SIN REPRODUCCIÓN —'}
-              </strong>
-              <span style={{color:'var(--fg-secondary)'}}>
-                {currentTrack
-                  ? (currentTrack.artist || currentTrack.category || '') + (currentTrack.album ? ' · ' + currentTrack.album : '')
-                  : 'Reproduce una canción'}
-              </span>
-            </div>
-          </div>
+    <div className="play-queue">
+      <div className="widget-hd">◆ COLA DE REPRODUCCIÓN <span style={{color:'var(--fg-dim)',fontSize:'8px'}}>· {queue.length}</span></div>
+      {/* Cassette con canción actual */}
+      <div className={`cassette${!isPlaying ? ' paused' : ''}`}
+           onClick={() => currentTrack && onOpen(currentTrack.id)}
+           style={{cursor: currentTrack ? 'pointer' : 'default', margin:'8px 0'}}>
+        <div className="label">TDK SA-90 ◆ VAULT MASTER ◆ NODE 01</div>
+        <div className="reels">
+          <div className="reel"></div>
+          {hasCover
+            ? <img src={currentTrack.coverArt || currentTrack.thumbnail}
+                   alt={currentTrack.name}
+                   style={{width:56, height:56, objectFit:'cover', border:'1px solid var(--fg-secondary)', flexShrink:0}} />
+            : <div style={{width:56, height:56, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--fg-dim)', fontSize:22}}>♪</div>
+          }
+          <div className="reel"></div>
         </div>
+        <div className="track">
+          <strong style={{wordBreak:'break-all'}}>
+            {currentTrack ? currentTrack.name : '— SIN REPRODUCCIÓN —'}
+          </strong>
+          <span style={{color:'var(--fg-secondary)'}}>
+            {currentTrack
+              ? (currentTrack.artist || currentTrack.category || '') + (currentTrack.album ? ' · ' + currentTrack.album : '')
+              : 'Reproduce una canción'}
+          </span>
+        </div>
+      </div>
+      {/* Lista de cola */}
+      <div className="pq-list">
+        {queue.length === 0 && <div className="pq-empty">◇ Inicia la reproducción</div>}
+        {queue.map((f, i) => (
+          <div key={f.id}
+            className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
+            draggable
+            onDragStart={() => handleDragStart(i)}
+            onDragOver={e => handleDragOver(e, i)}
+            onDrop={e => handleDrop(e, i)}
+            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            onClick={() => onJump(f)}>
+            {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{i+1}</span>}
+            <div className="pq-info">
+              <div className="pq-name">{f.name}</div>
+              <div className="pq-artist">{f.artist||f.category}</div>
+            </div>
+            <span className="pq-drag-handle">⠿</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
-function DownloadCounter({ files }) {
-  const total = files.reduce((a, f) => a + (f.downloads || 0), 0);
+
+// Contador de canciones reproducidas (suma de playCounts)
+function PlaysCounter({ playCounts }) {
+  const total = Object.values(playCounts).reduce((a, v) => a + v, 0);
   const digits = String(total).padStart(7, '0').split('');
   return (
     <div className="widget">
       <div className="panel">
-        <div className="panel-hd">DESCARGAS TOTAL</div>
+        <div className="panel-hd">CANCIONES REPRODUCIDAS</div>
         <div className="panel-body">
           <div className="counter">
             {digits.map((d, i) => <span key={i} className="digit">{d}</span>)}
           </div>
           <div style={{textAlign:'center', marginTop: 8, fontSize: 17, color: 'var(--fg-dim)'}}>
-            {total} PULLS LIFETIME
+            {total} ESCUCHA{total===1?'':'S'} EN TOTAL
           </div>
         </div>
       </div>
     </div>
   );
 }
-function RecentActivity({ log, files, onOpen }) {
-  const recent = log.slice(0, 5);
-  const byName = (n) => files.find((f) => f.name === n);
+// Mapa de tipos de evento a etiquetas y colores legibles
+const LOG_LABELS = {
+  UP:    { label: 'SUBIDA',     color: 'var(--fg-success)' },
+  DL:    { label: 'DESCARGA',   color: 'var(--fg-accent)'  },
+  DEL:   { label: 'BORRADO',    color: 'var(--fg-primary)'  },
+  PLAY:  { label: 'PLAY',       color: 'var(--fg-primary)'  },
+  PAUSE: { label: 'PAUSA',      color: 'var(--fg-dim)'      },
+  NEXT:  { label: 'SIGUIENTE',  color: 'var(--fg-secondary)'},
+  PREV:  { label: 'ANTERIOR',   color: 'var(--fg-secondary)'},
+  LIKE:  { label: '♥ ME GUSTA', color: '#ff2bd6'            },
+  UNLIKE:{ label: '♡ QUITADO',  color: 'var(--fg-dim)'     },
+};
+
+function RecentActivity({ log }) {
+  const logRef = useRef(null);
+  const fmtTs = (ts) => {
+    if (!ts) return '??:??:??';
+    const d = new Date(ts);
+    const p = n => String(n).padStart(2, '0');
+    return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  };
+  // Scroll al fondo cuando llegan nuevas entradas
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [log.length]);
+
   return (
     <div className="widget">
       <div className="panel">
-        <div className="panel-hd">ACTIVIDAD <span className="dots">{recent.length} / {log.length}</span></div>
-        <div className="panel-body" style={{fontSize:19}}>
-          {recent.length === 0 ? (
-            <div style={{color:'var(--fg-dim)', textAlign:'center', padding:'8px 0'}}>◇ SIN ACTIVIDAD ◇</div>
-          ) : recent.map((e, i) => {
-            const f = byName(e.name);
-            return (
-              <div key={i} style={{
-                display:'grid', gridTemplateColumns:'auto 1fr auto', gap: 8,
-                padding:'4px 0',
-                borderBottom: i < recent.length - 1 ? '1px dotted var(--fg-dim)' : 'none',
-                cursor: f ? 'pointer' : 'default'
-              }} onClick={() => f && onOpen(f.id)}>
-                <span style={{color: e.kind === 'UP' ? 'var(--fg-success)' : e.kind === 'DL' ? 'var(--fg-accent)' : 'var(--fg-primary)'}}>
-                  {e.kind === 'UP' ? '↑' : e.kind === 'DL' ? '↓' : '✕'}
-                </span>
-                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{e.name}</span>
-                <span style={{color:'var(--fg-dim)', fontSize:15}}>{fmtBytes(e.size)}</span>
-              </div>
-            );
-          })}
+        <div className="panel-hd">ACTIVIDAD <span className="dots">// LOG</span></div>
+        <div className="panel-body" style={{padding:0}}>
+          <div ref={logRef} className="activity-log">
+            {log.length === 0 ? (
+              <div className="activity-log-empty">◇ SIN ACTIVIDAD ◇</div>
+            ) : log.slice(0, 50).map((e, i) => {
+              const info = LOG_LABELS[e.kind] || { label: e.kind, color: 'var(--fg-dim)' };
+              const label = (e.name || e.artist || '').slice(0, 38);
+              return (
+                <div key={i} className="activity-log-line">
+                  <span className="activity-ts">[{fmtTs(e.ts)}]</span>
+                  <span className="activity-kind" style={{color: info.color}}>{info.label}</span>
+                  <span className="activity-name">— {label}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -3015,14 +3144,26 @@ function Terminal({ files, localFiles = [], allCats }) {
 function Footer() {
   return (
     <div className="footer">
-      <div style={{display:'flex', gap: 10, flexWrap: 'wrap'}}>
-        <span className="badge">★ BROWSER NATIVE</span>
-        <span className="badge">✓ NO CLOUD</span>
-        <span className="badge">◆ NO TRACKING</span>
-        <span className="badge">⚡ LOCAL VAULT</span>
+      <div style={{display:'flex', gap: 14, alignItems:'center', flexWrap:'wrap'}}>
+        <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="GitHub">
+          {/* GitHub */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
+        </a>
+        <a href="https://discord.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Discord">
+          {/* Discord */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+        </a>
+        <a href="https://store.steampowered.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Steam">
+          {/* Steam */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0z"/></svg>
+        </a>
+        <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Spotify">
+          {/* Spotify */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+        </a>
       </div>
-      <div>
-        © MCMXCIX METAL.SYS ◆ &nbsp;\m/ STAY HEAVY \m/
+      <div style={{color:'var(--fg-dim)', fontSize:16}}>
+        © METAL.SYS 2026 ◆ Reproductor web personal by Yeremias \m/
       </div>
     </div>
   );
@@ -3625,7 +3766,7 @@ function ClipModal({ position, onSave, onClose }) {
 }
 
 // ─── LOCAL IMPORT PAGE ──────────────────────────────────────
-function LocalPage({ localFiles, dirName, scanning, onPickFolder, onPlayAll, onPlayFile, currentId, isPlaying }) {
+function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
   const supported = 'showDirectoryPicker' in window;
   const connected = localFiles.length > 0 || dirName;
 
@@ -3654,6 +3795,12 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onPlayAll, onP
               </button>
               {connected && localFiles.length > 0 && (
                 <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+              )}
+              {connected && (
+                <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-dim)', color:'var(--fg-dim)'}}
+                        onClick={onDisconnect} title="Dejar de leer esta carpeta">
+                  ✕ DESCONECTAR
+                </button>
               )}
               {dirName && (
                 <span style={{color:'var(--fg-dim)', fontSize:18}}>
@@ -3768,6 +3915,7 @@ function App() {
   const [playLog,    setPlayLog]    = useState(loadPLog);
   const [bookmarks, setBookmarks]   = useState(loadBookmarks);   // {fileId: [{id,name,time}]}
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
+  const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
@@ -3810,6 +3958,7 @@ function App() {
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
   useEffect(() => { saveClipStore(clipStore); }, [clipStore]);
+  useEffect(() => { saveArtistMeta(artistMeta); }, [artistMeta]);
   useEffect(() => {
     _catIconRegistry = Object.fromEntries(customCats.map(c => [c.name, c.icon]));
   }, [customCats]);
@@ -3821,15 +3970,33 @@ function App() {
       .then(r => r.ok ? r.json() : [])
       .then(b2 => {
         if (!Array.isArray(b2) || !b2.length) return;
+
+        // Fusionar con vault: los archivos b2 reemplazan versiones cacheadas antiguas
         setFiles(prev => {
-          const existingIds = new Set(prev.map(f => f.id));
-          // Reemplazar todos los b2 existentes con la lista fresca (reconcilia altas/bajas)
           const nonB2 = prev.filter(f => !f.id.startsWith('b2:'));
-          const newB2 = b2.filter(f => !existingIds.has(f.id) || f.id.startsWith('b2:'));
           return [...nonB2, ...b2];
         });
+
+        // Pre-poblar id3Cache con los metadatos ya leídos server-side
+        // Así el reproductor tiene portada y tags sin petición adicional
+        setId3Cache(prev => {
+          const updates = {};
+          for (const f of b2) {
+            updates[f.id] = {
+              title:      f.name,
+              artist:     f.artist,
+              albumArtist:f.artist,
+              album:      f.album,
+              track:      f.track,
+              year:       f.year,
+              genre:      f.genre,
+              coverArt:   f.coverArt || null,
+            };
+          }
+          return { ...prev, ...updates };
+        });
       })
-      .catch(() => {}); // silencioso si no hay API (desarrollo local)
+      .catch(() => {}); // silencioso si no hay API (desarrollo local sin Vercel)
   }, []);
 
   useEffect(() => {
@@ -4021,6 +4188,9 @@ function App() {
   const handleUpdate = (f) => {
     setFiles((prev) => prev.map((x) => x.id === f.id ? f : x));
   };
+  const updateArtistMeta = (artistName, meta) => {
+    setArtistMeta(prev => ({ ...prev, [artistName]: { ...(prev[artistName] || {}), ...meta } }));
+  };
   const handleCreateCat = () => setShowCreateModal(true);
   const submitCreateCat = ({ name, icon }) => {
     setCustomCats((p) => [...p, { name, icon }]);
@@ -4152,6 +4322,7 @@ function App() {
       audio.play().catch(() => {});
       return;
     }
+    addToLog({ kind: 'PLAY', name: file.name, artist: file.artist || file.category || '' });
     // Count previous track if it was played for at least 30 seconds
     if (currentTrackId && playStartRef.current) {
       const elapsed = Date.now() - playStartRef.current;
@@ -4244,7 +4415,10 @@ function App() {
   const toggleLike = (fileId) => {
     setLikedIds(prev => {
       const next = new Set(prev);
-      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      const wasLiked = next.has(fileId);
+      if (wasLiked) next.delete(fileId); else next.add(fileId);
+      const f = [...files, ...localFiles].find(x => x.id === fileId);
+      addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
       return next;
     });
   };
@@ -4337,6 +4511,17 @@ function App() {
     }
   };
 
+  // Desconectar carpeta local — limpia estado y elimina handle de IndexedDB
+  const disconnectLocalFolder = async () => {
+    setLocalFiles([]);
+    setLocalDirName('');
+    try { await idbSet('localDirHandle', null); } catch {}
+    if (currentTrackId) {
+      const current = localFiles.find(f => f.id === currentTrackId);
+      if (current) stopMusic();
+    }
+  };
+
   // Try to restore local folder on first load
   useEffect(() => {
     (async () => {
@@ -4369,19 +4554,33 @@ function App() {
   };
   const playPause = () => {
     const audio = audioRef.current;
-    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+    if (audio.paused) {
+      audio.play().catch(() => {});
+      const f = currentTrack;
+      if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.artist || f.category || '' });
+    } else {
+      audio.pause();
+      const f = currentTrack;
+      if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.artist || f.category || '' });
+    }
   };
   const playNext = (wrap = true) => {
     if (effectiveQueue.length === 0) return;
     const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
     const next = wrap ? effectiveQueue[(idx + 1) % effectiveQueue.length] : effectiveQueue[idx + 1];
-    if (next) startTrack(next);
+    if (next) {
+      addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
+      startTrack(next);
+    }
   };
   const playPrev = () => {
     if (effectiveQueue.length === 0) return;
     const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
     const prev = effectiveQueue[(idx - 1 + effectiveQueue.length) % effectiveQueue.length];
-    if (prev) startTrack(prev);
+    if (prev) {
+      addToLog({ kind: 'PREV', name: prev.name, artist: prev.artist || prev.category || '' });
+      startTrack(prev);
+    }
   };
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
   const stopMusic = () => {
@@ -4426,7 +4625,8 @@ function App() {
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                           localFiles={localFiles} localDirName={localDirName}
-                          onPickFolder={pickLocalFolder} />
+                          onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
+                          artistMeta={artistMeta} />
               )}
               {route.page === 'TODO' && (
                 <TodoPage artists={allArtists} files={files} localFiles={localFiles}
@@ -4452,7 +4652,7 @@ function App() {
               {route.page === 'LOCAL' && (
                 <LocalPage
                   localFiles={localFiles} dirName={localDirName} scanning={localScanning}
-                  onPickFolder={pickLocalFolder}
+                  onPickFolder={pickLocalFolder} onDisconnect={disconnectLocalFolder}
                   onPlayAll={() => { if(localFiles.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
                   onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
                   currentId={currentTrackId} isPlaying={isPlaying} />
@@ -4468,6 +4668,7 @@ function App() {
                               onOpenFile={openFile} onNav={setRoute}
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
+                              artistMeta={artistMeta} onUpdateArtistMeta={updateArtistMeta}
                               onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                               onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)}
                               onPlayFile={(f) => { setManualQueue([f]); startTrack(f); }} />
@@ -4500,14 +4701,15 @@ function App() {
 
             {/* Right sidebar */}
             <div className="col-right">
-              <PlayQueue
+              <PlayQueueWithNowPlaying
                 queue={effectiveQueue} currentId={currentTrackId}
+                currentTrack={currentTrack} isPlaying={isPlaying}
                 onJump={file => startTrack(file)}
-                onReorder={arr => setManualQueue(arr)} />
+                onReorder={arr => setManualQueue(arr)}
+                onOpen={openFile} />
               <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
-              <NowStreaming currentTrack={currentTrack} isPlaying={isPlaying} onOpen={openFile} />
-              <DownloadCounter files={files} />
-              <RecentActivity log={log} files={files} onOpen={openFile} />
+              <PlaysCounter playCounts={playCounts} />
+              <RecentActivity log={log} />
             </div>
           </div>
         </div>

@@ -5,6 +5,46 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-05 — 27 mejoras y correcciones
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`, `.gitignore` (nuevo)
+
+### Cambios visuales / UI
+1. **AlbumCard**: la animación de hover ahora afecta a todo el contenedor (lift + glow), no solo al vinilo
+2. **AlbumCard**: corregido desbordamiento de texto/título al hover — `minWidth: 0` en el wrapper
+3. **AlbumCard**: botón ▶ movido a la esquina inferior derecha de la portada, rojo, solo visible en hover
+4. **CategoryPage**: eliminado botón "VOLVER" redundante del header de artista
+5. **Nav**: reordenado — INICIO, STATS, SUBIR, LOCAL, TODO, ME GUSTA
+6. **Nav**: nuevos iconos — corazón (ME GUSTA), gráfico de barras (STATS), carpeta (LOCAL), nota musical (TODO)
+7. **UploadPage**: icono de nota musical en dropzone sustituido por `IconGlyph iconId="nota"`
+8. **DetailPage**: eliminado cassette (redundante con el reproductor inferior)
+9. **StatusBar**: "VAULT ONLINE" → "SYSTEM ONLINE", "NODE 03" → "NODE 01", "ARCHIVOS" → "CANCIONES", eliminado "LIBRE: X MB"
+10. **Banner**: autor cambiado a "Yeremias", fecha actualizada a 27/06/2026, géneros actualizados
+11. **Footer**: badges eliminados; añadidos iconos de enlace a GitHub, Discord, Steam, Spotify; copyright actualizado
+12. **Inicio**: eliminado `StatsPanel` (redundante con el tree)
+13. **Inicio**: eliminada sección "AÑADIDAS RECIENTEMENTE"
+14. **Inicio**: artistas limitados a 12 con botón expandir/colapsar
+15. **Inicio**: botón ♪ AÑADIR CANCIÓN con icono alineado verticalmente
+16. **Inicio**: bloque LOCAL con más texto y botón DESCONECTAR
+
+### Nuevas funcionalidades
+17. **MusicPlayer**: barra de progreso ahora soporta arrastrar (drag) además de click
+18. **CategoryPage**: botón ✎ EDITAR ARTISTA con modal para imagen y descripción; se persiste en `metalsys_artist_meta_v1`; imagen usada en tarjetas de INICIO y TODO
+19. **LocalPage**: añadido botón ✕ DESCONECTAR que limpia estado y handle de IndexedDB
+20. **Sidebar derecho**: NowStreaming y PlayQueue fusionadas en `PlayQueueWithNowPlaying` — cassette arriba, cola abajo
+21. **Sidebar derecho**: `DownloadCounter` reemplazado por `PlaysCounter` (suma de `playCounts`)
+22. **Sidebar derecho**: `RecentActivity` rediseñado como log estilo `tail -f` — 10 líneas, scroll, timestamps, eventos de música (PLAY, PAUSE, NEXT, PREV, LIKE, UNLIKE, UP, DL, DEL)
+23. **Sidebar izquierdo**: botones ▶ de lib-tree invierten colores al hover (fondo rojo, triángulo oscuro)
+24. **Inicio → ARTISTAS**: `songCount` ahora incluye archivos locales
+25. **Vinilo**: brillo rojo radial detrás del disco en hover
+
+### Técnico
+26. **`.gitignore`**: creado para excluir `.claude/`, `node_modules/`, etc.
+27. **Comentarios en español**: añadidos en las secciones principales de `app.jsx`
+
+---
+
 ## 2026-06-02 — 11 mejoras implementadas
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
