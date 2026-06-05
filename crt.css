@@ -1146,8 +1146,7 @@ input:not([type=range]), textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
-  transition: overflow 0s;
+  overflow: visible;
 }
 .album-card:hover .album-card-thumb {
   overflow: visible;
@@ -3114,6 +3113,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 16px;
 }
 .lib-song-row:hover { background: rgba(214,31,31,0.08); color: var(--fg-text); }
+.lib-song-row .lib-play { opacity: 0; }
+.lib-song-row:hover .lib-play { opacity: 1; }
 .lib-song-direct { padding-left: 22px !important; }
 .lib-song-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 10px; width: 18px; flex-shrink: 0; text-align: right; }
 .lib-song-name { color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

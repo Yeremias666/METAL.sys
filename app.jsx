@@ -3165,7 +3165,7 @@ function Footer() {
 }
 
 // ─── LIBRARY TREE (left sidebar) ───────────────────────────
-function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile }) {
+function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile, onPlayFile }) {
   const [collapsed, setCollapsed] = useState({});
   const toggle = (key) => setCollapsed(p => ({ ...p, [key]: !p[key] }));
   const allFiles = [...files, ...localFiles];
@@ -3207,6 +3207,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
                               <div key={f.id} className="lib-song-row" onClick={() => onOpenFile(f.id)}>
                                 <span className="lib-song-num">{f.track ? f.track.split('/')[0] : '—'}</span>
                                 <span className="lib-song-name">{f.name}</span>
+                                <button className="lib-play" onClick={e => { e.stopPropagation(); onPlayFile && onPlayFile(f); }}>▶</button>
                               </div>
                             ))}
                           </div>
@@ -3218,6 +3219,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
                     <div key={f.id} className="lib-song-row lib-song-direct" onClick={() => onOpenFile(f.id)}>
                       <span className="lib-song-num">◇</span>
                       <span className="lib-song-name">{f.name}</span>
+                      <button className="lib-play" onClick={e => { e.stopPropagation(); onPlayFile && onPlayFile(f); }}>▶</button>
                     </div>
                   ))}
                 </div>
@@ -3338,12 +3340,19 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
       </div>
       {liked.length === 0
         ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
-        : <div className="section"><div className="file-grid">{liked.map(f => (
-            <div key={f.id} style={{position:'relative'}}>
-              <FileCard file={f} onClick={() => onOpenFile(f.id)} />
-              <button className="like-btn liked" style={{position:'absolute',top:6,right:6}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
-            </div>
-          ))}</div></div>
+        : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
+            {liked.map((f, i) => (
+              <div key={f.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
+                   onClick={() => onOpenFile(f.id)}>
+                {f.thumbnail && <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2}} />}
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
+                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</div>
+                </div>
+                <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
+              </div>
+            ))}
+          </div></div></div>
       }
     </div>
   );
@@ -3455,7 +3464,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         <div className="panel-hd">ESTADÍSTICAS <span className="dots">/// VAULT ANALYTICS</span></div>
         <div className="panel-body">
           <div className="stats-facts-grid">
-            {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',likedIds.size],['SUBIDAS',upCount],['DESCARGAS',dlCount],['BORRADAS',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
+            {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',audioFiles.filter(f=>likedIds.has(f.id)).length],['SUBIDAS',upCount],['DESCARGAS',dlCount],['BORRADAS',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
               <div key={lbl} className="stat-fact"><div className="sf-label">{lbl}</div><div className="sf-val">{val}</div></div>
             ))}
           </div>
@@ -4063,7 +4072,7 @@ function App() {
         playStartRef.current = Date.now();
         return;
       }
-      playNext(repeatMode === 'all');
+      playNext(repeatMode === 'all', { autoAdvance: true });
     };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
@@ -4560,12 +4569,12 @@ function App() {
       if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.artist || f.category || '' });
     }
   };
-  const playNext = (wrap = true) => {
+  const playNext = (wrap = true, { autoAdvance = false } = {}) => {
     if (effectiveQueue.length === 0) return;
     const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
     const next = wrap ? effectiveQueue[(idx + 1) % effectiveQueue.length] : effectiveQueue[idx + 1];
     if (next) {
-      addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
+      if (!autoAdvance) addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
       startTrack(next, undefined, { skipLog: true });
     }
   };
@@ -4613,7 +4622,8 @@ function App() {
                 files={files} localFiles={localFiles} allCats={allCats}
                 onNav={setRoute} onOpenFile={openFile}
                 onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
-                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)} />
+                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
+                onPlayFile={f => { setManualQueue(null); startTrack(f); }} />
             </div>
 
             {/* Center column */}
