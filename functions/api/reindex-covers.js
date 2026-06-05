@@ -208,12 +208,14 @@ export async function onRequest({ request, env }) {
     } catch {}
 
     // Solo los álbumes sin portada
-    const allAlbums   = Object.entries(albumMap);
-    const missingAlbums = allAlbums.filter(([p]) => !existingCovers.has(`_covers/${p}.jpg`));
-    const total   = missingAlbums.length;
-    const batch   = missingAlbums.slice(offset, offset+PER_CALL);
-    const next    = offset+PER_CALL;
-    const done    = next >= total;
+    // Ordenar los álbumes que faltan para que el offset sea estable entre llamadas
+    const missingAlbums = Object.entries(albumMap)
+      .filter(([p]) => !existingCovers.has(`_covers/${p}.jpg`))
+      .sort(([a],[b]) => a < b ? -1 : 1);
+    const total = missingAlbums.length;
+    const batch = missingAlbums.slice(offset, offset + PER_CALL);
+    const next  = offset + PER_CALL;
+    const done  = total === 0 || next >= total;
 
     // Procesar el batch: leer MP3, extraer portada, subir como _covers/...
     const results = await Promise.allSettled(batch.map(async ([prefix, repKey]) => {
