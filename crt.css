@@ -3444,8 +3444,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
 /* 1 — Stagger de tarjetas de álbum */
 @keyframes album-card-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 .album-card-anim {
   animation: album-card-in 180ms ease-out both;
