@@ -834,7 +834,8 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                 {gSuggestions.length === 0 ? (
                   <div className="search-suggestion empty">Sin coincidencias.</div>
                 ) : gSuggestions.map((item, idx) => (
-                  <button key={idx} className="search-suggestion" onClick={() => {
+                  <button key={idx} className="search-suggestion search-suggestion-anim"
+                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
                     setGQuery('');
                     if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
                     else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
@@ -1308,7 +1309,7 @@ function FolderImportSection({ vault, onUpload }) {
 }
 
 // ─── ALBUM CARD con parallax 3D ───────────────────────────────
-function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false }) {
+function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false, index = 0 }) {
   const cardRef = useRef(null);
   const SLIDE_OUT = 'translateY(-50%) translateX(108%)';   // oculto
   const SLIDE_IN  = 'translateY(-50%) translateX(46%)';    // asomado
@@ -1323,11 +1324,13 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
+    // sombra dinámica en la tarjeta; la rotación 3D solo al thumb para que el body no se mueva
     el.style.transition = 'box-shadow 0.06s';
-    el.style.transform  = `perspective(700px) rotateX(${-dy * 14}deg) rotateY(${dx * 14}deg)`;
     el.style.boxShadow  = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
+    const thumb = el.querySelector('.album-card-thumb');
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
+    if (thumb) { thumb.style.transition = 'box-shadow 0.06s'; thumb.style.transform = `perspective(600px) rotateX(${-dy * 12}deg) rotateY(${dx * 12}deg)`; }
     if (img)   { img.style.transition = 'none'; img.style.transform = `translate(${dx * 5}px,${dy * 5}px)`; }
     if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(46%) translate(${dx * 10}px,${dy * 8}px)`; }
   }, []);
@@ -1335,11 +1338,12 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const onLeave = useCallback(() => {
     const el = cardRef.current; if (!el) return;
     const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
-    el.style.transition = `${ease}, box-shadow 0.55s`;
-    el.style.transform  = '';
+    el.style.transition = 'box-shadow 0.55s';
     el.style.boxShadow  = '';
+    const thumb = el.querySelector('.album-card-thumb');
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
+    if (thumb) { thumb.style.transition = ease; thumb.style.transform = ''; }
     if (img)   { img.style.transition = ease; img.style.transform = ''; }
     if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
   }, []);
@@ -1354,12 +1358,15 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     : `${album.songs.length} canción${album.songs.length === 1 ? '' : 'es'} · ${album.year || 'SIN AÑO'}`;
   const vinylEl = <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>;
 
+  const animStyle = { animationDelay: `${index * 40}ms` };
+
   if (searchMode) {
     return (
-      <button ref={cardRef} className="album-card"
+      <button ref={cardRef} className="album-card album-card-anim"
+              style={animStyle}
               onClick={() => onOpen(album.name)}
               onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
-        <div className={thumbClass}>{coverEl}{vinylEl}</div>
+        <div className={thumbClass}>{vinylEl}{coverEl}</div>
         <div className="album-card-body">
           <div className="album-card-title">{album.name}</div>
           <div className="album-card-sub">{subtitle}</div>
@@ -1370,10 +1377,11 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 
   return (
     <div ref={cardRef}
-         className={rowMode ? 'album-card album-card-row' : 'album-card'}
+         className={`${rowMode ? 'album-card album-card-row' : 'album-card'} album-card-anim`}
+         style={animStyle}
          onClick={() => onOpen(album.name)}
          onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
-      <div className={thumbClass}>{coverEl}{vinylEl}</div>
+      <div className={thumbClass}>{vinylEl}{coverEl}</div>
       <div className="album-card-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <div>
@@ -1492,7 +1500,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                     suggestions.map((item, idx) => (
                       <button
                         key={idx}
-                        className="search-suggestion"
+                        className="search-suggestion search-suggestion-anim"
+                        style={{ animationDelay: `${idx * 30}ms` }}
                         onClick={() => {
                           if (item.type === 'album') openAlbum(item.album.name);
                           else onOpenFile(item.file.id);
@@ -1607,10 +1616,10 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <>
                   <div className="field-label" style={{ marginBottom: 10 }}>DISCOS</div>
                   <div className="album-grid">
-                    {searchAlbums.map((album) => (
+                    {searchAlbums.map((album, i) => (
                       <AlbumCard key={album.name} album={album} cat={cat}
                                  onOpen={openAlbum} onPlay={onPlayAlbum}
-                                 searchMode />
+                                 searchMode index={i} />
                     ))}
                   </div>
                 </>
@@ -1646,16 +1655,16 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         ) : (
           albumView === 'grid' ? (
             <div className="album-grid">
-              {albumObjects.map((album) => (
+              {albumObjects.map((album, i) => (
                 <AlbumCard key={album.name} album={album} cat={cat}
-                           onOpen={openAlbum} onPlay={onPlayAlbum} />
+                           onOpen={openAlbum} onPlay={onPlayAlbum} index={i} />
               ))}
             </div>
           ) : (
             <div className="album-list">
-              {albumObjects.map((album) => (
+              {albumObjects.map((album, i) => (
                 <AlbumCard key={album.name} album={album} cat={cat}
-                           onOpen={openAlbum} onPlay={onPlayAlbum} rowMode />
+                           onOpen={openAlbum} onPlay={onPlayAlbum} rowMode index={i} />
               ))}
             </div>
           )
@@ -2485,7 +2494,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           ? <img src={cover} alt={track.name} />
           : <div className="mp-cover-empty"><CategoryGlyph cat="MÚSICA" size={36} /></div>}
       </div>
-      <div className="mp-info">
+      <div key={track.id} className="mp-info mp-track-anim">
         <div className="mp-title">{(tags && tags.title) || track.name}</div>
         <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
         <div className="mp-progress">
@@ -2495,7 +2504,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
             onSeek((e.clientX - r.left) / r.width * duration);
           }}>
             {waveform && (
-              <svg className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
+              <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
                 <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
                 <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
               </svg>
@@ -3200,10 +3209,21 @@ function TopSongs({ files, playCounts, onOpen }) {
 // ─── LIKE BUTTON ────────────────────────────────────────────
 function LikeButton({ fileId, likedIds, onToggle }) {
   const liked = likedIds.has(fileId);
+  const [pop, setPop] = useState(false);
+  const wasLiked = useRef(liked);
+  useEffect(() => {
+    if (liked && !wasLiked.current) {
+      setPop(true);
+      const t = setTimeout(() => setPop(false), 250);
+      wasLiked.current = liked;
+      return () => clearTimeout(t);
+    }
+    wasLiked.current = liked;
+  }, [liked]);
   return (
-    <button className={`like-btn${liked?' liked':''}`}
+    <button className={`like-btn${liked ? ' liked' : ''}${pop ? ' like-pop-anim' : ''}`}
             onClick={e => { e.stopPropagation(); onToggle(fileId); }}
-            title={liked?'Quitar de Me Gusta':'Me Gusta'}>
+            title={liked ? 'Quitar de Me Gusta' : 'Me Gusta'}>
       {liked ? '♥' : '♡'}
     </button>
   );
@@ -3557,7 +3577,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
               <div key={genre} className="artist-plays-row">
                 <span className="ap-rank" style={{color:STAT_COLORS[i%STAT_COLORS.length]}}>{i+1}</span>
                 <span className="ap-name">{genre}</span>
-                <div className="ap-bar-bg"><div className="ap-bar-fill" style={{width:(plays/maxGP*100)+'%',background:STAT_COLORS[i%STAT_COLORS.length]}}></div></div>
+                <div className="ap-bar-bg"><div className="ap-bar-fill" style={{width:(plays/maxGP*100)+'%',background:STAT_COLORS[i%STAT_COLORS.length],animationDelay:`${i*70}ms`}}></div></div>
                 <span className="ap-count">▶{plays}</span>
               </div>
             ))}
@@ -3572,9 +3592,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
           <div className="panel-body">
             <div className="timeline-wrap">
               <div className="timeline-chart">
-                {sortedUpDates.map(d=>{
+                {sortedUpDates.map((d,di)=>{
                   const count=uploadsByDate[d]; const h=Math.max(4,(count/maxUploads)*76);
-                  return (<div key={d} className="tl-bar-col" title={`${d}: ${count}`}><span className="tl-count">{count}</span><div className="tl-bar" style={{height:h}}></div><span className="tl-label">{d.slice(5)}</span></div>);
+                  return (<div key={d} className="tl-bar-col" title={`${d}: ${count}`}><span className="tl-count">{count}</span><div className="tl-bar" style={{height:h,animationDelay:`${di*15}ms`}}></div><span className="tl-label">{d.slice(5)}</span></div>);
                 })}
               </div>
             </div>
@@ -4385,6 +4405,7 @@ function App() {
               <Banner onNav={setRoute} />
               <Nav current={route} onNav={setRoute} allCats={allCats} />
               <Marquee />
+              <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
@@ -4456,6 +4477,7 @@ function App() {
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
               )}
+              </div>
               <Terminal files={files} localFiles={localFiles} allCats={allCats} />
               <Footer />
             </div>

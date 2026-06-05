@@ -1158,7 +1158,6 @@ input, textarea {
   width: 88%;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  z-index: 6;
   pointer-events: none;
   will-change: transform;
   transform: translateY(-50%) translateX(108%);
@@ -3425,6 +3424,83 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .local-track-album { color: var(--fg-dim); font-family: var(--pixel); font-size: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
 .local-track-size  { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; flex-shrink: 0; }
 .local-track-play  { color: var(--fg-primary); font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ANIMACIONES — design principles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 1 — Stagger de tarjetas de álbum */
+@keyframes album-card-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.album-card-anim {
+  animation: album-card-in 180ms ease-out both;
+}
+
+/* 2 — Cambio de pista en reproductor */
+@keyframes track-slide-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.mp-track-anim {
+  animation: track-slide-in 160ms ease-out both;
+}
+
+/* 3 — Like heartbeat */
+@keyframes like-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.45); }
+  100% { transform: scale(1); }
+}
+.like-btn.like-pop-anim {
+  animation: like-pop 220ms cubic-bezier(0.23,1,0.32,1);
+}
+
+/* 4 — Stagger de sugerencias de búsqueda */
+@keyframes suggestion-in {
+  from { opacity: 0; transform: translateX(-5px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.search-suggestion-anim {
+  animation: suggestion-in 140ms ease-out both;
+}
+
+/* 5 — Entrada de página */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.page-enter {
+  animation: page-in 150ms ease-out both;
+}
+
+/* 6 — Barras de stats */
+@keyframes stats-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes stats-bar-up {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+.ap-bar-fill {
+  transform-origin: left center;
+  animation: stats-bar-grow 420ms cubic-bezier(0.23,1,0.32,1) both;
+}
+.tl-bar {
+  transform-origin: bottom center;
+  animation: stats-bar-up 380ms cubic-bezier(0.23,1,0.32,1) both;
+}
+
+/* 7 — Waveform fade-in */
+@keyframes waveform-fade {
+  from { opacity: 0; }
+  to   { opacity: 0.55; }
+}
+.mp-waveform {
+  animation: waveform-fade 400ms ease both;
+}
 
 /* Folder import preview list (in UploadPage) */
 .local-file-list-preview {
