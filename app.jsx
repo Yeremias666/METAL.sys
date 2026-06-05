@@ -1311,8 +1311,10 @@ function FolderImportSection({ vault, onUpload }) {
 // ─── ALBUM CARD con parallax 3D ───────────────────────────────
 function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false, index = 0 }) {
   const cardRef = useRef(null);
-  const SLIDE_OUT = 'translateY(-50%) translateX(108%)';   // oculto
-  const SLIDE_IN  = 'translateY(-50%) translateX(46%)';    // asomado
+  // Vinilo: reposo = centrado detrás de la portada (tapado por la imagen)
+  // Hover  = desliza hacia la derecha y asoma fuera del frame
+  const SLIDE_OUT = 'translateY(-50%)';
+  const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
 
   const onEnter = useCallback(() => {
     const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
@@ -1324,15 +1326,13 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
-    // sombra dinámica en la tarjeta; la rotación 3D solo al thumb para que el body no se mueva
     el.style.transition = 'box-shadow 0.06s';
     el.style.boxShadow  = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
-    const thumb = el.querySelector('.album-card-thumb');
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (thumb) { thumb.style.transition = 'box-shadow 0.06s'; thumb.style.transform = `perspective(600px) rotateX(${-dy * 12}deg) rotateY(${dx * 12}deg)`; }
-    if (img)   { img.style.transition = 'none'; img.style.transform = `translate(${dx * 5}px,${dy * 5}px)`; }
-    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(46%) translate(${dx * 10}px,${dy * 8}px)`; }
+    // Rotación 3D solo en la imagen — el body (título/botón) queda 100% estático
+    if (img)   { img.style.transition = 'none'; img.style.transform = `perspective(500px) rotateX(${-dy * 9}deg) rotateY(${dx * 9}deg) scale(1.03)`; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 10}px,${dy * 8}px)`; }
   }, []);
 
   const onLeave = useCallback(() => {
@@ -1340,10 +1340,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
     el.style.transition = 'box-shadow 0.55s';
     el.style.boxShadow  = '';
-    const thumb = el.querySelector('.album-card-thumb');
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (thumb) { thumb.style.transition = ease; thumb.style.transform = ''; }
     if (img)   { img.style.transition = ease; img.style.transform = ''; }
     if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
   }, []);

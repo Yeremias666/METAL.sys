@@ -1160,7 +1160,7 @@ input, textarea {
   border-radius: 50%;
   pointer-events: none;
   will-change: transform;
-  transform: translateY(-50%) translateX(108%);
+  transform: translateY(-50%);
   box-shadow: -10px 4px 36px rgba(0,0,0,0.95), 2px 0 8px rgba(0,0,0,0.6);
 }
 .ac-vinyl-disc {
