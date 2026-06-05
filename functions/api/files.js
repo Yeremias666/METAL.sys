@@ -260,56 +260,73 @@ export async function onRequest({ request, env }) {
     const audioExts  = /\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/i;
     const audioFiles = allObjects.filter(o => audioExts.test(o.key));
 
-    // 2. Leer ID3 de cada archivo en lotes de 5 para no saturar R2
-    const BATCH   = 5;
-    const results = [];
+    // 2. Agrupar por álbum (Artista/Album/) y leer ID3 de una canción representativa
+    //    En vez de 1000 lecturas, hacemos 1 por álbum (~50-100 en total)
+    const albumGroups = {};
+    for (const f of audioFiles) {
+      const parts  = f.key.split('/');
+      const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
+      if (!albumGroups[prefix]) albumGroups[prefix] = [];
+      albumGroups[prefix].push(f);
+    }
 
-    for (let i = 0; i < audioFiles.length; i += BATCH) {
-      const batch  = audioFiles.slice(i, i + BATCH);
-      const parsed = await Promise.all(batch.map(async ({ key, size, lastModified }) => {
-        const fallback   = parsePath(key);
-        let tags         = {};
+    const albumKeys  = Object.keys(albumGroups);
+    const albumMeta  = {};
+    const BATCH      = 20;
 
+    for (let i = 0; i < albumKeys.length; i += BATCH) {
+      await Promise.all(albumKeys.slice(i, i + BATCH).map(async prefix => {
+        const rep        = albumGroups[prefix][0];
+        const encodedKey = rep.key.split('/').map(encodeURIComponent).join('/');
         try {
-          const encodedKey = key.split('/').map(encodeURIComponent).join('/');
-          const hdrs = await makeSignedHeaders(
-            accessKey, secretKey,
-            `/${BUCKET}/${encodedKey}`, '',
-            { Range: ID3_RANGE }
-          );
+          const hdrs  = await makeSignedHeaders(accessKey, secretKey, `/${BUCKET}/${encodedKey}`, '', { Range: ID3_RANGE });
           const dlRes = await fetch(`${ENDPOINT}/${BUCKET}/${encodedKey}`, { headers: hdrs });
           if (dlRes.ok || dlRes.status === 206) {
-            tags = parseID3(await dlRes.arrayBuffer());
+            const tags = parseID3(await dlRes.arrayBuffer());
+            albumMeta[prefix] = {
+              coverArt:    tags.coverArt    || null,
+              year:        tags.year        || '',
+              genre:       tags.genre       || '',
+              album:       tags.album       || '',
+              albumArtist: tags.albumArtist || tags.artist || '',
+            };
           }
         } catch {}
-
-        const artist = tags.albumArtist || tags.artist || fallback.artist;
-        const album  = tags.album || fallback.album;
-
-        return {
-          id:          `r2:${key}`,
-          name:        tags.title  || fallback.title,
-          artist,
-          album,
-          track:       tags.track  || fallback.track,
-          disc:        tags.disc   || '',
-          year:        tags.year   || '',
-          genre:       tags.genre  || '',
-          description: album,
-          category:    artist,
-          fileName:    fallback.fileName,
-          fileSize:    size,
-          fileType:    'audio/mpeg',
-          fileData:    null,
-          r2Path:      key,
-          thumbnail:   tags.coverArt || null,
-          coverArt:    tags.coverArt || null,
-          uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),
-          downloads:   0,
-        };
       }));
-      results.push(...parsed);
     }
+
+    // 3. Construir resultados: título y pista desde el path, resto desde el ID3 del álbum
+    const results = audioFiles.map(({ key, size, lastModified }) => {
+      const fallback = parsePath(key);
+      const parts    = key.split('/');
+      const prefix   = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
+      const am       = albumMeta[prefix] || {};
+
+      const artist = am.albumArtist || fallback.artist;
+      const album  = am.album       || fallback.album;
+
+      return {
+        id:          `r2:${key}`,
+        name:        fallback.title,
+        artist,
+        album,
+        track:       fallback.track,
+        disc:        '',
+        year:        am.year  || '',
+        genre:       am.genre || '',
+        description: album,
+        category:    artist,
+        fileName:    fallback.fileName,
+        fileSize:    size,
+        fileType:    'audio/mpeg',
+        fileData:    null,
+        r2Path:      key,
+        thumbnail:   am.coverArt || null,
+        coverArt:    am.coverArt || null,
+        uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),
+        downloads:   0,
+      };
+    });
 
     // 5 min en CDN de Cloudflare, 1 min en navegador
     return jsonResponse(results, 200, {
