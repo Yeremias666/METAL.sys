@@ -243,13 +243,13 @@ function jsonResponse(body, status = 200, extraHeaders = {}) {
   });
 }
 
-export async function onRequest(context) {
-  if (context.request.method !== 'GET') {
+export async function onRequest({ request, env }) {
+  if (request.method !== 'GET') {
     return new Response(null, { status: 405 });
   }
 
-  const accessKey = context.env.R2_ACCESS_KEY_ID;
-  const secretKey = context.env.R2_SECRET_ACCESS_KEY;
+  const accessKey = env.R2_ACCESS_KEY_ID;
+  const secretKey = env.R2_SECRET_ACCESS_KEY;
   if (!accessKey || !secretKey) {
     return jsonResponse({ error: 'Credenciales R2 no configuradas' }, 500);
   }
