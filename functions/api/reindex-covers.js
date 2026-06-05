@@ -12,7 +12,7 @@ const ENDPOINT  = 'https://97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage
 const REGION    = 'auto';
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
 const ID3_RANGE = 'bytes=0-1048575'; // 1 MB — captura cualquier portada por grande que sea
-const PER_CALL  = 15;
+const PER_CALL  = 8;
 
 const te = new TextEncoder();
 
@@ -108,7 +108,9 @@ function extractCover(buf) {
           const isJpeg = frameBytes[i]===0xFF&&frameBytes[i+1]===0xD8&&frameBytes[i+2]===0xFF;
           const isPng  = frameBytes[i]===0x89&&frameBytes[i+1]===0x50&&frameBytes[i+2]===0x4E;
           if (isJpeg||isPng) {
-            return { bytes: new Uint8Array(buf, fdStart+i, frameEnd-(fdStart+i)), mime: isJpeg?'image/jpeg':'image/png' };
+            // Copia real — no vista, para evitar problemas con el GC
+            const view = new Uint8Array(buf, fdStart+i, frameEnd-(fdStart+i));
+            return { bytes: new Uint8Array(view), mime: isJpeg?'image/jpeg':'image/png' };
           }
         }
       } catch {}

@@ -301,21 +301,36 @@ export async function onRequest({ request, env }) {
     const audioExts  = /\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/i;
     const audioFiles = allObjects.filter(o => audioExts.test(o.key));
 
-    // 2. Álbumes únicos → generar URLs presignadas de portadas (puro cálculo, sin red)
+    // 2. Qué portadas existen realmente en R2 (_covers/)
+    const coverExists = new Set();
+    try {
+      const coverQP = Object.entries({ 'list-type': '2', 'max-keys': '1000', 'prefix': '_covers/' })
+        .sort(([a],[b]) => a < b ? -1 : 1)
+        .map(([k,v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+      const coverHdrs = await makeSignedHeaders(accessKey, secretKey, `/${BUCKET}`, coverQP);
+      const coverRes  = await fetch(`${ENDPOINT}/${BUCKET}?${coverQP}`, { headers: coverHdrs });
+      if (coverRes.ok) {
+        const xml = await coverRes.text();
+        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) coverExists.add(m[1]);
+      }
+    } catch {}
+
+    // 3. Álbumes únicos → URL presignada solo si la portada existe
     const albumMap = {};
     for (const { key } of audioFiles) {
       const parts  = key.split('/');
       const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
       if (!albumMap[prefix]) albumMap[prefix] = null;
     }
-    // Generar todas las URLs en paralelo
     await Promise.all(
       Object.keys(albumMap).map(async prefix => {
-        albumMap[prefix] = await presignedCoverUrl(accessKey, secretKey, prefix);
+        if (coverExists.has(`_covers/${prefix}.jpg`)) {
+          albumMap[prefix] = await presignedCoverUrl(accessKey, secretKey, prefix);
+        }
       })
     );
 
-    // 3. Construir listado final
+    // 4. Construir listado final
     const results = audioFiles.map(({ key, size, lastModified }) => {
       const f      = parsePath(key);
       const parts  = key.split('/');
