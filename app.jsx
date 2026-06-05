@@ -4564,6 +4564,31 @@ function App() {
   // Effective queue: manual reorder overrides the derived queue
   const effectiveQueue = manualQueue || musicQueue;
 
+  // Cola de navegación para el DetailPage: usa la cola de reproducción si el archivo
+  // está en ella; si no, usa el álbum del archivo como fallback.
+  const detailNavQueue = useMemo(() => {
+    if (!currentFile) return [];
+    const allF = [...files, ...localFiles].filter(isAudioFile);
+    if (effectiveQueue.some(f => f.id === currentFile.id)) return effectiveQueue;
+    const artist = currentFile.category || currentFile.artist;
+    if (currentFile.album) {
+      return allF.filter(f => (f.category || f.artist) === artist && f.album === currentFile.album).sort(sortByDiscTrack);
+    }
+    return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
+  }, [currentFile, effectiveQueue, files, localFiles]);
+
+  const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
+  const hasPrevDetail = detailNavIdx > 0;
+  const hasNextDetail = detailNavIdx >= 0 && detailNavIdx < detailNavQueue.length - 1;
+  const goDetailPrev  = () => {
+    if (!hasPrevDetail) return;
+    setRoute({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx - 1].id });
+  };
+  const goDetailNext  = () => {
+    if (!hasNextDetail) return;
+    setRoute({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx + 1].id });
+  };
+
   // Like toggle
   const toggleLike = (fileId) => {
     const wasLiked = likedIds.has(fileId);
@@ -4858,9 +4883,8 @@ function App() {
                                 onDeleteClip={deleteClip} onPlayClip={playClip}
                                 onStopClip={stopClip} activeClip={activeClip}
                                 position={position}
-                                onPrev={playPrev} onNext={() => playNext()}
-                                hasPrev={(() => { const i = effectiveQueue.findIndex(f => f.id === currentTrackId); return i > 0; })()}
-                                hasNext={(() => { const i = effectiveQueue.findIndex(f => f.id === currentTrackId); return i >= 0 && i < effectiveQueue.length - 1; })()} />
+                                onPrev={goDetailPrev} onNext={goDetailNext}
+                                hasPrev={hasPrevDetail} hasNext={hasNextDetail} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
