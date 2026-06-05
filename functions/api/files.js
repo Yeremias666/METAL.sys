@@ -260,69 +260,27 @@ export async function onRequest({ request, env }) {
     const audioExts  = /\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/i;
     const audioFiles = allObjects.filter(o => audioExts.test(o.key));
 
-    // 2. Agrupar por álbum (Artista/Album/) y leer ID3 de una canción representativa
-    //    En vez de 1000 lecturas, hacemos 1 por álbum (~50-100 en total)
-    const albumGroups = {};
-    for (const f of audioFiles) {
-      const parts  = f.key.split('/');
-      const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
-      if (!albumGroups[prefix]) albumGroups[prefix] = [];
-      albumGroups[prefix].push(f);
-    }
-
-    const albumKeys  = Object.keys(albumGroups);
-    const albumMeta  = {};
-    const BATCH      = 20;
-
-    for (let i = 0; i < albumKeys.length; i += BATCH) {
-      await Promise.all(albumKeys.slice(i, i + BATCH).map(async prefix => {
-        const rep        = albumGroups[prefix][0];
-        const encodedKey = rep.key.split('/').map(encodeURIComponent).join('/');
-        try {
-          const hdrs  = await makeSignedHeaders(accessKey, secretKey, `/${BUCKET}/${encodedKey}`, '', { Range: ID3_RANGE });
-          const dlRes = await fetch(`${ENDPOINT}/${BUCKET}/${encodedKey}`, { headers: hdrs });
-          if (dlRes.ok || dlRes.status === 206) {
-            const tags = parseID3(await dlRes.arrayBuffer());
-            albumMeta[prefix] = {
-              coverArt:    tags.coverArt    || null,
-              year:        tags.year        || '',
-              genre:       tags.genre       || '',
-              album:       tags.album       || '',
-              albumArtist: tags.albumArtist || tags.artist || '',
-            };
-          }
-        } catch {}
-      }));
-    }
-
-    // 3. Construir resultados: título y pista desde el path, resto desde el ID3 del álbum
+    // 2. Construir listado desde el path — portadas y tags completos los carga el cliente
     const results = audioFiles.map(({ key, size, lastModified }) => {
-      const fallback = parsePath(key);
-      const parts    = key.split('/');
-      const prefix   = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
-      const am       = albumMeta[prefix] || {};
-
-      const artist = am.albumArtist || fallback.artist;
-      const album  = am.album       || fallback.album;
-
+      const f = parsePath(key);
       return {
         id:          `r2:${key}`,
-        name:        fallback.title,
-        artist,
-        album,
-        track:       fallback.track,
+        name:        f.title,
+        artist:      f.artist,
+        album:       f.album,
+        track:       f.track,
         disc:        '',
-        year:        am.year  || '',
-        genre:       am.genre || '',
-        description: album,
-        category:    artist,
-        fileName:    fallback.fileName,
+        year:        '',
+        genre:       '',
+        description: f.album,
+        category:    f.artist,
+        fileName:    f.fileName,
         fileSize:    size,
         fileType:    'audio/mpeg',
         fileData:    null,
         r2Path:      key,
-        thumbnail:   am.coverArt || null,
-        coverArt:    am.coverArt || null,
+        thumbnail:   null,
+        coverArt:    null,
         uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),
         downloads:   0,
       };

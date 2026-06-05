@@ -4039,32 +4039,77 @@ function App() {
       .then(r2 => {
         if (!Array.isArray(r2) || !r2.length) return;
 
-        // Fusionar con vault: los archivos r2 reemplazan versiones cacheadas antiguas
         setFiles(prev => {
           const nonR2 = prev.filter(f => !f.id.startsWith('r2:'));
           return [...nonR2, ...r2];
         });
 
-        // Pre-poblar id3Cache con los metadatos ya leídos server-side
-        // Así el reproductor tiene portada y tags sin petición adicional
-        setId3Cache(prev => {
-          const updates = {};
+        // Cargar portadas en segundo plano: una petición por álbum, en el cliente
+        // (el servidor no puede hacer esto sin superar el límite de CPU de Pages)
+        (async () => {
+          // Una canción representativa por álbum
+          const albumMap = {};
           for (const f of r2) {
-            updates[f.id] = {
-              title:      f.name,
-              artist:     f.artist,
-              albumArtist:f.artist,
-              album:      f.album,
-              track:      f.track,
-              year:       f.year,
-              genre:      f.genre,
-              coverArt:   f.coverArt || null,
-            };
+            if (!f.r2Path) continue;
+            const parts  = f.r2Path.split('/');
+            const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
+            if (!albumMap[prefix]) albumMap[prefix] = f.r2Path;
           }
-          return { ...prev, ...updates };
-        });
+
+          const entries = Object.entries(albumMap);
+          const BATCH   = 10;
+
+          for (let i = 0; i < entries.length; i += BATCH) {
+            await Promise.all(entries.slice(i, i + BATCH).map(async ([prefix, repPath]) => {
+              try {
+                const ar = await fetch(`/api/audio?path=${encodeURIComponent(repPath)}`);
+                if (!ar.ok) return;
+                const { url } = await ar.json();
+
+                // Descargar solo los primeros 300 KB — suficiente para tags + portada típica
+                const dl = await fetch(url, { headers: { Range: 'bytes=0-307199' } });
+                if (!dl.ok && dl.status !== 206) return;
+
+                const tags = await _parseID3Buffer(await dl.arrayBuffer());
+                if (!tags?.coverArt) return;
+
+                // Aplicar portada a todas las canciones del mismo álbum
+                setFiles(prev => prev.map(f => {
+                  if (!f.r2Path || f.thumbnail) return f;
+                  const p  = f.r2Path.split('/');
+                  const fp = p.length >= 3 ? p.slice(0, -1).join('/') : p[0];
+                  if (fp !== prefix) return f;
+                  return { ...f, thumbnail: tags.coverArt, coverArt: tags.coverArt };
+                }));
+
+                setId3Cache(prev => {
+                  const updates = {};
+                  // Aplicar año y género (del álbum) a todas las canciones
+                  for (const f of r2) {
+                    if (!f.r2Path) continue;
+                    const p  = f.r2Path.split('/');
+                    const fp = p.length >= 3 ? p.slice(0, -1).join('/') : p[0];
+                    if (fp !== prefix) continue;
+                    updates[f.id] = {
+                      ...(prev[f.id] || {}),
+                      title:       f.name,
+                      artist:      f.artist,
+                      albumArtist: tags.albumArtist || tags.artist || f.artist,
+                      album:       tags.album || f.album,
+                      track:       f.track,
+                      year:        tags.year  || f.year  || '',
+                      genre:       tags.genre || f.genre || '',
+                      coverArt:    tags.coverArt,
+                    };
+                  }
+                  return { ...prev, ...updates };
+                });
+              } catch {}
+            }));
+          }
+        })();
       })
-      .catch(() => {}); // silencioso si la API no está disponible
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
