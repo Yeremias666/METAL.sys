@@ -99,13 +99,6 @@ function jsonResponse(body, status = 200, extraHeaders = {}) {
 }
 
 export async function onRequest({ request, env }) {
-  // DEBUG — borrar tras confirmar variables
-  if (new URL(request.url).searchParams.has('debug')) {
-    return new Response(JSON.stringify({ keys: Object.keys(env || {}), hasAccess: !!env?.R2_ACCESS_KEY_ID }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
-  }
-
   if (request.method !== 'GET') {
     return new Response(null, { status: 405 });
   }
