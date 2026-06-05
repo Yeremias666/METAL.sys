@@ -1,12 +1,10 @@
 // functions/api/reindex-meta.js
 // Lee etiquetas ID3 de todos los MP3 en R2 y las guarda en _meta/index.json.
+// Solo procesa archivos que aún no están en el índice — nunca sobreescribe entradas existentes.
 // Procesa PER_CALL archivos por llamada para no superar el límite de tiempo.
 //
 // Uso desde la consola del navegador (llámalo en bucle hasta done=true):
 //   await fetch('/api/reindex-meta?offset=0').then(r=>r.json()).then(console.log)
-//
-// Para forzar re-lectura de todos (ignora índice existente):
-//   await fetch('/api/reindex-meta?offset=0&force=1').then(r=>r.json()).then(console.log)
 
 const BUCKET     = 'metalsys';
 const ENDPOINT   = 'https://97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com';
@@ -187,9 +185,7 @@ export async function onRequest({ request, env }) {
   const secretKey = env.R2_SECRET_ACCESS_KEY;
   if (!accessKey || !secretKey) return jsonRes({ error: 'Credenciales no configuradas' }, 500);
 
-  const url    = new URL(request.url);
-  const offset = parseInt(url.searchParams.get('offset') || '0', 10);
-  const force  = url.searchParams.get('force') === '1';
+  const offset = parseInt(new URL(request.url).searchParams.get('offset') || '0', 10);
 
   try {
     const allKeys = await listAllAudio(accessKey, secretKey);
@@ -203,8 +199,8 @@ export async function onRequest({ request, env }) {
       if (metaRes.ok) metaIndex = await metaRes.json();
     } catch {}
 
-    // Archivos sin metadatos en el índice (o todos si force=1)
-    const missing = force ? allKeys : allKeys.filter(k => !metaIndex[k]);
+    // Solo archivos que aún no están en el índice
+    const missing = allKeys.filter(k => !metaIndex[k]);
     const total   = missing.length;
     const batch   = missing.slice(offset, offset + PER_CALL);
     const next    = offset + PER_CALL;

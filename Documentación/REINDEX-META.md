@@ -12,8 +12,8 @@ para devolver metadatos reales en lugar de parsear el nombre del archivo.
 - **Al añadir canciones nuevas**: después de subir los archivos nuevos
 - **No hace falta**: para visitas normales — la app lee el índice ya generado
 
-El script detecta automáticamente qué archivos no están en el índice y solo los procesa.
-Los que ya tienen metadatos se saltan.
+El script detecta automáticamente qué archivos no están en el índice y solo procesa esos.
+Los que ya tienen metadatos nunca se sobreescriben.
 
 ---
 
@@ -26,22 +26,6 @@ Abre la app en el navegador → F12 → Console → pega y ejecuta:
   let offset = 0, total = '?', ok = 0;
   while (true) {
     const r = await fetch(`/api/reindex-meta?offset=${offset}`).then(r=>r.json());
-    if (r.error) { console.error('Error:', r.error); break; }
-    total = r.total; ok += r.processed;
-    console.log(`${offset + r.batchSize}/${total} — indexadas OK: ${ok}`);
-    if (r.done) { console.log(`✅ Completo. ${ok}/${total} canciones indexadas`); break; }
-    offset = r.next;
-  }
-})();
-```
-
-Para forzar la re-lectura de **todos** los archivos (ignora el índice existente):
-
-```javascript
-(async () => {
-  let offset = 0, total = '?', ok = 0;
-  while (true) {
-    const r = await fetch(`/api/reindex-meta?offset=${offset}&force=1`).then(r=>r.json());
     if (r.error) { console.error('Error:', r.error); break; }
     total = r.total; ok += r.processed;
     console.log(`${offset + r.batchSize}/${total} — indexadas OK: ${ok}`);

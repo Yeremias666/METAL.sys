@@ -356,7 +356,7 @@ export async function onRequest({ request, env }) {
         year:        meta.year   || '',
         genre:       meta.genre  || '',
         description: meta.album  || f.album,
-        category:    artist,
+        category:    f.artist,   // carpeta raíz en R2 — fuente de verdad para agrupación
         fileName:    f.fileName,
         fileSize:    size,
         fileType:    'audio/mpeg',
