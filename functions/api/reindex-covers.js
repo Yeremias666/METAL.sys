@@ -211,28 +211,29 @@ export async function onRequest({ request, env }) {
 
     // Procesar el batch: leer MP3, extraer portada, subir como _covers/...
     const results = await Promise.allSettled(batch.map(async ([prefix, repKey]) => {
-      const coverKey    = `_covers/${prefix}.jpg`;
+      const coverKey     = `_covers/${prefix}.jpg`;
       const encodedAudio = repKey.split('/').map(encodeURIComponent).join('/');
       const encodedCover = coverKey.split('/').map(encodeURIComponent).join('/');
 
-      // Leer primeros 200KB del MP3
       const getHdrs = await makeGetHeaders(accessKey, secretKey, `/${BUCKET}/${encodedAudio}`, '', { Range: ID3_RANGE });
       const dlRes   = await fetch(`${ENDPOINT}/${BUCKET}/${encodedAudio}`, { headers: getHdrs });
-      if (!dlRes.ok && dlRes.status!==206) return { prefix, ok:false, reason:`dl ${dlRes.status}` };
+      if (!dlRes.ok && dlRes.status!==206) return { prefix, ok:false, reason:`dl_${dlRes.status}`, repKey };
 
-      const cover = extractCover(await dlRes.arrayBuffer());
-      if (!cover) return { prefix, ok:false, reason:'no cover' };
+      const buf   = await dlRes.arrayBuffer();
+      const cover = extractCover(buf);
+      if (!cover) return { prefix, ok:false, reason:`no_cover_bytes${buf.byteLength}`, repKey };
 
-      // Subir portada a R2
       const putHdrs = await makePutHeaders(accessKey, secretKey, `/${BUCKET}/${encodedCover}`, cover.mime, cover.bytes);
       const putRes  = await fetch(`${ENDPOINT}/${BUCKET}/${encodedCover}`, {
         method:'PUT', headers:putHdrs, body:cover.bytes,
       });
-      return { prefix, ok:putRes.ok, status:putRes.status };
+      const putBody = putRes.ok ? '' : await putRes.text().catch(()=>'');
+      return { prefix, ok:putRes.ok, reason:putRes.ok?'ok':`put_${putRes.status}_${putBody.slice(0,120)}`, repKey };
     }));
 
     const processed = results.filter(r=>r.status==='fulfilled'&&r.value?.ok).length;
-    return jsonRes({ done, offset, next: done ? null : next, total, processed, batchSize: batch.length });
+    const details   = results.map(r => r.status==='fulfilled' ? r.value : { ok:false, reason:'exception:'+r.reason?.message });
+    return jsonRes({ done, offset, next: done ? null : next, total, processed, batchSize: batch.length, details });
 
   } catch(err) {
     console.error('[reindex-covers]', err);
