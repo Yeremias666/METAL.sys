@@ -11,7 +11,7 @@ const BUCKET    = 'metalsys';
 const ENDPOINT  = 'https://97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com';
 const REGION    = 'auto';
 const EMPTY_SHA256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
-const ID3_RANGE = 'bytes=0-1048575'; // 1 MB — captura cualquier portada por grande que sea
+const ID3_RANGE = 'bytes=0-2097151'; // 2 MB — captura portadas grandes
 const PER_CALL  = 8;
 
 const te = new TextEncoder();
@@ -131,6 +131,17 @@ function extractCover(buf) {
     if (fid==='APIC') { const r=findImg(o+10, o+10+fs); if (r) return r; }
     o += 10+fs;
   }
+
+  // ── Fallback: scan bruto por si el ID3 tiene unsync u otro formato ──
+  const raw = new Uint8Array(buf, 0, end);
+  for (let i=10; i<raw.length-3; i++) {
+    const isJpeg = raw[i]===0xFF&&raw[i+1]===0xD8&&raw[i+2]===0xFF;
+    const isPng  = raw[i]===0x89&&raw[i+1]===0x50&&raw[i+2]===0x4E;
+    if (isJpeg||isPng) {
+      const slice = new Uint8Array(buf, i, end-i);
+      return { bytes: new Uint8Array(slice), mime: isJpeg?'image/jpeg':'image/png' };
+    }
+  }
   return null;
 }
 
@@ -179,9 +190,23 @@ export async function onRequest({ request, env }) {
       if (!albumMap[prefix]) albumMap[prefix] = key;
     }
 
-    const albums  = Object.entries(albumMap);
-    const total   = albums.length;
-    const batch   = albums.slice(offset, offset+PER_CALL);
+    // Qué portadas ya existen — saltarlas para no rehacer trabajo
+    const existingCovers = new Set();
+    try {
+      const cq = ['list-type=2','max-keys=1000','prefix=_covers%2F'].join('&');
+      const ch = await makeGetHeaders(accessKey, secretKey, `/${BUCKET}`, cq);
+      const cr = await fetch(`${ENDPOINT}/${BUCKET}?${cq}`, { headers: ch });
+      if (cr.ok) {
+        const xml = await cr.text();
+        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) existingCovers.add(m[1]);
+      }
+    } catch {}
+
+    // Solo los álbumes sin portada
+    const allAlbums   = Object.entries(albumMap);
+    const missingAlbums = allAlbums.filter(([p]) => !existingCovers.has(`_covers/${p}.jpg`));
+    const total   = missingAlbums.length;
+    const batch   = missingAlbums.slice(offset, offset+PER_CALL);
     const next    = offset+PER_CALL;
     const done    = next >= total;
 
