@@ -625,7 +625,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0 }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0 }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -639,7 +639,7 @@ function StatusBar({ count, totalBytes, localCount = 0 }) {
         <span>NODE 01</span>
         <span>
           {total} CANCIÓN{total===1?'':'ES'} :: {fmtBytes(totalBytes)}
-          {localCount > 0 && <span style={{color:'var(--fg-dim)', marginLeft:8}}>(LOCAL {localCount})</span>}
+          {localCount > 0 && <span style={{color:'var(--fg-dim)', marginLeft:8}}>(Local {localCount} canción{localCount===1?'':'es'}, {fmtBytes(localBytes)})</span>}
         </span>
       </div>
       <div className="right">
@@ -705,9 +705,10 @@ function Nav({ current, onNav, allCats }) {
         <button className={current.page === 'INICIO'   ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
         <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
         <button className={current.page === 'SUBIR'    ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
-        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
+        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
+        <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="GRAFICO" />BANDAS</button>
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -755,6 +756,8 @@ function Marquee() {
 // ─── PAGE: INICIO ──────────────────────────────────────────────
 function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {} }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
+  const localTotal = localFiles.reduce((a, f) => a + (f.fileSize || 0), 0);
+  const localSongCount = localFiles.filter(isAudioFile).length;
   const songCount  = [...files, ...localFiles].filter(isAudioFile).length;
   const artistCount = allCats.length;
   const localConnected = localFiles.length > 0 || localDirName;
@@ -792,7 +795,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
           <div className="hero">
             <h2 className="chroma">// METAL.SYS · REPRODUCTOR PERSONAL \m/</h2>
             <p>Biblioteca privada de música. Sube tus MP3 y los metadatos se leerán automáticamente — artista, álbum, pista y portada.</p>
-            <p>Biblioteca actual: <span style={{color:'var(--fg-primary)'}}>{songCount} canción{songCount===1?'':'es'}</span> de <span style={{color:'var(--fg-accent)'}}>{artistCount} artista{artistCount===1?'':'s'}</span> ocupando <span style={{color:'var(--fg-success)'}}>{fmtBytes(total)}</span>.</p>
+            <p>Biblioteca actual: <span style={{color:'var(--fg-primary)'}}>{songCount} canción{songCount===1?'':'es'}</span> de <span style={{color:'var(--fg-accent)'}}>{artistCount} artista{artistCount===1?'':'s'}</span> ocupando <span style={{color:'var(--fg-success)'}}>{fmtBytes(total + localTotal)}</span>{localSongCount > 0 && <span style={{color:'var(--fg-dim)'}}> · En local {localSongCount} canción{localSongCount===1?'':'es'}, {fmtBytes(localTotal)}</span>}.</p>
             <p style={{marginTop: 16}}>
               <span style={{color:'var(--fg-success)'}}>READY.</span>
               <span className="cursor"></span>
@@ -946,13 +949,54 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   );
 }
 
-function TodoPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist }) {
+function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
+  const allFiles = [...files, ...localFiles].filter(isAudioFile);
+  const sorted = [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
+        <div className="panel-body">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
+            <div>
+              <p>Todas las canciones de la biblioteca ordenadas alfabéticamente.</p>
+              <p style={{ color:'var(--fg-dim)', fontSize:14 }}>{sorted.length} canción{sorted.length===1?'':'es'} disponibles.</p>
+            </div>
+            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+          </div>
+        </div>
+      </div>
+      <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
+        {sorted.length === 0
+          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
+          : sorted.map((f, i) => (
+            <div key={f.id}
+                 style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
+                 onClick={() => onOpenFile(f.id)}>
+              {f.thumbnail
+                ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2}} />
+                : <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+                  </div>}
+              <div style={{flex:1, minWidth:0}}>
+                <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
+                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</div>
+              </div>
+            </div>
+          ))
+        }
+      </div></div></div>
+    </div>
+  );
+}
+
+function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, artistMeta = {} }) {
   const allFiles = [...files, ...localFiles];
   const totalSongs = allFiles.filter(isAudioFile).length;
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">TODO <span className="dots">/// {artists.length} ARTISTA{artists.length===1?'':'S'}</span></div>
+        <div className="panel-hd">TODAS LAS BANDAS <span className="dots">/// {artists.length} ARTISTA{artists.length===1?'':'S'}</span></div>
         <div className="panel-body">
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
             <div>
@@ -968,12 +1012,15 @@ function TodoPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArt
         {artists.map((artist) => {
           const songs = allFiles.filter((f) => (f.artist || f.category) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
+          const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
           return (
             <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
               <div className="cat-card-img">
-                {cover
-                  ? <img src={cover.thumbnail || cover.coverArt} alt={artist} />
-                  : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+                {artistImg
+                  ? <img src={artistImg} alt={artist} />
+                  : <div className="cat-card-no-cover">
+                      <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                    </div>}
                 <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
               </div>
               <div className="cat-card-info">
@@ -3140,19 +3187,15 @@ function Footer() {
   return (
     <div className="footer">
       <div style={{display:'flex', gap: 14, alignItems:'center', flexWrap:'wrap'}}>
-        <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="GitHub">
+        <a href="https://github.com/Yeremias666" target="_blank" rel="noopener noreferrer" className="footer-link" title="GitHub">
           {/* GitHub */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.342-3.369-1.342-.454-1.155-1.11-1.462-1.11-1.462-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.578 9.578 0 0 1 12 6.836c.85.004 1.705.114 2.504.336 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.202 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.741 0 .267.18.578.688.48C19.138 20.163 22 16.418 22 12c0-5.523-4.477-10-10-10z"/></svg>
         </a>
-        <a href="https://discord.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Discord">
-          {/* Discord */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
-        </a>
-        <a href="https://store.steampowered.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Steam">
+        <a href="https://steamcommunity.com/profiles/76561199511973999/" target="_blank" rel="noopener noreferrer" className="footer-link" title="Steam">
           {/* Steam */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.658c.545-.371 1.203-.59 1.912-.59.063 0 .125.004.188.006l2.861-4.142V8.91c0-2.495 2.028-4.524 4.524-4.524 2.494 0 4.524 2.029 4.524 4.524s-2.03 4.525-4.524 4.525h-.105l-4.076 2.911c0 .052.004.105.004.159 0 1.875-1.515 3.396-3.39 3.396-1.635 0-3.016-1.173-3.331-2.727L.436 15.27C1.862 20.307 6.486 24 11.979 24c6.627 0 11.999-5.373 11.999-12S18.605 0 11.979 0z"/></svg>
         </a>
-        <a href="https://open.spotify.com" target="_blank" rel="noopener noreferrer" className="footer-link" title="Spotify">
+        <a href="https://open.spotify.com/user/31dwydgjav2r3s4tglfrx7g63toy" target="_blank" rel="noopener noreferrer" className="footer-link" title="Spotify">
           {/* Spotify */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
         </a>
@@ -3273,8 +3316,8 @@ function PlayQueue({ queue, currentId, onJump, onReorder }) {
 }
 
 // ─── TOP SONGS (right sidebar) ──────────────────────────────
-function TopSongs({ files, playCounts, onOpen }) {
-  const top = [...files].filter(isAudioFile).filter(f => (playCounts[f.id]||0)>0)
+function TopSongs({ files, localFiles = [], playCounts, onOpen }) {
+  const top = [...files, ...localFiles].filter(isAudioFile).filter(f => (playCounts[f.id]||0)>0)
     .sort((a,b) => (playCounts[b.id]||0)-(playCounts[a.id]||0)).slice(0,10);
   return (
     <div className="widget">
@@ -3361,7 +3404,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
 // ─── STATS PAGE ─────────────────────────────────────────────
 const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
 
-function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog = [] }) {
+function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog = [], artistMeta = {} }) {
   const allFiles = [...files, ...localFiles];
   const audioFiles = allFiles.filter(isAudioFile);
   const totalPlays = Object.values(playCounts).reduce((a,v)=>a+v,0);
@@ -3526,14 +3569,24 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
           <div className="panel-body">
             <div className="stats-highlights">
               {/* Artista favorito */}
-              <div className="stat-highlight">
-                <div className="sh-icon" style={{color: allArtistPlays[0] ? (artistColorMap[allArtistPlays[0][0]]||'var(--fg-primary)') : 'var(--fg-dim)'}}>
-                  <IconGlyph iconId="nota" size={36}/>
-                </div>
-                <div className="sh-label">ARTISTA FAVORITO</div>
-                <div className="sh-name">{allArtistPlays[0] && allArtistPlays[0][1]>0 ? allArtistPlays[0][0] : '— SIN DATOS —'}</div>
-                {allArtistPlays[0] && allArtistPlays[0][1]>0 && <div className="sh-sub">▶ {allArtistPlays[0][1]} reproducciones</div>}
-              </div>
+              {(() => {
+                const favArtist = allArtistPlays[0] && allArtistPlays[0][1]>0 ? allArtistPlays[0][0] : null;
+                const favArtistImg = favArtist
+                  ? (artistMeta[favArtist]?.image || audioFiles.find(f=>(f.artist||f.category)===favArtist&&(f.thumbnail||f.coverArt))?.thumbnail || audioFiles.find(f=>(f.artist||f.category)===favArtist&&f.coverArt)?.coverArt || null)
+                  : null;
+                return (
+                  <div className="stat-highlight">
+                    {favArtistImg
+                      ? <img src={favArtistImg} alt={favArtist||''} style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',borderRadius:'50%'}}/>
+                      : <div className="sh-icon" style={{color: favArtist ? (artistColorMap[favArtist]||'var(--fg-primary)') : 'var(--fg-dim)'}}>
+                          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                        </div>}
+                    <div className="sh-label">ARTISTA FAVORITO</div>
+                    <div className="sh-name">{favArtist || '— SIN DATOS —'}</div>
+                    {favArtist && <div className="sh-sub">▶ {allArtistPlays[0][1]} reproducciones</div>}
+                  </div>
+                );
+              })()}
               {/* Canción favorita */}
               <div className="stat-highlight">
                 {mostPlayed && mostPlayedCount>0 && (mostPlayed.thumbnail||mostPlayed.coverArt)
@@ -4409,8 +4462,18 @@ function App() {
   };
 
   const toggleShuffle = () => {
-    setManualQueue(null);
-    setPlayContext((prev) => ({ ...prev, shuffle: !prev.shuffle }));
+    const newShuffle = !playContext.shuffle;
+    if (newShuffle && currentTrackId) {
+      // Build queue that starts at current track, rest shuffled
+      const base = getQueueForContext(playContext);
+      const current = base.find(f => f.id === currentTrackId);
+      const rest = base.filter(f => f.id !== currentTrackId);
+      const shuffled = current ? [current, ...shuffleArray(rest)] : shuffleArray(base);
+      setManualQueue(shuffled);
+    } else {
+      setManualQueue(null);
+    }
+    setPlayContext((prev) => ({ ...prev, shuffle: newShuffle }));
   };
 
   // Effective queue: manual reorder overrides the derived queue
@@ -4528,6 +4591,7 @@ function App() {
   };
 
   // Try to restore local folder on first load
+  // If permission is not already granted, clear the stored handle — the user must reconnect manually
   useEffect(() => {
     (async () => {
       try {
@@ -4538,7 +4602,8 @@ function App() {
           setLocalDirName(dh.name);
           await scanLocalDir(dh);
         } else {
-          setLocalDirName(dh.name); // show name, wait for user click to re-grant
+          // Permission lost after page reload — clear stored handle
+          await idbSet('localDirHandle', null);
         }
       } catch {}
     })();
@@ -4614,7 +4679,7 @@ function App() {
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} />
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} />
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
@@ -4640,10 +4705,16 @@ function App() {
                           artistMeta={artistMeta} />
               )}
               {route.page === 'TODO' && (
-                <TodoPage artists={allArtists} files={files} localFiles={localFiles}
-                          onNav={setRoute}
-                          onPlayAll={() => playScope({ type: 'all' }, false)}
-                          onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)} />
+                <AllSongsPage files={files} localFiles={localFiles}
+                              onOpenFile={openFile}
+                              onPlayAll={() => playScope({ type: 'all' }, false)} />
+              )}
+              {route.page === 'BANDAS' && (
+                <BandasPage artists={allArtists} files={files} localFiles={localFiles}
+                            onNav={setRoute}
+                            onPlayAll={() => playScope({ type: 'all' }, false)}
+                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                            artistMeta={artistMeta} />
               )}
               {route.page === 'MESGUSTA' && (
                 <MeGustaPage
@@ -4658,7 +4729,7 @@ function App() {
                   onToggleLike={toggleLike} />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} />
+                <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
@@ -4718,7 +4789,7 @@ function App() {
                 onJump={file => startTrack(file)}
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} />
-              <TopSongs files={files} playCounts={playCounts} onOpen={openFile} />
+              <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
               <PlaysCounter playCounts={playCounts} />
               <RecentActivity log={log} />
             </div>

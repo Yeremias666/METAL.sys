@@ -5,6 +5,28 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-05 — 9 correcciones y mejoras (sesión 2)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Correcciones de bugs
+1. **TopSongs** (sidebar derecho): ahora incluye `localFiles` en el ranking — antes ignoraba la carpeta local
+2. **Shuffle**: al activar aleatorio, la cola empieza en la canción actual y baraja el resto; ya no mezcla incluyendo la actual en posición aleatoria
+3. **Carpeta local**: al recargar la página, si el permiso del sistema no está activo, el handle se limpia — ya no aparece como "conectada" sin estarlo
+
+### Mejoras de UI
+4. **Stats → Favoritos → Artista**: muestra la foto del artista (meta o portada de disco) en lugar del icono de nota; cambiado a icono de persona si no hay foto
+5. **Stats → Favoritos → Artista**: icono genérico cambiado de nota musical a silueta de persona
+6. **Cola de reproducción** (sidebar): número de posición ahora tiene `min-width: 24px` — ya no se solapa con el nombre al llegar a 3 dígitos
+7. **Nav**: orden nuevo — INICIO, STATS, SUBIR, **TODO** (nueva), LOCAL, ME GUSTA, **BANDAS** (antes TODO)
+8. **Inicio → biblioteca actual**: "ocupando" suma vault + local; añadido "(En local X canciones, Xgb)" si hay carpeta conectada
+9. **StatusBar**: "(LOCAL X)" → "(Local X canciones, Xgb)" con tamaño real
+10. **BANDAS** (antes TODO): icono de artista sin portada cambiado de nota a silueta de persona; muestra imagen de artistMeta si existe
+11. **TODO** (nueva página): lista todas las canciones de vault + local ordenadas alfabéticamente
+
+---
+
 ## 2026-06-05 — 27 mejoras y correcciones
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  

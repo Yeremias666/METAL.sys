@@ -3175,7 +3175,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .pq-item.pq-over { border-top: 2px solid var(--fg-accent); }
 .pq-item.pq-dragging { opacity: 0.4; }
 .pq-playing-icon { color: var(--fg-accent); font-size: 12px; width: 16px; text-align: center; flex-shrink: 0; animation: blink 1s steps(1) infinite; }
-.pq-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; width: 16px; text-align: right; flex-shrink: 0; }
+.pq-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 9px; min-width: 24px; text-align: right; flex-shrink: 0; margin-right: 2px; }
 .pq-info { flex: 1; overflow: hidden; }
 .pq-name { font-size: 17px; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pq-artist { font-size: 14px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

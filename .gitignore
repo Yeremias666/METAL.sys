@@ -1,5 +1,5 @@
 # Claude Code
-.claude/
+.Claude/
 
 # Node (por si se usa http-server local)
 node_modules/
