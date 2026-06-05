@@ -97,7 +97,7 @@ button, a, .nav button, .cassette .controls button, .guestbook button,
 }
 
 /* Inputs keep the text I-beam — restore it after the !important above */
-input, textarea {
+input:not([type=range]), textarea {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='26' viewBox='0 0 14 26' shape-rendering='crispEdges'><path d='M1 0h2v2h-2zM3 0h2v2h-2zM5 0h2v2h-2zM7 0h2v2h-2zM9 0h2v2h-2zM3 2h2v2h-2zM7 2h2v2h-2zM5 4h2v2h-2zM5 6h2v2h-2zM5 8h2v2h-2zM5 10h2v2h-2zM5 12h2v2h-2zM5 14h2v2h-2zM5 16h2v2h-2zM5 18h2v2h-2zM5 20h2v2h-2zM3 22h2v2h-2zM7 22h2v2h-2zM1 24h2v2h-2zM3 24h2v2h-2zM5 24h2v2h-2zM7 24h2v2h-2zM9 24h2v2h-2z' fill='black'/><path d='M3 0h2v2h-2zM7 0h2v2h-2zM5 2h2v2h-2zM5 4h2v2h-2zM5 6h2v2h-2zM5 8h2v2h-2zM5 10h2v2h-2zM5 12h2v2h-2zM5 14h2v2h-2zM5 16h2v2h-2zM5 18h2v2h-2zM5 20h2v2h-2zM5 22h2v2h-2zM3 24h2v2h-2zM7 24h2v2h-2z' fill='%23d61f1f'/></svg>") 7 13, text !important;
 }
 
@@ -1206,6 +1206,13 @@ input, textarea {
 }
 .album-card:hover .album-card-thumb {
   overflow: visible;
+}
+/* Brillo rojo detrás del vinilo cuando sale */
+.album-card-vinyl {
+  transition: filter 0.45s ease-out;
+}
+.album-card:hover .album-card-vinyl {
+  filter: drop-shadow(0 0 18px rgba(214,31,31,0.9)) drop-shadow(0 0 8px rgba(214,31,31,0.6));
 }
 @keyframes vinyl-spin {
   to { transform: rotate(360deg); }
@@ -2635,6 +2642,7 @@ input, textarea {
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--fg-dim);
   outline: none;
+  cursor: pointer;
 }
 .mp-volume input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -3521,52 +3529,39 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
    NUEVOS ESTILOS — sesión 2026-06-05
    ═══════════════════════════════════════════════════════════════ */
 
-/* ─── Botón play en esquina portada del AlbumCard (item 3) ────── */
+/* ─── Botón play en esquina portada del AlbumCard ─────────────── */
 .ac-play-btn {
   position: absolute;
   bottom: 8px;
   right: 8px;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: var(--fg-primary);
-  color: #000;
-  border: none;
-  font-size: 14px;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  border: 2px solid var(--fg-primary);
+  color: #fff;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.18s ease-out, transform 0.18s ease-out;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
   z-index: 6;
-  line-height: 1;
+  padding: 0;
   padding-left: 2px;
+  cursor: pointer;
 }
 .album-card:hover .ac-play-btn {
   opacity: 1;
 }
 .ac-play-btn:hover {
-  transform: scale(1.12);
-  background: var(--fg-accent);
+  background: var(--fg-primary);
+  border-color: var(--fg-accent);
+  box-shadow: 0 0 14px rgba(214,31,31,0.8);
 }
 .ac-play-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
-/* ─── Brillo rojo detrás del vinilo (item 29) ──────────────────── */
-.ac-vinyl-glow {
-  position: absolute;
-  inset: -8px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(214,31,31,0.55) 0%, rgba(214,31,31,0.25) 45%, transparent 72%);
-  opacity: 0;
-  transition: opacity 0.45s ease-out;
-  pointer-events: none;
-  z-index: -1;
-}
-.album-card:hover .ac-vinyl-glow {
-  opacity: 1;
-}
 
 /* ─── Invertir colores lib-play al hover (item 24) ─────────────── */
 .lib-play:hover {
@@ -3632,6 +3627,12 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   text-align: center;
   padding: 12px 0;
   font-size: 16px;
+}
+
+/* ─── PlayQueue unificado: cassette pegado al header ───────────── */
+.play-queue > .cassette {
+  margin: 0;
+  border-top: none;
 }
 
 /* ─── Cursor pointer en barra de progreso del player ───────────── */

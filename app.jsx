@@ -625,18 +625,22 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes }) {
+function StatusBar({ count, totalBytes, localCount = 0 }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
   const dateStr = `${pad(time.getMonth()+1)}.${pad(time.getDate())}.${String(time.getFullYear()).slice(-2)}`;
   const timeStr = `${pad(time.getHours())}:${pad(time.getMinutes())}:${pad(time.getSeconds())}`;
+  const total = count + localCount;
   return (
     <div className="statusbar">
       <div className="left">
         <span><span className="blob"></span> SYSTEM ONLINE</span>
         <span>NODE 01</span>
-        <span>{count} CANCIÓN{count===1?'':'ES'} :: {fmtBytes(totalBytes)}</span>
+        <span>
+          {total} CANCIÓN{total===1?'':'ES'} :: {fmtBytes(totalBytes)}
+          {localCount > 0 && <span style={{color:'var(--fg-dim)', marginLeft:8}}>(LOCAL {localCount})</span>}
+        </span>
       </div>
       <div className="right">
         <span>{dateStr}</span>
@@ -1328,8 +1332,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const onEnter = useCallback(() => {
     const el = cardRef.current; if (!el) return;
     el.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1), box-shadow 0.48s';
-    el.style.transform  = 'translateY(-3px) scale(1.02)';
-    el.style.boxShadow  = '0 8px 36px rgba(214,31,31,0.45), 0 0 20px rgba(214,31,31,0.2)';
+    el.style.transform  = 'translateY(-6px) scale(1.03)';
+    el.style.boxShadow  = '0 12px 40px rgba(214,31,31,0.5), 0 0 24px rgba(214,31,31,0.25)';
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
@@ -1339,10 +1343,10 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
-    // Toda la tarjeta (portada + título + botón) se inclina como una unidad
+    // El lift (-6px) se mantiene durante el parallax para que todo el contenedor siga elevado
     el.style.transition = 'box-shadow 0.06s';
-    el.style.transform  = `perspective(700px) rotateX(${-dy * 12}deg) rotateY(${dx * 12}deg)`;
-    el.style.boxShadow  = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
+    el.style.transform  = `perspective(700px) rotateX(${-dy * 10}deg) rotateY(${dx * 10}deg) translateY(-6px) scale(1.03)`;
+    el.style.boxShadow  = `${-dx * 10}px ${-dy * 8}px 36px rgba(214,31,31,0.6), 0 0 22px rgba(214,31,31,0.3)`;
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 8}px,${dy * 6}px)`; }
   }, []);
@@ -1355,8 +1359,6 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     el.style.boxShadow  = '';
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
-    const glow = el.querySelector('.ac-vinyl-glow');
-    if (glow) { glow.style.opacity = '0'; }
   }, []);
 
   const coverEl = album.cover
@@ -1369,7 +1371,6 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     : `${album.songs.length} canción${album.songs.length === 1 ? '' : 'es'} · ${album.year || 'SIN AÑO'}`;
   const vinylEl = (
     <div className="album-card-vinyl">
-      <div className="ac-vinyl-glow" />
       <div className="ac-vinyl-disc" />
     </div>
   );
@@ -2918,7 +2919,7 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
       {/* Cassette con canción actual */}
       <div className={`cassette${!isPlaying ? ' paused' : ''}`}
            onClick={() => currentTrack && onOpen(currentTrack.id)}
-           style={{cursor: currentTrack ? 'pointer' : 'default', margin:'8px 0'}}>
+           style={{cursor: currentTrack ? 'pointer' : 'default'}}>
         <div className="label">TDK SA-90 ◆ VAULT MASTER ◆ NODE 01</div>
         <div className="reels">
           <div className="reel"></div>
@@ -3020,7 +3021,7 @@ function RecentActivity({ log }) {
           <div ref={logRef} className="activity-log">
             {log.length === 0 ? (
               <div className="activity-log-empty">◇ SIN ACTIVIDAD ◇</div>
-            ) : log.slice(0, 50).map((e, i) => {
+            ) : [...log].reverse().slice(-50).map((e, i) => {
               const info = LOG_LABELS[e.kind] || { label: e.kind, color: 'var(--fg-dim)' };
               const label = (e.name || e.artist || '').slice(0, 38);
               return (
@@ -4310,7 +4311,8 @@ function App() {
     });
   };
 
-  const startTrack = (file, nextContext) => {
+  // skipLog: true cuando el llamador (playNext/playPrev) ya ha añadido su propia entrada al log
+  const startTrack = (file, nextContext, { skipLog = false } = {}) => {
     if (!file) return;
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
@@ -4322,7 +4324,7 @@ function App() {
       audio.play().catch(() => {});
       return;
     }
-    addToLog({ kind: 'PLAY', name: file.name, artist: file.artist || file.category || '' });
+    if (!skipLog) addToLog({ kind: 'PLAY', name: file.name, artist: file.artist || file.category || '' });
     // Count previous track if it was played for at least 30 seconds
     if (currentTrackId && playStartRef.current) {
       const elapsed = Date.now() - playStartRef.current;
@@ -4413,14 +4415,14 @@ function App() {
 
   // Like toggle
   const toggleLike = (fileId) => {
+    const wasLiked = likedIds.has(fileId);
+    const f = [...files, ...localFiles].find(x => x.id === fileId);
     setLikedIds(prev => {
       const next = new Set(prev);
-      const wasLiked = next.has(fileId);
-      if (wasLiked) next.delete(fileId); else next.add(fileId);
-      const f = [...files, ...localFiles].find(x => x.id === fileId);
-      addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
+      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
       return next;
     });
+    addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
   };
 
   // Bookmark handlers
@@ -4570,16 +4572,21 @@ function App() {
     const next = wrap ? effectiveQueue[(idx + 1) % effectiveQueue.length] : effectiveQueue[idx + 1];
     if (next) {
       addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
-      startTrack(next);
+      startTrack(next, undefined, { skipLog: true });
     }
   };
   const playPrev = () => {
     if (effectiveQueue.length === 0) return;
+    // Si la canción lleva más de 3s reproducida, volver al inicio sin loguear
+    if (position > 3) {
+      seek(0);
+      return;
+    }
     const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
     const prev = effectiveQueue[(idx - 1 + effectiveQueue.length) % effectiveQueue.length];
     if (prev) {
       addToLog({ kind: 'PREV', name: prev.name, artist: prev.artist || prev.category || '' });
-      startTrack(prev);
+      startTrack(prev, undefined, { skipLog: true });
     }
   };
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
@@ -4604,7 +4611,7 @@ function App() {
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
-          <StatusBar count={files.length} totalBytes={totalBytes} />
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} />
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
