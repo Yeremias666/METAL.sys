@@ -1332,7 +1332,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 
   const onEnter = useCallback(() => {
     const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
-    if (vinyl) { vinyl.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
 
   const onMove = useCallback((e) => {
@@ -1344,7 +1344,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     el.style.transform  = `perspective(600px) rotateX(${-dy * 8}deg) rotateY(${dx * 8}deg) translateY(-10px) scale(1.05)`;
     el.style.boxShadow  = `${-dx * 12}px ${-dy * 10}px 40px rgba(214,31,31,0.65), 0 0 24px rgba(214,31,31,0.35)`;
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 8}px,${dy * 6}px)`; }
+    if (vinyl) vinyl.style.transform = SLIDE_IN;
   }, []);
 
   const onLeave = useCallback(() => {
@@ -1352,7 +1352,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     el.style.transform = '';
     el.style.boxShadow = '';
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (vinyl) { vinyl.style.transition = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
   const coverEl = album.cover

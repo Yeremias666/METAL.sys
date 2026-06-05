@@ -1116,7 +1116,7 @@ input:not([type=range]), textarea {
   color: var(--fg-text);
   cursor: pointer;
   overflow: visible;
-  transition: transform 0.45s cubic-bezier(0.23,1,0.32,1), box-shadow 0.45s;
+  transition: transform 0.42s cubic-bezier(0.23,1,0.32,1), box-shadow 0.42s;
   text-align: left;
   will-change: transform;
   transform-origin: center bottom;
