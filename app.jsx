@@ -1307,6 +1307,97 @@ function FolderImportSection({ vault, onUpload }) {
   );
 }
 
+// ─── ALBUM CARD con parallax 3D ───────────────────────────────
+function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false }) {
+  const cardRef = useRef(null);
+
+  const onMove = useCallback((e) => {
+    const el = cardRef.current; if (!el) return;
+    const r  = el.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5); // -1..1
+    const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
+    el.style.transition  = 'box-shadow 0.06s';
+    el.style.transform   = `perspective(700px) rotateX(${-dy * 14}deg) rotateY(${dx * 14}deg)`;
+    el.style.boxShadow   = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
+    const img   = el.querySelector('.ac-img');
+    const vinyl = el.querySelector('.album-card-vinyl');
+    const body  = el.querySelector('.album-card-body');
+    const shine = el.querySelector('.ac-shine');
+    if (img)   { img.style.transition   = 'none'; img.style.transform   = `translate(${dx * 8}px,${dy * 8}px) scale(1.05)`; }
+    if (vinyl) { vinyl.style.transition = 'none'; vinyl.style.transform = `translateY(-50%) translate(${dx * 16}px,${dy * 10}px)`; }
+    if (body)  { body.style.transition  = 'none'; body.style.transform  = `translate(${dx * 4}px,${dy * 4}px)`; }
+    if (shine) {
+      shine.style.opacity    = '1';
+      shine.style.background = `radial-gradient(circle at ${(dx + 1) * 50}% ${(dy + 1) * 50}%, rgba(255,255,255,0.20) 0%, transparent 62%)`;
+    }
+  }, []);
+
+  const onLeave = useCallback(() => {
+    const el = cardRef.current; if (!el) return;
+    const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
+    el.style.transition  = `${ease}, box-shadow 0.55s`;
+    el.style.transform   = '';
+    el.style.boxShadow   = '';
+    const img   = el.querySelector('.ac-img');
+    const vinyl = el.querySelector('.album-card-vinyl');
+    const body  = el.querySelector('.album-card-body');
+    const shine = el.querySelector('.ac-shine');
+    if (img)   { img.style.transition   = ease; img.style.transform   = ''; }
+    if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = 'translateY(-50%)'; }
+    if (body)  { body.style.transition  = ease; body.style.transform  = ''; }
+    if (shine) shine.style.opacity = '0';
+  }, []);
+
+  const coverEl = album.cover
+    ? <img className="ac-img" src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} />
+    : <div className="ac-img ac-img-empty"><IconGlyph iconId="disco" size={36} /></div>;
+
+  const thumbClass = rowMode ? 'album-card-thumb album-card-row-thumb' : 'album-card-thumb';
+  const subtitle   = searchMode
+    ? `DISCO · ${album.year || 'SIN AÑO'}`
+    : `${album.songs.length} canción${album.songs.length === 1 ? '' : 'es'} · ${album.year || 'SIN AÑO'}`;
+
+  if (searchMode) {
+    return (
+      <button ref={cardRef} className="album-card"
+              onClick={() => onOpen(album.name)}
+              onMouseMove={onMove} onMouseLeave={onLeave}>
+        <div className={thumbClass}>
+          {coverEl}
+          <div className="album-card-vinyl" />
+          <div className="ac-shine" />
+        </div>
+        <div className="album-card-body">
+          <div className="album-card-title">{album.name}</div>
+          <div className="album-card-sub">{subtitle}</div>
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <div ref={cardRef}
+         className={rowMode ? 'album-card album-card-row' : 'album-card'}
+         onClick={() => onOpen(album.name)}
+         onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div className={thumbClass}>
+        {coverEl}
+        <div className="album-card-vinyl" />
+        <div className="ac-shine" />
+      </div>
+      <div className="album-card-body">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+          <div>
+            <div className="album-card-title">{album.name}</div>
+            <div className="album-card-sub">{subtitle}</div>
+          </div>
+          <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlay(cat, album.name); }}>▶</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
 function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum }) {
   const list = files.filter((f) => (f.artist || f.category) === cat);
@@ -1528,16 +1619,9 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   <div className="field-label" style={{ marginBottom: 10 }}>DISCOS</div>
                   <div className="album-grid">
                     {searchAlbums.map((album) => (
-                      <button key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
-                        <div className="album-card-thumb">
-                          {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
-                          <div className="album-card-vinyl" />
-                        </div>
-                        <div className="album-card-body">
-                          <div className="album-card-title">{album.name}</div>
-                          <div className="album-card-sub">DISCO · {album.year || 'SIN AÑO'}</div>
-                        </div>
-                      </button>
+                      <AlbumCard key={album.name} album={album} cat={cat}
+                                 onOpen={openAlbum} onPlay={onPlayAlbum}
+                                 searchMode />
                     ))}
                   </div>
                 </>
@@ -1574,41 +1658,15 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           albumView === 'grid' ? (
             <div className="album-grid">
               {albumObjects.map((album) => (
-                <div key={album.name} className="album-card" onClick={() => openAlbum(album.name)}>
-                  <div className="album-card-thumb">
-                    {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
-                    <div className="album-card-vinyl" />
-                  </div>
-                  <div className="album-card-body">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      <div>
-                        <div className="album-card-title">{album.name}</div>
-                        <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
-                      </div>
-                      <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayAlbum(cat, album.name); }}>▶</button>
-                    </div>
-                  </div>
-                </div>
+                <AlbumCard key={album.name} album={album} cat={cat}
+                           onOpen={openAlbum} onPlay={onPlayAlbum} />
               ))}
             </div>
           ) : (
             <div className="album-list">
               {albumObjects.map((album) => (
-                <div key={album.name} className="album-card album-card-row" onClick={() => openAlbum(album.name)}>
-                  <div className="album-card-thumb album-card-row-thumb">
-                    {album.cover ? <img src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} /> : <IconGlyph iconId="disco" size={36} />}
-                    <div className="album-card-vinyl" />
-                  </div>
-                  <div className="album-card-body">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                      <div>
-                        <div className="album-card-title">{album.name}</div>
-                        <div className="album-card-sub">{album.songs.length} canción{album.songs.length===1?'':'es'} · {album.year || 'SIN AÑO'}</div>
-                      </div>
-                      <button className="mini-btn" onClick={(e) => { e.stopPropagation(); onPlayAlbum(cat, album.name); }}>▶</button>
-                    </div>
-                  </div>
-                </div>
+                <AlbumCard key={album.name} album={album} cat={cat}
+                           onOpen={openAlbum} onPlay={onPlayAlbum} rowMode />
               ))}
             </div>
           )
