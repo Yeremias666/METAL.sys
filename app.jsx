@@ -131,6 +131,12 @@ function parseTimeSec(str) {
   return (Number(parts[0]) || 0) + ms;
 }
 
+function sortByDiscTrack(a, b) {
+  const da = parseInt(a.disc) || 1, db = parseInt(b.disc) || 1;
+  if (da !== db) return da - db;
+  return (parseInt(a.track) || 999) - (parseInt(b.track) || 999);
+}
+
 function fmtBytes(n) {
   if (n < 1024) return n + ' B';
   if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
@@ -336,6 +342,7 @@ async function _parseID3Buffer(buf) {
         if (frameId === 'TYER' || frameId === 'TDRC') tags.year = text.slice(0, 4);
         if (frameId === 'TCON') tags.genre = text.replace(/^\(?\d+\)?/, '').trim() || text;
         if (frameId === 'TRCK') tags.track = text;
+        if (frameId === 'TPOS') tags.disc = text;
       } catch {}
     } else if (frameId === 'APIC') {
       try {
@@ -1019,7 +1026,7 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
                 {artistImg
                   ? <img src={artistImg} alt={artist} />
                   : <div className="cat-card-no-cover">
-                      <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                      <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>
                     </div>}
                 <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
               </div>
@@ -1042,6 +1049,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
   const [artist, setArtist]     = useState('');
   const [album, setAlbum]       = useState('');
   const [track, setTrack]       = useState('');
+  const [disc, setDisc]         = useState('');
   const [year, setYear]         = useState('');
   const [genre, setGenre]       = useState('');
   const [thumb, setThumb]       = useState(null);
@@ -1074,6 +1082,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
         if (tags.year)   setYear(tags.year);
         if (tags.genre)  setGenre(tags.genre);
         if (tags.track)  setTrack(tags.track);
+        if (tags.disc)   setDisc(tags.disc);
         if (tags.coverArt) {
           setCoverArt(tags.coverArt);  // always store raw cover data URL
           if (!thumb) setThumb(tags.coverArt);  // also use as thumb preview
@@ -1104,6 +1113,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
       artist:   artist.trim(),
       album:    album.trim(),
       track:    track.trim(),
+      disc:     disc.trim(),
       year:     year.trim(),
       genre:    genre.trim(),
       thumbnail: thumb || coverArt,   // thumb = user-chosen or processed; coverArt = raw ID3
@@ -1116,7 +1126,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
 
   const clear = () => {
     setFile(null); setName(''); setArtist(''); setAlbum('');
-    setTrack(''); setYear(''); setGenre(''); setThumb(null); setCoverArt(null); setErr('');
+    setTrack(''); setDisc(''); setYear(''); setGenre(''); setThumb(null); setCoverArt(null); setErr('');
   };
 
   const isAudio = file && isAudioFile({ fileName: file.name, fileType: file.type || '' });
@@ -1285,6 +1295,7 @@ function FolderImportSection({ vault, onUpload }) {
               artist:   tags.artist || 'LOCAL',
               album:    tags.album  || '',
               track:    tags.track  || '',
+              disc:     tags.disc   || '',
               year:     tags.year   || '',
               genre:    tags.genre  || '',
               thumbnail: tags.coverArt || null,
@@ -1503,7 +1514,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const currentSongs = currentAlbum ? currentAlbum.songs.filter((f) => !q || normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
   const sortedSongs = useMemo(() => {
     const arr = [...currentSongs];
-    if (sort === 'track-asc') arr.sort((a, b) => (parseInt(a.track) || 999) - (parseInt(b.track) || 999));
+    if (sort === 'track-asc') arr.sort(sortByDiscTrack);
     else if (sort === 'name-asc') arr.sort((a, b) => normStr(a.name).localeCompare(normStr(b.name)));
     return arr;
   }, [currentSongs, sort]);
@@ -1766,7 +1777,9 @@ function TrackListTable({ files, sort, setSort, onOpen, onPlay, selectedIds, tog
         <tbody>
           {files.map((f) => {
             const sel = selectedIds.has(f.id);
+            const discNum = f.disc ? parseInt(f.disc) || 1 : null;
             const trackNum = f.track ? f.track.split('/')[0] : '—';
+            const trackLabel = (discNum && discNum > 1) ? `${discNum}·${trackNum}` : trackNum;
             return (
               <tr key={f.id} className={sel ? 'sel' : ''} onClick={() => onOpen(f.id)}>
                 <td className="col-sel" onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
@@ -1777,7 +1790,7 @@ function TrackListTable({ files, sort, setSort, onOpen, onPlay, selectedIds, tog
                     ? <img src={f.thumbnail} alt="" style={{width:48,height:48,objectFit:'contain',border:'1px solid var(--fg-primary)',imageRendering:'pixelated'}} />
                     : <div className="list-glyph"><IconGlyph iconId="nota" size={28} /></div>}
                 </td>
-                <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11, width:36, textAlign:'center'}}>{trackNum}</td>
+                <td style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11, width:36, textAlign:'center'}}>{trackLabel}</td>
                 <td>
                   <div className="list-name">{f.name}</div>
                 </td>
@@ -3122,8 +3135,7 @@ function Terminal({ files, localFiles = [], allCats }) {
     );
 
     entry.albums.forEach((album, li) => {
-      const albumSongs = entry.songs.filter(f => f.album === album)
-        .sort((a, b) => (parseInt(a.track)||0) - (parseInt(b.track)||0));
+      const albumSongs = entry.songs.filter(f => f.album === album).sort(sortByDiscTrack);
       const isLastAlbum = li === entry.albums.length - 1 && entry.noAlbum.length === 0;
       const albElbow = isLastAlbum ? '└── ' : '├── ';
       const albBar   = isLastAlbum ? '    ' : '│   ';
@@ -3215,7 +3227,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
   const byArtist = allCats.map(artist => {
     const songs = allFiles.filter(f => (f.artist || f.category) === artist);
     const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
-    const noAlbum = songs.filter(f => !f.album).sort((a, b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
+    const noAlbum = songs.filter(f => !f.album).sort(sortByDiscTrack);
     return { artist, songs, albums, noAlbum };
   });
   return (
@@ -3236,7 +3248,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
                   {albums.map(album => {
                     const aKey = artist + '////' + album;
                     const albumOpen = !!collapsed[aKey];
-                    const albumSongs = songs.filter(f => f.album === album).sort((a,b) => (parseInt(a.track)||999)-(parseInt(b.track)||999));
+                    const albumSongs = songs.filter(f => f.album === album).sort(sortByDiscTrack);
                     return (
                       <div key={album}>
                         <div className="lib-album-row" onClick={() => toggle(aKey)}>
@@ -3579,7 +3591,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     {favArtistImg
                       ? <img src={favArtistImg} alt={favArtist||''} style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',borderRadius:'50%'}}/>
                       : <div className="sh-icon" style={{color: favArtist ? (artistColorMap[favArtist]||'var(--fg-primary)') : 'var(--fg-dim)'}}>
-                          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>
                         </div>}
                     <div className="sh-label">ARTISTA FAVORITO</div>
                     <div className="sh-name">{favArtist || '— SIN DATOS —'}</div>
@@ -4206,6 +4218,7 @@ function App() {
         artist:      meta.artist  || '',
         album:       meta.album   || '',
         track:       meta.track   || '',
+        disc:        meta.disc    || '',
         year:        meta.year    || '',
         genre:       meta.genre   || '',
         thumbnail:   meta.thumbnail || meta.coverArt,
@@ -4328,10 +4341,10 @@ function App() {
     const all = files.filter(isAudioFile);
     const combined = [...all, ...localFiles.filter(isAudioFile)];
     if (context.type === 'artist' && context.artist) {
-      return combined.filter((f) => (f.artist || f.category) === context.artist);
+      return combined.filter((f) => (f.artist || f.category) === context.artist).sort(sortByDiscTrack);
     }
     if (context.type === 'album' && context.artist && context.album) {
-      return combined.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album);
+      return combined.filter((f) => (f.artist || f.category) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return combined;
   }, [files, localFiles]);
@@ -4547,6 +4560,7 @@ function App() {
             artist: tags.albumArtist || tags.artist || '',
             album: tags.album || '',
             track: tags.track || '',
+            disc: tags.disc || '',
             year: tags.year || '',
             genre: tags.genre || '',
             thumbnail: tags.coverArt || null,

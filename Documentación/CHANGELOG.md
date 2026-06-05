@@ -5,6 +5,22 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-05 — Migración B2 → Cloudflare R2
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `api/audio.js`, `api/files.js`
+
+### Cambios
+- **`api/audio.js`**: Reescrito para generar URLs presignadas contra R2 en vez de B2.
+  - Implementa AWS Signature V4 manualmente (sin dependencias npm).
+  - Bucket: `metalsys`, Endpoint: `97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com`, Región: `auto`.
+  - Variables de entorno: `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (se eliminan `B2_KEY_ID` / `B2_APP_KEY`).
+- **`api/files.js`**: Migrado de B2 API propietaria a S3 API de R2 (ListObjectsV2 + GetObject firmados).
+  - También extrae `TPOS` (número de disco) del ID3.
+  - El campo `b2Path` se mantiene por compatibilidad con `app.jsx`.
+
+---
+
 ## 2026-06-05 — 9 correcciones y mejoras (sesión 2)
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
