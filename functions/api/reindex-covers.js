@@ -83,39 +83,53 @@ async function makePutHeaders(accessKey, secretKey, path, contentType, bodyBytes
   };
 }
 
-// ID3 parser mínimo — solo extrae APIC (portada)
+// ID3 parser mínimo — extrae portada de ID3v2.2 (PIC), v2.3 y v2.4 (APIC)
 function extractCover(buf) {
   if (buf.byteLength < 10) return null;
-  const view = new DataView(buf);
-  if (String.fromCharCode(view.getUint8(0),view.getUint8(1),view.getUint8(2)) !== 'ID3') return null;
-  const major   = view.getUint8(3);
-  const tagSize = ((view.getUint8(6)&0x7f)<<21)|((view.getUint8(7)&0x7f)<<14)|((view.getUint8(8)&0x7f)<<7)|(view.getUint8(9)&0x7f);
-  let offset = 10;
-  const end  = Math.min(10+tagSize, buf.byteLength);
-  while (offset+10 < end) {
-    const fid = String.fromCharCode(view.getUint8(offset),view.getUint8(offset+1),view.getUint8(offset+2),view.getUint8(offset+3));
-    if (!/^[A-Z0-9]{4}$/.test(fid)) break;
-    let fs;
-    if (major===4) fs=((view.getUint8(offset+4)&0x7f)<<21)|((view.getUint8(offset+5)&0x7f)<<14)|((view.getUint8(offset+6)&0x7f)<<7)|(view.getUint8(offset+7)&0x7f);
-    else fs=view.getUint32(offset+4);
-    if (fs<=0||offset+10+fs>end) break;
-    const fdStart = offset+10;
-    if (fid==='APIC') {
-      try {
-        const frameEnd   = Math.min(fdStart+fs, buf.byteLength);
-        const frameBytes = new Uint8Array(buf, fdStart, frameEnd-fdStart);
-        for (let i=0; i<frameBytes.length-3; i++) {
-          const isJpeg = frameBytes[i]===0xFF&&frameBytes[i+1]===0xD8&&frameBytes[i+2]===0xFF;
-          const isPng  = frameBytes[i]===0x89&&frameBytes[i+1]===0x50&&frameBytes[i+2]===0x4E;
-          if (isJpeg||isPng) {
-            // Copia real — no vista, para evitar problemas con el GC
-            const view = new Uint8Array(buf, fdStart+i, frameEnd-(fdStart+i));
-            return { bytes: new Uint8Array(view), mime: isJpeg?'image/jpeg':'image/png' };
-          }
-        }
-      } catch {}
+  const dv = new DataView(buf);
+  if (String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2)) !== 'ID3') return null;
+  const major   = dv.getUint8(3);
+  const tagSize = ((dv.getUint8(6)&0x7f)<<21)|((dv.getUint8(7)&0x7f)<<14)|((dv.getUint8(8)&0x7f)<<7)|(dv.getUint8(9)&0x7f);
+  const end     = Math.min(10+tagSize, buf.byteLength);
+
+  const findImg = (fdStart, frameEnd) => {
+    const fb = new Uint8Array(buf, fdStart, Math.min(frameEnd, buf.byteLength)-fdStart);
+    for (let i=0; i<fb.length-3; i++) {
+      const isJpeg = fb[i]===0xFF&&fb[i+1]===0xD8&&fb[i+2]===0xFF;
+      const isPng  = fb[i]===0x89&&fb[i+1]===0x50&&fb[i+2]===0x4E;
+      if (isJpeg||isPng) {
+        const slice = new Uint8Array(buf, fdStart+i, Math.min(frameEnd,buf.byteLength)-(fdStart+i));
+        return { bytes: new Uint8Array(slice), mime: isJpeg?'image/jpeg':'image/png' };
+      }
     }
-    offset = fdStart+fs;
+    return null;
+  };
+
+  // ── ID3v2.2: frames de 3 chars + 3 bytes de tamaño ─────────────
+  if (major === 2) {
+    let o = 10;
+    while (o+6 < end) {
+      const fid = String.fromCharCode(dv.getUint8(o),dv.getUint8(o+1),dv.getUint8(o+2));
+      if (!/^[A-Z0-9]{3}$/.test(fid)) break;
+      const fs = (dv.getUint8(o+3)<<16)|(dv.getUint8(o+4)<<8)|dv.getUint8(o+5);
+      if (fs<=0||o+6+fs>end) break;
+      if (fid==='PIC') { const r=findImg(o+6, o+6+fs); if (r) return r; }
+      o += 6+fs;
+    }
+    return null;
+  }
+
+  // ── ID3v2.3 / v2.4: frames de 4 chars + 4 bytes de tamaño ──────
+  let o = 10;
+  while (o+10 < end) {
+    const fid = String.fromCharCode(dv.getUint8(o),dv.getUint8(o+1),dv.getUint8(o+2),dv.getUint8(o+3));
+    if (!/^[A-Z0-9]{4}$/.test(fid)) break;
+    const fs = major===4
+      ? ((dv.getUint8(o+4)&0x7f)<<21)|((dv.getUint8(o+5)&0x7f)<<14)|((dv.getUint8(o+6)&0x7f)<<7)|(dv.getUint8(o+7)&0x7f)
+      : dv.getUint32(o+4);
+    if (fs<=0||o+10+fs>end) break;
+    if (fid==='APIC') { const r=findImg(o+10, o+10+fs); if (r) return r; }
+    o += 10+fs;
   }
   return null;
 }
