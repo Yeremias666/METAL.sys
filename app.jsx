@@ -1341,8 +1341,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
     el.style.transition = 'box-shadow 0.06s';
-    el.style.transform  = `perspective(700px) rotateX(${-dy * 10}deg) rotateY(${dx * 10}deg) translateY(-8px) scale(1.04)`;
-    el.style.boxShadow  = `${-dx * 10}px ${-dy * 8}px 36px rgba(214,31,31,0.6), 0 0 22px rgba(214,31,31,0.3)`;
+    el.style.transform  = `perspective(600px) rotateX(${-dy * 8}deg) rotateY(${dx * 8}deg) translateY(-10px) scale(1.05)`;
+    el.style.boxShadow  = `${-dx * 12}px ${-dy * 10}px 40px rgba(214,31,31,0.65), 0 0 24px rgba(214,31,31,0.35)`;
     const vinyl = el.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 8}px,${dy * 6}px)`; }
   }, []);
@@ -3319,8 +3319,8 @@ function LikeButton({ fileId, likedIds, onToggle }) {
 }
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
-function MeGustaPage({ files, likedIds, onOpenFile, onNav, onPlayAll, onToggleLike }) {
-  const liked = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
+function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike }) {
+  const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
   return (
     <div>
@@ -4637,10 +4637,10 @@ function App() {
               )}
               {route.page === 'MESGUSTA' && (
                 <MeGustaPage
-                  files={files} likedIds={likedIds}
+                  files={files} localFiles={localFiles} likedIds={likedIds}
                   onOpenFile={openFile} onNav={setRoute}
                   onPlayAll={() => {
-                    const likedAudio = files.filter(f => likedIds.has(f.id) && isAudioFile(f));
+                    const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
                     if (likedAudio.length === 0) return;
                     setManualQueue(likedAudio);
                     startTrack(likedAudio[0], { type: 'all', shuffle: false });
