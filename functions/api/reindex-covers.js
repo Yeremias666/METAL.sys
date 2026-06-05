@@ -18,6 +18,12 @@ const te = new TextEncoder();
 
 function toBytes(v) { return v instanceof Uint8Array ? v : te.encode(String(v)); }
 
+// AWS Signature V4 exige codificar !'()* — encodeURIComponent los deja sin codificar
+const awsEncode = s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+
+// Decodificar entidades XML que R2 devuelve en las claves con caracteres especiales
+const unxml = s => s.replace(/&amp;/g,'&').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
+
 async function hmac(key, data) {
   const ck = await crypto.subtle.importKey('raw', toBytes(key), { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC', ck, toBytes(data)));
@@ -158,7 +164,7 @@ async function listAllAudio(accessKey, secretKey) {
     const blocks = [...xml.matchAll(/<Contents>([\s\S]*?)<\/Contents>/g)].map(m=>m[1]);
     for (const b of blocks) {
       const key = b.match(/<Key>([\s\S]*?)<\/Key>/)?.[1];
-      if (key && audioExts.test(key)) all.push(key);
+      if (key && audioExts.test(key)) all.push(unxml(key));
     }
     const trunc = xml.match(/<IsTruncated>([\s\S]*?)<\/IsTruncated>/)?.[1]==='true';
     ct = trunc ? xml.match(/<NextContinuationToken>([\s\S]*?)<\/NextContinuationToken>/)?.[1] : undefined;
@@ -212,8 +218,8 @@ export async function onRequest({ request, env }) {
     // Procesar el batch: leer MP3, extraer portada, subir como _covers/...
     const results = await Promise.allSettled(batch.map(async ([prefix, repKey]) => {
       const coverKey     = `_covers/${prefix}.jpg`;
-      const encodedAudio = repKey.split('/').map(encodeURIComponent).join('/');
-      const encodedCover = coverKey.split('/').map(encodeURIComponent).join('/');
+      const encodedAudio = repKey.split('/').map(awsEncode).join('/');
+      const encodedCover = coverKey.split('/').map(awsEncode).join('/');
 
       const getHdrs = await makeGetHeaders(accessKey, secretKey, `/${BUCKET}/${encodedAudio}`, '', { Range: ID3_RANGE });
       const dlRes   = await fetch(`${ENDPOINT}/${BUCKET}/${encodedAudio}`, { headers: getHdrs });

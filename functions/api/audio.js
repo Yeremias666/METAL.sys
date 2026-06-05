@@ -14,6 +14,8 @@ const TTL      = 3600; // URL válida 1 hora
 
 const te = new TextEncoder();
 
+const awsEncode = s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+
 function toBytes(v) {
   return v instanceof Uint8Array ? v : te.encode(String(v));
 }
@@ -47,7 +49,7 @@ async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
   const service = 's3';
   const scope   = `${date}/${REGION}/${service}/aws4_request`;
 
-  const encodedKey = objectKey.split('/').map(encodeURIComponent).join('/');
+  const encodedKey = objectKey.split('/').map(awsEncode).join('/');
 
   // Parámetros de la firma, ordenados lexicográficamente por clave (requerido por AWS)
   const sigParams = [

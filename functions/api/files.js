@@ -14,9 +14,10 @@ const ID3_RANGE   = 'bytes=0-1048575'; // 1 MB — suficiente para cualquier eti
 
 const te = new TextEncoder();
 
-function toBytes(v) {
-  return v instanceof Uint8Array ? v : te.encode(String(v));
-}
+function toBytes(v) { return v instanceof Uint8Array ? v : te.encode(String(v)); }
+
+const awsEncode = s => encodeURIComponent(s).replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+const unxml     = s => s.replace(/&amp;/g,'&').replace(/&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"');
 
 async function hmac(key, data) {
   const cryptoKey = await crypto.subtle.importKey(
@@ -47,7 +48,7 @@ async function presignedCoverUrl(accessKey, secretKey, prefix) {
   const service  = 's3';
   const scope    = `${date}/${REGION}/${service}/aws4_request`;
   const coverKey = `_covers/${prefix}.jpg`;
-  const encoded  = coverKey.split('/').map(encodeURIComponent).join('/');
+  const encoded  = coverKey.split('/').map(awsEncode).join('/');
 
   const sigParams = [
     ['X-Amz-Algorithm',     'AWS4-HMAC-SHA256'],
@@ -168,7 +169,7 @@ async function listAllObjects(accessKey, secretKey) {
     const xml = await res.text();
     for (const block of xmlBlocks(xml, 'Contents')) {
       all.push({
-        key:          xmlTag(block, 'Key'),
+        key:          unxml(xmlTag(block, 'Key')),
         size:         parseInt(xmlTag(block, 'Size') || '0', 10),
         lastModified: xmlTag(block, 'LastModified'),
       });
