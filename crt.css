@@ -461,6 +461,8 @@ input:not([type=range]), textarea {
 .col-main {
   min-width: 0;
   padding: 0 20px 64px;
+  position: relative;
+  z-index: 2;
 }
 
 .col-right {

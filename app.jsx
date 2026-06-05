@@ -1624,6 +1624,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel">
         <div className="panel-hd">
           <span style={{display:'flex', alignItems:'center', gap:10}}>
+            <button className="cat-upload-btn" style={{width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
+                    onClick={() => onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
             {artistImage && (
               <img src={artistImage} alt={cat} style={{width:32, height:32, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
             )}
