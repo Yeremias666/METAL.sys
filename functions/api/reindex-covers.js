@@ -201,7 +201,7 @@ export async function onRequest({ request, env }) {
       const cr = await fetch(`${ENDPOINT}/${BUCKET}?${cq}`, { headers: ch });
       if (cr.ok) {
         const xml = await cr.text();
-        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) existingCovers.add(m[1]);
+        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) existingCovers.add(unxml(m[1]));
       }
     } catch {}
 

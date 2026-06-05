@@ -312,7 +312,7 @@ export async function onRequest({ request, env }) {
       const coverRes  = await fetch(`${ENDPOINT}/${BUCKET}?${coverQP}`, { headers: coverHdrs });
       if (coverRes.ok) {
         const xml = await coverRes.text();
-        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) coverExists.add(m[1]);
+        for (const m of xml.matchAll(/<Key>([\s\S]*?)<\/Key>/g)) coverExists.add(unxml(m[1]));
       }
     } catch {}
 
