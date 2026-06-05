@@ -331,28 +331,38 @@ export async function onRequest({ request, env }) {
       })
     );
 
-    // 4. Construir listado final
+    // 4. Índice de metadatos ID3 desde _meta/index.json
+    let metaIndex = {};
+    try {
+      const metaHdrs = await makeSignedHeaders(accessKey, secretKey, `/${BUCKET}/_meta/index.json`, '');
+      const metaRes  = await fetch(`${ENDPOINT}/${BUCKET}/_meta/index.json`, { headers: metaHdrs });
+      if (metaRes.ok) metaIndex = await metaRes.json();
+    } catch {}
+
+    // 5. Construir listado final
     const results = audioFiles.map(({ key, size, lastModified }) => {
       const f      = parsePath(key);
       const parts  = key.split('/');
       const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
+      const meta   = metaIndex[key] || {};
+      const artist = meta.artist || meta.albumArtist || f.artist;
       return {
         id:          `r2:${key}`,
-        name:        f.title,
-        artist:      f.artist,
-        album:       f.album,
-        track:       f.track,
-        disc:        '',
-        year:        '',
-        genre:       '',
-        description: f.album,
-        category:    f.artist,
+        name:        meta.title  || f.title,
+        artist,
+        album:       meta.album  || f.album,
+        track:       meta.track  || f.track,
+        disc:        meta.disc   || '',
+        year:        meta.year   || '',
+        genre:       meta.genre  || '',
+        description: meta.album  || f.album,
+        category:    artist,
         fileName:    f.fileName,
         fileSize:    size,
         fileType:    'audio/mpeg',
         fileData:    null,
         r2Path:      key,
-        coverUrl:    albumMap[prefix] || null, // URL presignada de la portada en R2
+        coverUrl:    albumMap[prefix] || null,
         thumbnail:   null,
         coverArt:    null,
         uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),
@@ -360,7 +370,7 @@ export async function onRequest({ request, env }) {
       };
     });
 
-    // 5 min en CDN de Cloudflare, 1 min en navegador
+    // 6. 5 min en CDN de Cloudflare, 1 min en navegador
     return jsonResponse(results, 200, {
       'Cache-Control': 'public, s-maxage=300, max-age=60',
     });

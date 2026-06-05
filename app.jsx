@@ -3980,6 +3980,7 @@ function App() {
   // Upload progress state
   const [uploadProgress, setUploadProgress] = useState(null);
 
+
   // Music player state
   const audioRef = useRef(null);
   if (!audioRef.current) {
@@ -4087,6 +4088,7 @@ function App() {
       })
       .catch(() => {});
   }, []);
+
 
   useEffect(() => {
     const root = document.documentElement;

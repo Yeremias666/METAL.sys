@@ -5,6 +5,19 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-05 — Reindexado de metadatos ID3 y portadas desde R2
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos creados:** `functions/api/reindex-meta.js`  
+**Archivos modificados:** `functions/api/files.js`, `app.jsx`
+
+### Cambios
+- Creado `reindex-meta.js`: función Cloudflare Pages que descarga los primeros 256 KB de cada MP3 en R2, extrae todos los metadatos ID3 (título, artista, álbum, año, género, pista, disco) y los guarda en `_meta/index.json` dentro del bucket. Soporta ID3v2.2, v2.3 y v2.4. Procesa 8 archivos por llamada; parámetro `force=1` para re-leer todos.
+- Modificado `files.js`: lee `_meta/index.json` al construir el listado y usa los metadatos reales del ID3 en lugar de parsear solo el nombre del archivo. Fallback al path parsing si el índice no tiene datos para un archivo.
+- Modificado `app.jsx`: añadido panel "BIBLIOTECA R2 /// MANTENIMIENTO" en la página de Inicio con botones "REINDEXAR METADATOS" y "REINDEXAR PORTADAS", indicador de progreso en tiempo real y recarga automática de la biblioteca al terminar.
+
+---
+
 ## 2026-06-05 — Migración Vercel → Cloudflare Pages Functions
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
