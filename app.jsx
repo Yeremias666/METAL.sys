@@ -1310,42 +1310,38 @@ function FolderImportSection({ vault, onUpload }) {
 // ─── ALBUM CARD con parallax 3D ───────────────────────────────
 function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false }) {
   const cardRef = useRef(null);
+  const SLIDE_OUT = 'translateY(-50%) translateX(108%)';   // oculto
+  const SLIDE_IN  = 'translateY(-50%) translateX(46%)';    // asomado
+
+  const onEnter = useCallback(() => {
+    const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
+    if (vinyl) { vinyl.style.transition = 'transform 0.48s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
+  }, []);
 
   const onMove = useCallback((e) => {
     const el = cardRef.current; if (!el) return;
     const r  = el.getBoundingClientRect();
-    const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5); // -1..1
+    const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
-    el.style.transition  = 'box-shadow 0.06s';
-    el.style.transform   = `perspective(700px) rotateX(${-dy * 14}deg) rotateY(${dx * 14}deg)`;
-    el.style.boxShadow   = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
+    el.style.transition = 'box-shadow 0.06s';
+    el.style.transform  = `perspective(700px) rotateX(${-dy * 14}deg) rotateY(${dx * 14}deg)`;
+    el.style.boxShadow  = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    const body  = el.querySelector('.album-card-body');
-    const shine = el.querySelector('.ac-shine');
-    if (img)   { img.style.transition   = 'none'; img.style.transform   = `translate(${dx * 8}px,${dy * 8}px) scale(1.05)`; }
-    if (vinyl) { vinyl.style.transition = 'none'; vinyl.style.transform = `translateY(-50%) translate(${dx * 16}px,${dy * 10}px)`; }
-    if (body)  { body.style.transition  = 'none'; body.style.transform  = `translate(${dx * 4}px,${dy * 4}px)`; }
-    if (shine) {
-      shine.style.opacity    = '1';
-      shine.style.background = `radial-gradient(circle at ${(dx + 1) * 50}% ${(dy + 1) * 50}%, rgba(255,255,255,0.20) 0%, transparent 62%)`;
-    }
+    if (img)   { img.style.transition = 'none'; img.style.transform = `translate(${dx * 5}px,${dy * 5}px)`; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(46%) translate(${dx * 10}px,${dy * 8}px)`; }
   }, []);
 
   const onLeave = useCallback(() => {
     const el = cardRef.current; if (!el) return;
     const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
-    el.style.transition  = `${ease}, box-shadow 0.55s`;
-    el.style.transform   = '';
-    el.style.boxShadow   = '';
+    el.style.transition = `${ease}, box-shadow 0.55s`;
+    el.style.transform  = '';
+    el.style.boxShadow  = '';
     const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    const body  = el.querySelector('.album-card-body');
-    const shine = el.querySelector('.ac-shine');
-    if (img)   { img.style.transition   = ease; img.style.transform   = ''; }
-    if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = 'translateY(-50%)'; }
-    if (body)  { body.style.transition  = ease; body.style.transform  = ''; }
-    if (shine) shine.style.opacity = '0';
+    if (img)   { img.style.transition = ease; img.style.transform = ''; }
+    if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
   const coverEl = album.cover
@@ -1356,17 +1352,14 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const subtitle   = searchMode
     ? `DISCO · ${album.year || 'SIN AÑO'}`
     : `${album.songs.length} canción${album.songs.length === 1 ? '' : 'es'} · ${album.year || 'SIN AÑO'}`;
+  const vinylEl = <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>;
 
   if (searchMode) {
     return (
       <button ref={cardRef} className="album-card"
               onClick={() => onOpen(album.name)}
-              onMouseMove={onMove} onMouseLeave={onLeave}>
-        <div className={thumbClass}>
-          {coverEl}
-          <div className="album-card-vinyl" />
-          <div className="ac-shine" />
-        </div>
+              onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
+        <div className={thumbClass}>{coverEl}{vinylEl}</div>
         <div className="album-card-body">
           <div className="album-card-title">{album.name}</div>
           <div className="album-card-sub">{subtitle}</div>
@@ -1379,12 +1372,8 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     <div ref={cardRef}
          className={rowMode ? 'album-card album-card-row' : 'album-card'}
          onClick={() => onOpen(album.name)}
-         onMouseMove={onMove} onMouseLeave={onLeave}>
-      <div className={thumbClass}>
-        {coverEl}
-        <div className="album-card-vinyl" />
-        <div className="ac-shine" />
-      </div>
+         onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div className={thumbClass}>{coverEl}{vinylEl}</div>
       <div className="album-card-body">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
           <div>
