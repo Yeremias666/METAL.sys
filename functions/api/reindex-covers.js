@@ -182,8 +182,6 @@ export async function onRequest({ request, env }) {
   const secretKey = env.R2_SECRET_ACCESS_KEY;
   if (!accessKey||!secretKey) return jsonRes({error:'Credenciales no configuradas'},500);
 
-  const offset = parseInt(new URL(request.url).searchParams.get('offset')||'0', 10);
-
   try {
     const allKeys = await listAllAudio(accessKey, secretKey);
 
@@ -207,15 +205,13 @@ export async function onRequest({ request, env }) {
       }
     } catch {}
 
-    // Solo los álbumes sin portada
-    // Ordenar los álbumes que faltan para que el offset sea estable entre llamadas
+    // Solo los álbumes sin portada — siempre los primeros PER_CALL
+    // (no se usa offset: la lista mengua con cada llamada y un offset fijo saltaría álbumes)
     const missingAlbums = Object.entries(albumMap)
-      .filter(([p]) => !existingCovers.has(`_covers/${p}.jpg`))
-      .sort(([a],[b]) => a < b ? -1 : 1);
-    const total = missingAlbums.length;
-    const batch = missingAlbums.slice(offset, offset + PER_CALL);
-    const next  = offset + PER_CALL;
-    const done  = total === 0 || next >= total;
+      .filter(([p]) => !existingCovers.has(`_covers/${p}.jpg`));
+    const totalAlbums = Object.keys(albumMap).length;
+    const batch = missingAlbums.slice(0, PER_CALL);
+    const done  = missingAlbums.length === 0;
 
     // Procesar el batch: leer MP3, extraer portada, subir como _covers/...
     const results = await Promise.allSettled(batch.map(async ([prefix, repKey]) => {
@@ -241,7 +237,8 @@ export async function onRequest({ request, env }) {
 
     const processed = results.filter(r=>r.status==='fulfilled'&&r.value?.ok).length;
     const details   = results.map(r => r.status==='fulfilled' ? r.value : { ok:false, reason:'exception:'+r.reason?.message });
-    return jsonRes({ done, offset, next: done ? null : next, total, processed, batchSize: batch.length, details });
+    const doneAfter = missingAlbums.length - batch.length === 0;
+    return jsonRes({ done: doneAfter, total: totalAlbums, remaining: missingAlbums.length - processed, processed, batchSize: batch.length, details });
 
   } catch(err) {
     console.error('[reindex-covers]', err);

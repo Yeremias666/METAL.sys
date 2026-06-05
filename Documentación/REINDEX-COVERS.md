@@ -22,13 +22,14 @@ Abre la app en el navegador → F12 → Console → pega y ejecuta:
 
 ```javascript
 (async () => {
-  let offset = 0, total = '?', ok = 0;
+  let total = null, ok = 0;
   while (true) {
-    const r = await fetch(`/api/reindex-covers?offset=${offset}`).then(r=>r.json());
-    total = r.total; ok += r.processed;
-    console.log(`${offset + r.batchSize}/${total} — subidas OK: ${ok}`);
-    if (r.done) { console.log(`✅ Completo. ${ok}/${total} portadas subidas`); break; }
-    offset = r.next;
+    const r = await fetch('/api/reindex-covers').then(r=>r.json());
+    if (r.error) { console.error('Error:', r.error); break; }
+    if (total === null) total = r.total;
+    ok += r.processed;
+    console.log(`${ok}/${total} álbumes — pendientes: ${r.remaining}`);
+    if (r.done) { console.log(`✅ Completo. ${ok} portadas subidas`); break; }
   }
 })();
 ```

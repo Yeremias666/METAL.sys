@@ -185,8 +185,6 @@ export async function onRequest({ request, env }) {
   const secretKey = env.R2_SECRET_ACCESS_KEY;
   if (!accessKey || !secretKey) return jsonRes({ error: 'Credenciales no configuradas' }, 500);
 
-  const offset = parseInt(new URL(request.url).searchParams.get('offset') || '0', 10);
-
   try {
     const allKeys = await listAllAudio(accessKey, secretKey);
 
@@ -200,11 +198,13 @@ export async function onRequest({ request, env }) {
     } catch {}
 
     // Solo archivos que aún no están en el índice
-    const missing = allKeys.filter(k => !metaIndex[k]);
-    const total   = missing.length;
-    const batch   = missing.slice(offset, offset + PER_CALL);
-    const next    = offset + PER_CALL;
-    const done    = total === 0 || next >= total;
+    // Siempre tomamos los primeros PER_CALL — no se usa offset porque la lista
+    // mengua con cada llamada y un offset fijo saltaría entradas.
+    const missing   = allKeys.filter(k => !metaIndex[k]);
+    const total     = allKeys.length;
+    const remaining = missing.length;
+    const batch     = missing.slice(0, PER_CALL);
+    const done      = remaining === 0;
 
     // Procesar batch: descargar primeros 256 KB, parsear ID3, guardar en índice
     const results = await Promise.allSettled(batch.map(async key => {
@@ -242,7 +242,8 @@ export async function onRequest({ request, env }) {
 
     const processed = results.filter(r => r.status === 'fulfilled' && r.value?.ok).length;
     const details   = results.map(r => r.status === 'fulfilled' ? r.value : { ok: false, reason: 'exception:' + r.reason?.message });
-    return jsonRes({ done, offset, next: done ? null : next, total, processed, batchSize: batch.length, details });
+    const doneAfter = missing.length - batch.length === 0;
+    return jsonRes({ done: doneAfter, total, remaining: remaining - processed, processed, batchSize: batch.length, details });
 
   } catch (err) {
     console.error('[reindex-meta]', err);

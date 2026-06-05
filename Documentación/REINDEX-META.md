@@ -23,14 +23,14 @@ Abre la app en el navegador → F12 → Console → pega y ejecuta:
 
 ```javascript
 (async () => {
-  let offset = 0, total = '?', ok = 0;
+  let total = null, ok = 0;
   while (true) {
-    const r = await fetch(`/api/reindex-meta?offset=${offset}`).then(r=>r.json());
+    const r = await fetch('/api/reindex-meta').then(r=>r.json());
     if (r.error) { console.error('Error:', r.error); break; }
-    total = r.total; ok += r.processed;
-    console.log(`${offset + r.batchSize}/${total} — indexadas OK: ${ok}`);
-    if (r.done) { console.log(`✅ Completo. ${ok}/${total} canciones indexadas`); break; }
-    offset = r.next;
+    if (total === null) total = r.total;
+    ok += r.processed;
+    console.log(`${ok}/${total} — pendientes: ${r.remaining}`);
+    if (r.done) { console.log(`✅ Completo. ${ok} canciones indexadas`); break; }
   }
 })();
 ```
