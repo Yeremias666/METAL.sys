@@ -472,12 +472,27 @@ input:not([type=range]), textarea {
   .page { grid-template-columns: 250px 1fr 330px; }
 }
 @media (max-width: 1200px) {
-  .page { grid-template-columns: 1fr 330px; }
+  .page { grid-template-columns: 1fr 280px; }
   .col-left { display: none; }
 }
-@media (max-width: 800px) {
+@media (max-width: 900px) {
   .page { grid-template-columns: 1fr; }
   .col-right { display: none; }
+}
+/* Móvil: contenido central ocupa todo, sin sidebars */
+@media (max-width: 600px) {
+  .page { grid-template-columns: 1fr; padding: 0; }
+  .col-left, .col-right { display: none; }
+  .col-main { padding: 0 8px 80px; }
+  .music-player { padding: 6px 8px; gap: 6px; }
+  .mp-volume { display: none; }
+  .mp-info { min-width: 0; }
+  .statusbar { font-size: 11px; padding: 3px 8px; }
+  .nav { gap: 4px; padding: 4px 8px; }
+  .nav button { font-size: 9px; padding: 4px 6px; }
+  .album-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .cat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .two-col { grid-template-columns: 1fr; }
 }
 
 /* Legacy */
@@ -3035,9 +3050,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
    ═══════════════════════════════════════════════════════════════ */
 
 /* ─── Library Tree (left sidebar) ───────────────────────────── */
-.lib-tree-wrap {
-  /* col-left handles scroll and sticky — nothing needed here */
-}
 .lib-tree {
   background: rgba(0,0,0,0.5);
   border: 1px solid var(--fg-primary);
