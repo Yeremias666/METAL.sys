@@ -2444,6 +2444,32 @@ input:not([type=range]), textarea {
 }
 .radio-play-btn span { display: flex; line-height: 1; }
 
+.radio-nav-btn {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 38%, #1a0505, #080203);
+  border: 2px solid var(--fg-primary);
+  color: var(--fg-primary);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.08s ease-out, opacity 0.15s ease-out, box-shadow 0.12s;
+  box-shadow: 0 0 8px rgba(214,31,31,0.3);
+}
+.radio-nav-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 0 16px rgba(214,31,31,0.6);
+}
+.radio-nav-btn:disabled {
+  opacity: 0.2;
+  cursor: default;
+  border-color: var(--fg-dim);
+  color: var(--fg-dim);
+  box-shadow: none;
+}
+
 /* Info strip — own row between grille area and knobs bar */
 .radio-info-strip {
   display: flex;

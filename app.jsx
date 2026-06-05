@@ -660,6 +660,7 @@ function NavGlyph({ kind }) {
     case 'CREAR': return <svg {...p}><line x1="12" y1="4" x2="12" y2="20" {...s}/><line x1="4" y1="12" x2="20" y2="12" {...s}/></svg>;
     case 'CORAZON': return <svg {...p}><path d="M12 20 Q4 13 4 8 Q4 4 8 4 Q10 4 12 6 Q14 4 16 4 Q20 4 20 8 Q20 13 12 20 Z" {...f}/></svg>;
     case 'GRAFICO': return <svg {...p}><rect x="3" y="12" width="4" height="9" {...f}/><rect x="9" y="8" width="4" height="13" {...f}/><rect x="15" y="4" width="4" height="17" {...f}/><line x1="2" y1="21" x2="22" y2="21" {...s}/></svg>;
+    case 'PERSONA': return <svg {...p}><circle cx="12" cy="8" r="4" {...f}/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z" {...f}/></svg>;
     case 'CARPETA': return <svg {...p}><path d="M2 6 H9 L11 4 H20 V18 H2 Z" {...s}/><line x1="2" y1="10" x2="20" y2="10" {...s}/></svg>;
     case 'NOTA': return <svg {...p}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)" {...f}/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)" {...f}/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
@@ -750,7 +751,7 @@ function Nav({ current, onNav, allCats }) {
         <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
-        <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="GRAFICO" />BANDAS</button>
+        <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -1532,18 +1533,52 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     });
 
   const q = normStr(query.trim());
-  const albumMatches = q ? albumObjects.filter((a) => normStr(a.name).includes(q)) : [];
-  const songMatches = q ? list.filter((f) => {
-    const matchesSongName = normStr(f.name).includes(q);
-    const albumName = normStr(f.album || 'SINGLE');
-    const albumMatch = albumMatches.some((a) => normStr(a.name) === albumName);
-    if (albumMatch) return matchesSongName;
-    return matchesSongName || albumName.includes(q);
-  }) : [];
-  const suggestions = [...albumMatches.map((a) => ({ type: 'album', album: a })), ...songMatches.map((f) => ({ type: 'song', file: f }))].slice(0, 5);
 
-  const searchSongs  = showResults && q ? songMatches  : [];
-  const searchAlbums = showResults && q ? albumMatches : [];
+  // Sugerencias y resultados globales — buscan en TODOS los archivos, no solo el artista actual
+  const suggestions = useMemo(() => {
+    if (!q) return [];
+    const artistSet = new Set();
+    const artistHits = [];
+    files.forEach(f => {
+      const a = f.category || f.artist || '';
+      if (!artistSet.has(a) && normStr(a).includes(q)) {
+        artistSet.add(a);
+        const cover = files.find(g => (g.category || g.artist) === a && (g.thumbnail || g.coverArt));
+        artistHits.push({ type: 'artist', label: a, thumb: cover?.thumbnail || cover?.coverArt || null });
+      }
+    });
+    const albumMap = new Map();
+    files.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.category||f.artist}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(q)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].map(f => ({ type: 'album', label: f.album, file: f }));
+    const songHits  = files.filter(f => normStr(f.name).includes(q)).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits.slice(0,2), ...albumHits.slice(0,2), ...songHits.slice(0,3)].slice(0, 5);
+  }, [q, files]);
+
+  const searchSongs = useMemo(() => {
+    if (!showResults || !q) return [];
+    return files.filter(f => normStr(f.name).includes(q) || normStr(f.album||'').includes(q));
+  }, [showResults, q, files]);
+
+  const searchAlbums = useMemo(() => {
+    if (!showResults || !q) return [];
+    const map = new Map();
+    files.forEach(f => {
+      if (!f.album) return;
+      const artist = f.category || f.artist || '';
+      const key = `${artist}::${f.album}`;
+      if (!map.has(key) && normStr(f.album).includes(q)) {
+        const songs = files.filter(g => (g.category||g.artist) === artist && g.album === f.album);
+        const year  = songs.find(g => g.year)?.year || '';
+        const cover = songs.find(g => g.thumbnail || g.coverArt);
+        map.set(key, { name: f.album, artist, songs, year, cover });
+      }
+    });
+    return [...map.values()];
+  }, [showResults, q, files]);
 
   const currentAlbum = selectedAlbum ? albumObjects.find((a) => a.name === selectedAlbum) : null;
   const currentSongs = currentAlbum ? currentAlbum.songs.filter((f) => !q || normStr(f.name).includes(q) || normStr((f.album || 'SINGLE')).includes(q)) : [];
@@ -1625,7 +1660,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         <div className="panel-hd">
           <span style={{display:'flex', alignItems:'center', gap:10}}>
             <button className="cat-upload-btn" style={{width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
-                    onClick={() => onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
+                    onClick={() => selectedAlbum ? (setSelectedAlbum(null), setShowResults(false), setQuery('')) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
             {artistImage && (
               <img src={artistImage} alt={cat} style={{width:32, height:32, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
             )}
@@ -1674,29 +1709,38 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                         className="search-suggestion search-suggestion-anim"
                         style={{ animationDelay: `${idx * 30}ms` }}
                         onClick={() => {
-                          if (item.type === 'album') openAlbum(item.album.name);
-                          else onOpenFile(item.file.id);
+                          clearSearch();
+                          if (item.type === 'artist') {
+                            onNav({ page: 'CAT', cat: item.label });
+                          } else if (item.type === 'album') {
+                            const itemArtist = item.file.category || item.file.artist;
+                            if (itemArtist === cat) openAlbum(item.file.album);
+                            else onNav({ page: 'CAT', cat: itemArtist, album: item.file.album });
+                          } else {
+                            onOpenFile(item.file.id);
+                          }
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div className="search-suggestion-thumb">
-                            {item.type === 'album' ? (
-                              item.album.cover ? <img src={item.album.cover.thumbnail || item.album.cover.coverArt} alt={item.album.name} /> : <IconGlyph iconId="disco" size={24} />
-                            ) : (
-                              item.file.thumbnail ? <img src={item.file.thumbnail} alt={item.file.name} /> : <IconGlyph iconId="nota" size={24} />
-                            )}
+                            {item.type === 'artist'
+                              ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>)
+                              : item.type === 'album'
+                                ? (item.file.thumbnail || item.file.coverArt ? <img src={item.file.thumbnail || item.file.coverArt} alt={item.label} /> : <IconGlyph iconId="disco" size={24} />)
+                                : (item.file.thumbnail ? <img src={item.file.thumbnail} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)}
                           </div>
                           <div style={{ textAlign: 'left' }}>
-                            <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>
-                              {item.type === 'album' ? item.album.name : item.file.name}
-                            </div>
+                            <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
                             <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
-                              {item.type === 'album' ? item.album.year || 'DISCO' : 'CANCIÓN'}
-                              {item.type === 'song' && item.file.album ? ` · ${item.file.album}` : ''}
+                              {item.type === 'artist' ? 'ARTISTA'
+                                : item.type === 'album' ? `DISCO · ${item.file.category || item.file.artist || ''}`
+                                : `CANCIÓN · ${item.file.category || item.file.artist || ''}`}
                             </div>
                           </div>
                         </div>
-                        <span className="search-item-type">{item.type === 'album' ? 'DISCO' : 'CANCIÓN'}</span>
+                        <span className="search-item-type">
+                          {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
+                        </span>
                       </button>
                     ))
                   )}
@@ -1731,7 +1775,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd">
               <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button className="cat-upload-btn" style={{ width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em' }} onClick={() => { setSelectedAlbum(null); setShowResults(false); setQuery(''); }}>◀ VOLVER</button>
                 <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>▶</button>
                 <span>{currentAlbum.name}</span>
               </span>
@@ -1760,8 +1803,9 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   <div className="field-label" style={{ marginBottom: 10 }}>DISCOS</div>
                   <div className="album-grid">
                     {searchAlbums.map((album, i) => (
-                      <AlbumCard key={album.name} album={album} cat={cat}
-                                 onOpen={openAlbum} onPlay={onPlayAlbum}
+                      <AlbumCard key={`${album.artist}::${album.name}`} album={album} cat={album.artist}
+                                 onOpen={(name) => { clearSearch(); onNav({ page: 'CAT', cat: album.artist, album: name }); }}
+                                 onPlay={onPlayAlbum}
                                  searchMode index={i} />
                     ))}
                   </div>
@@ -2186,7 +2230,7 @@ function useVuBars(analyser, isPlaying, barCount) {
   return vuData;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext }) {
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
@@ -2237,15 +2281,17 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser }) {
         <span className="radio-strip-meta" style={{marginLeft:'auto'}}>{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
       </div>
 
-      {/* Knobs bar — only play button + decorative knobs */}
+      {/* Knobs bar */}
       <div className="radio-knobs-bar">
         <div className="radio-knobs-side">
           <div className="radio-knob"></div>
           <div className="radio-knob small"></div>
         </div>
+        <button className="radio-nav-btn" onClick={onPrev} disabled={!hasPrev} title="Anterior">◀◀</button>
         <button className="radio-play-btn" onClick={onPlay} title={isPlaying ? 'Pausar' : 'Reproducir'}>
           <span>{isPlaying ? "❚❚" : "▶"}</span>
         </button>
+        <button className="radio-nav-btn" onClick={onNext} disabled={!hasNext} title="Siguiente">▶▶</button>
         <div className="radio-knobs-side right">
           <div className="radio-knob small"></div>
           <div className="radio-knob"></div>
@@ -2763,7 +2809,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onPlayClip, onStopClip, activeClip, position }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ name: file.name, description: file.description, category: file.category });
   const [tab, setTab] = useState('desc');
@@ -2856,7 +2902,9 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                 <AudioInfo file={file} tags={id3Tags}
                            onPlay={() => onPlayAudio(file)}
                            isPlaying={currentPlayingId === file.id && isPlaying}
-                           analyser={analyser} />
+                           analyser={analyser}
+                           onPrev={onPrev} onNext={onNext}
+                           hasPrev={hasPrev} hasNext={hasNext} />
               </div>
             )}
 
@@ -3627,7 +3675,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                   <div className="stat-highlight">
                     {favArtistImg
                       ? <img src={favArtistImg} alt={favArtist||''} style={{width:48,height:48,objectFit:'cover',border:'1px solid var(--fg-primary)',borderRadius:'50%'}}/>
-                      : <div className="sh-icon" style={{color: favArtist ? (artistColorMap[favArtist]||'var(--fg-primary)') : 'var(--fg-dim)'}}>
+                      : <div className="sh-icon">
                           <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>
                         </div>}
                     <div className="sh-label">ARTISTA FAVORITO</div>
@@ -4809,7 +4857,10 @@ function App() {
                                 clipStore={clipStore} onAddClip={addClip}
                                 onDeleteClip={deleteClip} onPlayClip={playClip}
                                 onStopClip={stopClip} activeClip={activeClip}
-                                position={position} />
+                                position={position}
+                                onPrev={playPrev} onNext={() => playNext()}
+                                hasPrev={(() => { const i = effectiveQueue.findIndex(f => f.id === currentTrackId); return i > 0; })()}
+                                hasNext={(() => { const i = effectiveQueue.findIndex(f => f.id === currentTrackId); return i >= 0 && i < effectiveQueue.length - 1; })()} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
