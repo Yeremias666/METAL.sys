@@ -1070,7 +1070,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                   {thumb
                     ? <img src={thumb} alt="portada" />
                     : <div className="thumb-empty">
-                        <CameraGlyph size={40} />
+                        <IconGlyph iconId="nota" size={44} />
                         <div style={{fontFamily:'var(--pixel)', fontSize:9, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.08em', textAlign:'center'}}>
                           DEL MP3 O CLICK
                         </div>
@@ -1326,23 +1326,21 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
     const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
+    // Toda la tarjeta (portada + título + botón) se inclina como una unidad
     el.style.transition = 'box-shadow 0.06s';
+    el.style.transform  = `perspective(700px) rotateX(${-dy * 12}deg) rotateY(${dx * 12}deg)`;
     el.style.boxShadow  = `${-dx * 10}px ${-dy * 10}px 32px rgba(214,31,31,0.65), 0 0 22px rgba(214,31,31,0.3)`;
-    const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    // Rotación 3D solo en la imagen — el body (título/botón) queda 100% estático
-    if (img)   { img.style.transition = 'none'; img.style.transform = `perspective(500px) rotateX(${-dy * 9}deg) rotateY(${dx * 9}deg) scale(1.03)`; }
-    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 10}px,${dy * 8}px)`; }
+    if (vinyl) { vinyl.style.transition = 'transform 0.06s linear'; vinyl.style.transform = `translateY(-50%) translateX(54%) translate(${dx * 8}px,${dy * 6}px)`; }
   }, []);
 
   const onLeave = useCallback(() => {
     const el = cardRef.current; if (!el) return;
     const ease = 'transform 0.55s cubic-bezier(0.23,1,0.32,1)';
-    el.style.transition = 'box-shadow 0.55s';
+    el.style.transition = `${ease}, box-shadow 0.55s`;
+    el.style.transform  = '';
     el.style.boxShadow  = '';
-    const img   = el.querySelector('.ac-img');
     const vinyl = el.querySelector('.album-card-vinyl');
-    if (img)   { img.style.transition = ease; img.style.transform = ''; }
     if (vinyl) { vinyl.style.transition = ease; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
@@ -1398,8 +1396,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const list = files.filter((f) => (f.artist || f.category) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
-  const [albumView, setAlbumView] = useState('grid');
-  const [songView, setSongView] = useState('list');
   const [albumSort, setAlbumSort] = useState('year');
   const [albumDir, setAlbumDir] = useState('desc');
   const [selectedAlbum, setSelectedAlbum] = useState(prefillAlbum || null);
@@ -1547,22 +1543,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                     </div>
                   </div>
                 )}
-                <div className="filter-group">
-                  <span className="filter-label">VISTA</span>
-                  <div className="view-toggle">
-                    {currentAlbum ? (
-                      <>
-                        <button className={songView === 'grid' ? 'on' : ''} onClick={() => setSongView('grid')}>▦ GRID</button>
-                        <button className={songView === 'list' ? 'on' : ''} onClick={() => setSongView('list')}>≡ LISTA</button>
-                      </>
-                    ) : (
-                      <>
-                        <button className={albumView === 'grid' ? 'on' : ''} onClick={() => setAlbumView('grid')}>▦ GRID</button>
-                        <button className={albumView === 'list' ? 'on' : ''} onClick={() => setAlbumView('list')}>≡ LISTA</button>
-                      </>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -1584,18 +1564,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               {currentSongs.length === 0 ? (
                 <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--fg-dim)', fontSize: 22 }}>
                   ◇ NO HAY CANCIONES PARA ESTE ÁLBUM ◇
-                </div>
-              ) : songView === 'grid' ? (
-                <div className="file-grid">
-                  {sortedSongs.map((f) => (
-                    <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}>
-                      <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
-                              onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
-                        {selectedIds.has(f.id) ? '◉' : '◌'}
-                      </button>
-                      <FileCard file={f} onClick={() => onOpenFile(f.id)} />
-                    </div>
-                  ))}
                 </div>
               ) : (
                 <TrackListTable files={sortedSongs} sort={sort} setSort={setSort}
@@ -1625,22 +1593,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               {searchSongs.length > 0 && (
                 <>
                   <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                  {songView === 'grid' ? (
-                    <div className="file-grid">
-                      {searchSongs.map((f) => (
-                        <div key={f.id} className={"file-card-wrap " + (selectedIds.has(f.id) ? "sel" : "")}> 
-                          <button className={"file-sel-btn " + (selectedIds.has(f.id) ? "on" : "")}
-                                  onClick={(e) => { e.stopPropagation(); toggleSel(f.id); }}>
-                            {selectedIds.has(f.id) ? '◉' : '◌'}
-                          </button>
-                          <FileCard file={f} onClick={() => onOpenFile(f.id)} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <TrackListTable files={searchSongs} sort={sort} setSort={setSort}
-                                    onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
-                  )}
+                  <TrackListTable files={searchSongs} sort={sort} setSort={setSort}
+                                  onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
                 </>
               )}
               {searchAlbums.length === 0 && searchSongs.length === 0 && (
@@ -1651,21 +1605,12 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             </div>
           </div>
         ) : (
-          albumView === 'grid' ? (
-            <div className="album-grid">
-              {albumObjects.map((album, i) => (
-                <AlbumCard key={album.name} album={album} cat={cat}
-                           onOpen={openAlbum} onPlay={onPlayAlbum} index={i} />
-              ))}
-            </div>
-          ) : (
-            <div className="album-list">
-              {albumObjects.map((album, i) => (
-                <AlbumCard key={album.name} album={album} cat={cat}
-                           onOpen={openAlbum} onPlay={onPlayAlbum} rowMode index={i} />
-              ))}
-            </div>
-          )
+          <div className="album-grid">
+            {albumObjects.map((album, i) => (
+              <AlbumCard key={album.name} album={album} cat={cat}
+                         onOpen={openAlbum} onPlay={onPlayAlbum} index={i} />
+            ))}
+          </div>
         )}
       </div>
     </div>

@@ -1032,8 +1032,8 @@ input, textarea {
   right: 10px;
   width: 36px;
   height: 36px;
-  background: var(--fg-primary);
-  border: 2px solid var(--fg-accent);
+  background: transparent;
+  border: 2px solid var(--fg-primary);
   color: #fff;
   font-size: 14px;
   cursor: pointer;
@@ -1041,12 +1041,16 @@ input, textarea {
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: opacity 0.15s, box-shadow 0.15s;
-  box-shadow: 0 0 14px rgba(214,31,31,0.8);
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
   padding: 0;
 }
 .cat-card:hover .cat-card-play {
   opacity: 1;
+}
+.cat-card-play:hover {
+  background: var(--fg-primary);
+  border-color: var(--fg-accent);
+  box-shadow: 0 0 14px rgba(214,31,31,0.8);
 }
 .cat-card-info {
   padding: 10px 12px 12px;
@@ -1486,10 +1490,8 @@ input, textarea {
     rgba(214,31,31,0.05);
 }
 .thumb-zone img {
-  width: 100%; height: 100%; object-fit: contain;
-  image-rendering: pixelated;
-  image-rendering: -moz-crisp-edges;
-  image-rendering: crisp-edges;
+  width: 100%; height: 100%; object-fit: cover;
+  image-rendering: auto;
 }
 .thumb-empty {
   text-align: center;
