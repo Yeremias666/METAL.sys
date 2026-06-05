@@ -222,8 +222,16 @@ async function processThumb(file) {
 }
 function downloadFile(f) {
   const a = document.createElement('a');
-  a.href = f.fileData;
   a.download = f.fileName || f.name;
+  if (f.b2Path) {
+    // Para archivos B2: obtener URL firmada antes de descargar
+    fetch(`/api/audio?path=${encodeURIComponent(f.b2Path)}`)
+      .then(r => r.json())
+      .then(({ url }) => { a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); })
+      .catch(() => {});
+    return;
+  }
+  a.href = f.fileData;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -370,10 +378,12 @@ async function _parseID3Buffer(buf) {
   return tags;
 }
 
-// readID3: called when playing (file is a stored data URL)
-async function readID3(dataURL) {
+// readID3: lee etiquetas ID3. Para URLs de API solo descarga el primer MB (las
+// etiquetas siempre están al principio); para data URLs descarga todo en memoria.
+async function readID3(src) {
   try {
-    const resp = await fetch(dataURL);
+    const opts = src.startsWith('data:') ? {} : { headers: { Range: 'bytes=0-1048575' } };
+    const resp = await fetch(src, opts);
     const buf  = await resp.arrayBuffer();
     return _parseID3Buffer(buf);
   } catch { return {}; }
@@ -3721,7 +3731,10 @@ function App() {
 
   // Music player state
   const audioRef = useRef(null);
-  if (!audioRef.current) audioRef.current = new Audio();
+  if (!audioRef.current) {
+    audioRef.current = new Audio();
+    audioRef.current.crossOrigin = 'anonymous'; // necesario para Web Audio API con URLs de B2
+  }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
 
@@ -3761,10 +3774,14 @@ function App() {
   const [showClipModal, setShowClipModal]         = useState(false);
   const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
   const [waveforms, setWaveforms]   = useState({});              // {fileId: Float32Array}
-  const activeClipRef  = useRef(null);
-  const audioSyncRef   = useRef(null);
-  const localBlobRef   = useRef(null);
-  const playStartRef   = useRef(null); // timestamp when current track started playing
+  const activeClipRef    = useRef(null);
+  const audioSyncRef     = useRef(null);
+  const localBlobRef     = useRef(null);
+  const playStartRef     = useRef(null);
+  // Waveform en tiempo real para archivos B2 (sin descarga extra)
+  const waveformBufRef   = useRef(null);  // Float32Array(300) en construcción
+  const waveformIdRef    = useRef(null);  // id de la pista que se está muestreando
+  const waveformFrRef    = useRef(0);     // contador de frames para throttle
 
   // Local music (File System Access — never stored in localStorage)
   const [localFiles,   setLocalFiles]   = useState([]);
@@ -3798,6 +3815,23 @@ function App() {
   }, [customCats]);
   useEffect(() => { saveLog(log); }, [log]);
 
+  // Cargar biblioteca de Backblaze B2 al arrancar
+  useEffect(() => {
+    fetch('/api/files')
+      .then(r => r.ok ? r.json() : [])
+      .then(b2 => {
+        if (!Array.isArray(b2) || !b2.length) return;
+        setFiles(prev => {
+          const existingIds = new Set(prev.map(f => f.id));
+          // Reemplazar todos los b2 existentes con la lista fresca (reconcilia altas/bajas)
+          const nonB2 = prev.filter(f => !f.id.startsWith('b2:'));
+          const newB2 = b2.filter(f => !existingIds.has(f.id) || f.id.startsWith('b2:'));
+          return [...nonB2, ...b2];
+        });
+      })
+      .catch(() => {}); // silencioso si no hay API (desarrollo local)
+  }, []);
+
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--scanline-opacity', t.scanlines);
@@ -3819,14 +3853,28 @@ function App() {
       if (pulse) pulse.style.opacity = '0';
       return;
     }
-    const node = analyserRef.current;
-    const data = new Uint8Array(node.fftSize);
-    const tick = () => {
+    const node  = analyserRef.current;
+    const audio = audioRef.current;
+    const data  = new Uint8Array(node.fftSize);
+    const tick  = () => {
       node.getByteTimeDomainData(data);
       let sum = 0;
       for (let i = 0; i < data.length; i++) { const v = (data[i]/128)-1; sum += v*v; }
       const rms = Math.sqrt(sum/data.length);
       if (pulse) pulse.style.opacity = Math.min(0.7, rms * 3.2).toFixed(3);
+
+      // Waveform en tiempo real para archivos B2 (sin descarga extra)
+      if (waveformBufRef.current && audio && audio.duration > 0) {
+        const idx = Math.min(299, Math.floor((audio.currentTime / audio.duration) * 300));
+        if (rms > (waveformBufRef.current[idx] || 0)) waveformBufRef.current[idx] = rms;
+        waveformFrRef.current = (waveformFrRef.current + 1) % 20;
+        if (waveformFrRef.current === 0) {
+          const id  = waveformIdRef.current;
+          const snap = waveformBufRef.current.slice();
+          setWaveforms(prev => ({ ...prev, [id]: snap }));
+        }
+      }
+
       audioSyncRef.current = requestAnimationFrame(tick);
     };
     audioSyncRef.current = requestAnimationFrame(tick);
@@ -4067,8 +4115,16 @@ function App() {
 
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
-    if (!file.fileData) return null;
-    const tags = await readID3(file.fileData);
+    let src = file.fileData;
+    if (file.b2Path) {
+      try {
+        const r = await fetch(`/api/audio?path=${encodeURIComponent(file.b2Path)}`);
+        const d = await r.json();
+        src = d.url;
+      } catch { return null; }
+    }
+    if (!src) return null;
+    const tags = await readID3(src);
     setId3Cache((p) => ({ ...p, [file.id]: tags }));
     return tags;
   };
@@ -4120,15 +4176,33 @@ function App() {
       requestID3(file);
       return;
     }
-    audio.src = file.fileData;
     setCurrentTrackId(file.id);
     setPosition(0);
     setDuration(0);
     setActiveClip(null);
-    audio.play().catch(() => {});
     requestID3(file);
-    // Decode waveform for new track (non-blocking)
+
+    if (file.b2Path) {
+      // Archivo B2: obtener URL firmada → el navegador hace streaming directo desde B2
+      waveformBufRef.current = new Float32Array(300);
+      waveformIdRef.current  = file.id;
+      waveformFrRef.current  = 0;
+      (async () => {
+        try {
+          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.b2Path)}`);
+          const { url } = await r.json();
+          audio.src = url;
+          audio.play().catch(() => {});
+        } catch (e) { console.error('[B2] signed URL error:', e); }
+      })();
+      return;
+    }
+
+    audio.src = file.fileData;
+    audio.play().catch(() => {});
+
     if (!waveforms[file.id]) {
+      // Archivo local: pre-calcular waveform completo con OfflineAudioContext
       (async () => {
         try {
           const resp = await fetch(file.fileData);
@@ -4136,8 +4210,7 @@ function App() {
           const offCtx = new OfflineAudioContext(1, 1, 44100);
           const decoded = await offCtx.decodeAudioData(buf);
           const raw = decoded.getChannelData(0);
-          const N = 300;
-          const blockSize = Math.floor(raw.length / N);
+          const N = 300, blockSize = Math.floor(raw.length / N);
           const out = new Float32Array(N);
           for (let i = 0; i < N; i++) {
             let s = 0;
