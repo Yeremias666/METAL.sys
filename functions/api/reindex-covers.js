@@ -132,14 +132,13 @@ function extractCover(buf) {
     o += 10+fs;
   }
 
-  // ── Fallback: scan bruto por si el ID3 tiene unsync u otro formato ──
-  const raw = new Uint8Array(buf, 0, end);
-  for (let i=10; i<raw.length-3; i++) {
-    const isJpeg = raw[i]===0xFF&&raw[i+1]===0xD8&&raw[i+2]===0xFF;
-    const isPng  = raw[i]===0x89&&raw[i+1]===0x50&&raw[i+2]===0x4E;
+  // ── Fallback: scan bruto de TODO el buffer (ignora tagSize por si es incorrecto) ──
+  const full = new Uint8Array(buf);
+  for (let i=0; i<full.length-3; i++) {
+    const isJpeg = full[i]===0xFF&&full[i+1]===0xD8&&full[i+2]===0xFF;
+    const isPng  = full[i]===0x89&&full[i+1]===0x50&&full[i+2]===0x4E;
     if (isJpeg||isPng) {
-      const slice = new Uint8Array(buf, i, end-i);
-      return { bytes: new Uint8Array(slice), mime: isJpeg?'image/jpeg':'image/png' };
+      return { bytes: new Uint8Array(buf, i, buf.byteLength-i), mime: isJpeg?'image/jpeg':'image/png' };
     }
   }
   return null;
