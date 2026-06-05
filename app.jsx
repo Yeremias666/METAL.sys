@@ -4764,13 +4764,12 @@ function App() {
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
     const allF = [...files, ...localFiles].filter(isAudioFile);
-    if (effectiveQueue.some(f => f.id === currentFile.id)) return effectiveQueue;
     const artist = currentFile.category || currentFile.artist;
     if (currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && f.album === currentFile.album).sort(sortByDiscTrack);
     }
     return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
-  }, [currentFile, effectiveQueue, files, localFiles]);
+  }, [currentFile, files, localFiles]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;
