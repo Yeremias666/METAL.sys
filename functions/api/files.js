@@ -36,6 +36,47 @@ async function sha256Hex(str) {
     .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+const COVER_TTL = 7 * 24 * 3600; // 7 días — portadas no cambian
+
+// URL presignada para GET de una portada en _covers/
+async function presignedCoverUrl(accessKey, secretKey, prefix) {
+  const now      = new Date();
+  const date     = now.toISOString().slice(0, 10).replace(/-/g, '');
+  const datetime = now.toISOString().replace(/[:\-]/g, '').slice(0, 15) + 'Z';
+  const host     = new URL(ENDPOINT).host;
+  const service  = 's3';
+  const scope    = `${date}/${REGION}/${service}/aws4_request`;
+  const coverKey = `_covers/${prefix}.jpg`;
+  const encoded  = coverKey.split('/').map(encodeURIComponent).join('/');
+
+  const sigParams = [
+    ['X-Amz-Algorithm',     'AWS4-HMAC-SHA256'],
+    ['X-Amz-Credential',    `${accessKey}/${scope}`],
+    ['X-Amz-Date',          datetime],
+    ['X-Amz-Expires',       String(COVER_TTL)],
+    ['X-Amz-SignedHeaders', 'host'],
+  ].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  const canonicalQS = sigParams
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+
+  const canonicalRequest = [
+    'GET', `/${BUCKET}/${encoded}`, canonicalQS, `host:${host}\n`, 'host', 'UNSIGNED-PAYLOAD',
+  ].join('\n');
+
+  const stringToSign = [
+    'AWS4-HMAC-SHA256', datetime, scope, await sha256Hex(canonicalRequest),
+  ].join('\n');
+
+  const k1  = await hmac(te.encode('AWS4' + secretKey), date);
+  const k2  = await hmac(k1, REGION);
+  const k3  = await hmac(k2, service);
+  const k4  = await hmac(k3, 'aws4_request');
+  const sig = await hmacHex(k4, stringToSign);
+
+  return `${ENDPOINT}/${BUCKET}/${encoded}?${canonicalQS}&X-Amz-Signature=${sig}`;
+}
+
 // ── AWS Signature V4 — signed request (Authorization header) ─────────────────
 //
 // Se usa para peticiones server-to-R2 directas (ListObjectsV2, GetObject).
@@ -260,9 +301,25 @@ export async function onRequest({ request, env }) {
     const audioExts  = /\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/i;
     const audioFiles = allObjects.filter(o => audioExts.test(o.key));
 
-    // 2. Construir listado desde el path — portadas y tags completos los carga el cliente
+    // 2. Álbumes únicos → generar URLs presignadas de portadas (puro cálculo, sin red)
+    const albumMap = {};
+    for (const { key } of audioFiles) {
+      const parts  = key.split('/');
+      const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
+      if (!albumMap[prefix]) albumMap[prefix] = null;
+    }
+    // Generar todas las URLs en paralelo
+    await Promise.all(
+      Object.keys(albumMap).map(async prefix => {
+        albumMap[prefix] = await presignedCoverUrl(accessKey, secretKey, prefix);
+      })
+    );
+
+    // 3. Construir listado final
     const results = audioFiles.map(({ key, size, lastModified }) => {
-      const f = parsePath(key);
+      const f      = parsePath(key);
+      const parts  = key.split('/');
+      const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
       return {
         id:          `r2:${key}`,
         name:        f.title,
@@ -279,6 +336,7 @@ export async function onRequest({ request, env }) {
         fileType:    'audio/mpeg',
         fileData:    null,
         r2Path:      key,
+        coverUrl:    albumMap[prefix] || null, // URL presignada de la portada en R2
         thumbnail:   null,
         coverArt:    null,
         uploadedAt:  lastModified ? new Date(lastModified).getTime() : Date.now(),

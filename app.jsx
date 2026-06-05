@@ -109,6 +109,42 @@ async function idbGet(key) {
   } catch { return null; }
 }
 
+// ── Caché de portadas de álbumes R2 en IndexedDB ───────────────
+// Primera carga: descarga y almacena. Siguientes: instantáneo desde disco.
+function getCoversDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open('metalsys_covers', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('covers');
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+}
+async function coversGetAll() {
+  try {
+    const db = await getCoversDB();
+    return new Promise(res => {
+      const tx  = db.transaction('covers', 'readonly');
+      const out = {};
+      tx.objectStore('covers').openCursor().onsuccess = e => {
+        const c = e.target.result;
+        if (c) { out[c.key] = c.value; c.continue(); }
+        else res(out);
+      };
+    });
+  } catch { return {}; }
+}
+async function coversPut(prefix, dataUrl) {
+  try {
+    const db = await getCoversDB();
+    return new Promise(res => {
+      const tx = db.transaction('covers', 'readwrite');
+      tx.objectStore('covers').put(dataUrl, prefix);
+      tx.oncomplete = () => res();
+      tx.onerror = () => res();
+    });
+  } catch {}
+}
+
 function fmtTimeSec(sec) {
   if (!sec && sec !== 0) return '—';
   const m = Math.floor(sec / 60);
@@ -4041,73 +4077,13 @@ function App() {
 
         setFiles(prev => {
           const nonR2 = prev.filter(f => !f.id.startsWith('r2:'));
-          return [...nonR2, ...r2];
+          // Propagar coverUrl a thumbnail/coverArt para que funcionen todos los componentes
+          const withCovers = r2.map(f => f.coverUrl
+            ? { ...f, thumbnail: f.coverUrl, coverArt: f.coverUrl }
+            : f
+          );
+          return [...nonR2, ...withCovers];
         });
-
-        // Cargar portadas en segundo plano: una petición por álbum, en el cliente
-        // (el servidor no puede hacer esto sin superar el límite de CPU de Pages)
-        (async () => {
-          // Una canción representativa por álbum
-          const albumMap = {};
-          for (const f of r2) {
-            if (!f.r2Path) continue;
-            const parts  = f.r2Path.split('/');
-            const prefix = parts.length >= 3 ? parts.slice(0, -1).join('/') : parts[0];
-            if (!albumMap[prefix]) albumMap[prefix] = f.r2Path;
-          }
-
-          const entries = Object.entries(albumMap);
-          const BATCH   = 10;
-
-          for (let i = 0; i < entries.length; i += BATCH) {
-            await Promise.all(entries.slice(i, i + BATCH).map(async ([prefix, repPath]) => {
-              try {
-                const ar = await fetch(`/api/audio?path=${encodeURIComponent(repPath)}`);
-                if (!ar.ok) return;
-                const { url } = await ar.json();
-
-                // Descargar solo los primeros 300 KB — suficiente para tags + portada típica
-                const dl = await fetch(url, { headers: { Range: 'bytes=0-307199' } });
-                if (!dl.ok && dl.status !== 206) return;
-
-                const tags = await _parseID3Buffer(await dl.arrayBuffer());
-                if (!tags?.coverArt) return;
-
-                // Aplicar portada a todas las canciones del mismo álbum
-                setFiles(prev => prev.map(f => {
-                  if (!f.r2Path || f.thumbnail) return f;
-                  const p  = f.r2Path.split('/');
-                  const fp = p.length >= 3 ? p.slice(0, -1).join('/') : p[0];
-                  if (fp !== prefix) return f;
-                  return { ...f, thumbnail: tags.coverArt, coverArt: tags.coverArt };
-                }));
-
-                setId3Cache(prev => {
-                  const updates = {};
-                  // Aplicar año y género (del álbum) a todas las canciones
-                  for (const f of r2) {
-                    if (!f.r2Path) continue;
-                    const p  = f.r2Path.split('/');
-                    const fp = p.length >= 3 ? p.slice(0, -1).join('/') : p[0];
-                    if (fp !== prefix) continue;
-                    updates[f.id] = {
-                      ...(prev[f.id] || {}),
-                      title:       f.name,
-                      artist:      f.artist,
-                      albumArtist: tags.albumArtist || tags.artist || f.artist,
-                      album:       tags.album || f.album,
-                      track:       f.track,
-                      year:        tags.year  || f.year  || '',
-                      genre:       tags.genre || f.genre || '',
-                      coverArt:    tags.coverArt,
-                    };
-                  }
-                  return { ...prev, ...updates };
-                });
-              } catch {}
-            }));
-          }
-        })();
       })
       .catch(() => {});
   }, []);
