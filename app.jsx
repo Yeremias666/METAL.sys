@@ -2683,34 +2683,36 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           ? <img src={cover} alt={track.name} />
           : <div className="mp-cover-empty"><CategoryGlyph cat="MÚSICA" size={36} /></div>}
       </div>
-      <div key={track.id} className="mp-info mp-track-anim">
-        <div className="mp-title">{(tags && tags.title) || track.name}</div>
-        <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
-      </div>
-      <div className="mp-progress">
-        <span className="mp-time">{fmtTime(position)}</span>
-        <div className="mp-bar" ref={barRef}
-          onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
-          style={{cursor: 'pointer'}}>
-          {waveform && (
-            <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
-              <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
-              <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
-            </svg>
-          )}
-          <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
-          <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
+      <div className="mp-info-wrap">
+        <div key={track.id} className="mp-info mp-track-anim">
+          <div className="mp-title">{(tags && tags.title) || track.name}</div>
+          <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
         </div>
-        <span className="mp-time">{fmtTime(duration)}</span>
+        <div className="mp-progress">
+          <span className="mp-time">{fmtTime(position)}</span>
+          <div className="mp-bar" ref={barRef}
+            onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
+            style={{cursor: 'pointer'}}>
+            {waveform && (
+              <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
+                <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+                <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+              </svg>
+            )}
+            <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
+            <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
+          </div>
+          <span className="mp-time">{fmtTime(duration)}</span>
+        </div>
       </div>
       <div className="mp-controls">
-        <button onClick={onPrev} title="Anterior">◀◀</button>
         <button onClick={onShuffle} title="Aleatorio" style={{lineHeight:0}}><IconShuffle active={shuffleActive} /></button>
+        <button onClick={onPrev} title="Anterior">◀◀</button>
+        <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
+        <button onClick={onNext} title="Siguiente">▶▶</button>
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
-        <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
-        <button onClick={onNext} title="Siguiente">▶▶</button>
       </div>
       <div className="mp-volume">
         <span style={{lineHeight:0, display:'inline-flex'}}><IconVolume level={volume} /></span>
