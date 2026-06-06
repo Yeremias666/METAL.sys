@@ -2864,7 +2864,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .nav { flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
   .nav-system { flex-wrap: wrap; width: 100%; }
   .nav-left { display: none; }
-  .crt-vignette { display: none; }
+  .crt-screen { border-radius: 0; }
 
   /* Hero / text */
   .hero h2 { font-size: 15px; }
