@@ -1034,21 +1034,20 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
       <div className="panel">
         <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
         <div className="panel-body">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:12 }}>
-            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+          <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+        </div>
+      </div>
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                value={query} onChange={e => setQuery(e.target.value)} />
+              {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
+            </div>
+            {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visible.length} resultado{visible.length===1?'':'s'}</div>}
           </div>
-          <div style={{position:'relative'}}>
-            <input
-              className="field-input"
-              style={{width:'100%', boxSizing:'border-box', paddingLeft:32, fontSize:15}}
-              placeholder="Buscar por nombre, artista, álbum, género..."
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-            />
-            <span style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--fg-dim)', pointerEvents:'none', fontSize:14}}>⌕</span>
-            {query && <button onClick={() => setQuery('')} style={{position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg-dim)', cursor:'pointer', fontSize:16, padding:0}}>✕</button>}
-          </div>
-          {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visible.length} resultado{visible.length===1?'':'s'}</div>}
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
@@ -1729,7 +1728,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       {list.length > 0 && (
         <div className="section">
           <div className="panel searchbar">
-            <div className="panel-hd">BUSCADOR <span className="dots">/// FILTROS</span></div>
+            <div className="panel-hd">BUSCADOR</div>
             <div className="panel-body searchbar-body">
               <div className="search-row">
                 <input
@@ -2349,7 +2348,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
 function SearchBar({ query, setQuery, ext, setExt, dateRange, setDateRange, sort, setSort, view, setView, allExts }) {
   return (
     <div className="searchbar panel">
-      <div className="panel-hd">BUSCADOR <span className="dots">/// FILTROS</span></div>
+      <div className="panel-hd">BUSCADOR</div>
       <div className="panel-body searchbar-body">
         <div className="search-row">
           <input className="field-input" placeholder="◆ BUSCAR POR NOMBRE, DESCRIPCIÓN O EXTENSIÓN..."
