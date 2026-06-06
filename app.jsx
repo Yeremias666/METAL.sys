@@ -1023,7 +1023,8 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
                   </div>}
               <div style={{flex:1, minWidth:0}}>
                 <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
-                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</div>
+                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+                {f.album && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
               </div>
             </div>
           ))
@@ -1174,7 +1175,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
         <div className="panel-body">
           <div>
             {/* FILA SUPERIOR: portada + metadatos */}
-            <div style={{display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'start', marginBottom:16}}>
+            <div className="upload-meta-grid" style={{marginBottom:16}}>
               {/* Portada */}
               <div>
                 <div className="field-label" style={{marginBottom:6}}>PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
@@ -1205,7 +1206,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                   <input className="field-input" value={artist} onChange={(e) => setArtist(e.target.value)}
                          placeholder="Nombre del artista o banda..." maxLength={100} />
                 </div>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <div className="upload-fields-row">
                   <div className="field">
                     <div className="field-label">ÁLBUM</div>
                     <input className="field-input" value={album} onChange={(e) => setAlbum(e.target.value)}
@@ -1217,7 +1218,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
                            placeholder="Ej. 1996" maxLength={4} />
                   </div>
                 </div>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:12}}>
+                <div className="upload-fields-row">
                   <div className="field">
                     <div className="field-label">PISTA #</div>
                     <input className="field-input" value={track} onChange={(e) => setTrack(e.target.value)}
@@ -2685,22 +2686,22 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       <div key={track.id} className="mp-info mp-track-anim">
         <div className="mp-title">{(tags && tags.title) || track.name}</div>
         <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
-        <div className="mp-progress">
-          <span className="mp-time">{fmtTime(position)}</span>
-          <div className="mp-bar" ref={barRef}
-            onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
-            style={{cursor: 'pointer'}}>
-            {waveform && (
-              <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
-                <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
-                <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
-              </svg>
-            )}
-            <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
-            <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
-          </div>
-          <span className="mp-time">{fmtTime(duration)}</span>
+      </div>
+      <div className="mp-progress">
+        <span className="mp-time">{fmtTime(position)}</span>
+        <div className="mp-bar" ref={barRef}
+          onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
+          style={{cursor: 'pointer'}}>
+          {waveform && (
+            <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
+              <polyline points={waveform.map((v,i)=>`${i},${1-v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+              <polyline points={waveform.map((v,i)=>`${i},${1+v*0.92}`).join(' ')} fill="none" stroke="var(--fg-primary)" strokeWidth="0.06"/>
+            </svg>
+          )}
+          <div className="mp-bar-fill" style={{width: progressPct + '%'}}></div>
+          <div className="mp-bar-knob" style={{left: progressPct + '%'}}></div>
         </div>
+        <span className="mp-time">{fmtTime(duration)}</span>
       </div>
       <div className="mp-controls">
         <button onClick={onPrev} title="Anterior">◀◀</button>
@@ -3629,20 +3630,20 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
           <div className="panel section">
             <div className="panel-hd">TOP 3 CANCIONES <span className="dots">/// PODIO</span></div>
             <div className="panel-body">
-              <div style={{display:'flex', alignItems:'flex-end', justifyContent:'center', gap:8, padding:'12px 0 0'}}>
+              <div className="podium-wrap">
                 {podiumOrder.map((song, i) => {
                   const rank = ranks[i];
                   const h = heights[i];
                   const color = colors[i];
                   const plays = playCounts[song.id]||0;
                   return (
-                    <div key={song.id} style={{display:'flex', flexDirection:'column', alignItems:'center', gap:6, flex:'0 0 auto', width:180}}>
+                    <div key={song.id} className="podium-item">
                       {/* Cover + info */}
-                      <div style={{textAlign:'center', maxWidth:160}}>
+                      <div style={{textAlign:'center', width:'100%'}}>
                         {(song.thumbnail||song.coverArt)
-                          ? <img src={song.thumbnail||song.coverArt} alt="" style={{width:56,height:56,objectFit:'cover',border:`2px solid ${color}`,imageRendering:'pixelated',boxShadow:`0 0 10px ${color}55`}}/>
-                          : <div style={{width:56,height:56,border:`2px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center',color}}><IconGlyph iconId="nota" size={32}/></div>}
-                        <div style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--fg-text)',marginTop:4,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:160}}>{song.name}</div>
+                          ? <img className="pod-cover" src={song.thumbnail||song.coverArt} alt="" style={{width:56,height:56,objectFit:'cover',border:`2px solid ${color}`,imageRendering:'pixelated',boxShadow:`0 0 10px ${color}55`}}/>
+                          : <div className="pod-cover-empty" style={{width:56,height:56,border:`2px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center',color,margin:'0 auto'}}><IconGlyph iconId="nota" size={32}/></div>}
+                        <div className="pod-name" style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--fg-text)',marginTop:4,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{song.name}</div>
                         <div style={{fontFamily:'var(--pixel)',fontSize:8,color:'var(--fg-dim)',letterSpacing:'0.08em',marginTop:2}}>{song.artist||song.category||''}</div>
                         <div style={{fontFamily:'var(--pixel)',fontSize:10,color,marginTop:3,textShadow:`0 0 8px ${color}`}}>▶ {plays}×</div>
                       </div>
@@ -3850,7 +3851,6 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         </div>
       )}
 
-      <div className="section"><StatsPanel files={files} allCats={allArtistsList.sort()} /></div>
     </div>
   );
 }
