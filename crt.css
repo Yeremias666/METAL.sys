@@ -2861,8 +2861,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
   .banner-title { font-size: 18px; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
-  .nav { flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
-  .nav-system { flex-wrap: wrap; width: 100%; }
+  .nav { flex-wrap: wrap; gap: 3px; margin-bottom: 10px; align-items: stretch; }
+  .nav-system { flex-wrap: wrap; width: 100%; align-items: stretch; }
+  .nav-system button { flex: 1 1 auto; text-align: center; box-sizing: border-box; }
   .nav-left { display: none; }
 
   /* Hero / text */
@@ -2908,7 +2909,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .lib-tree-wrap { overflow-x: hidden; }
 
   /* Terminal ASCII tree */
-  .terminal { font-size: 11px; padding: 10px 10px; margin-top: 14px; }
+  .terminal { font-size: clamp(7px, 2.2vw, 11px); padding: 8px; margin-top: 14px; overflow-x: hidden; }
+  .terminal .line { white-space: pre; }
 
   /* Stats / bar chart */
   .stat-num { font-size: 18px; }
