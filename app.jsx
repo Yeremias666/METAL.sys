@@ -1078,25 +1078,36 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
 }
 
 function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, artistMeta = {} }) {
+  const [query, setQuery] = useState('');
   const allFiles = [...files, ...localFiles];
   const totalSongs = allFiles.filter(isAudioFile).length;
+  const q = query.trim().toLowerCase();
+  const visibleArtists = q ? artists.filter(a => a.toLowerCase().includes(q)) : artists;
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">TODAS LAS BANDAS <span className="dots">/// {artists.length} ARTISTA{artists.length===1?'':'S'}</span></div>
         <div className="panel-body">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
-            <div>
-              <p>Reproduce toda la biblioteca o abre la categoría de un artista para ver su colección.</p>
-              <p style={{ color:'var(--fg-dim)', fontSize:14 }}>{totalSongs} canción{totalSongs===1?'':'es'} disponibles.</p>
+          <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+        </div>
+      </div>
+
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                value={query} onChange={e => setQuery(e.target.value)} />
+              {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
             </div>
-            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+            {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visibleArtists.length} resultado{visibleArtists.length===1?'':'s'}</div>}
           </div>
         </div>
       </div>
 
       <div className="cat-grid" style={{marginTop:14}}>
-        {artists.map((artist) => {
+        {visibleArtists.map((artist) => {
           const songs = allFiles.filter((f) => (f.category || f.artist) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
@@ -2901,8 +2912,42 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
           REPRODUCIENDO AHORA <span className="dots">/// {file.category}</span>
         </div>
         <div className="panel-body">
-          <div style={{display:'flex', gap:14, marginBottom: 18, flexWrap:'wrap'}}>
+          <div style={{display:'flex', gap:14, marginBottom: 14, flexWrap:'wrap'}}>
             <button className="mini-btn alt" onClick={onBack}>◀ VOLVER</button>
+          </div>
+
+          <div className="panel searchbar" style={{marginBottom:18}}>
+            <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+            <div className="panel-body searchbar-body">
+              <div className="search-row">
+                <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                  value={detailSearch} onChange={e => setDetailSearch(e.target.value)} />
+                {detailSearch && <button className="mini-btn alt" onClick={() => setDetailSearch('')}>✕</button>}
+              </div>
+              {detailSearch.trim() && (() => {
+                const q = detailSearch.trim().toLowerCase();
+                const results = allFiles.filter(f =>
+                  (f.name||'').toLowerCase().includes(q) ||
+                  (f.artist||f.category||'').toLowerCase().includes(q) ||
+                  (f.album||'').toLowerCase().includes(q) ||
+                  (f.genre||'').toLowerCase().includes(q)
+                ).slice(0, 20);
+                return results.length === 0
+                  ? <div style={{padding:'10px 0', color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11}}>◇ Sin resultados</div>
+                  : results.map((r, i) => (
+                      <div key={r.id} onClick={() => { onOpenFile(r.id); setDetailSearch(''); }}
+                           style={{display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}>
+                        {r.thumbnail
+                          ? <img src={r.thumbnail} alt="" style={{width:32,height:32,objectFit:'cover',flexShrink:0}} />
+                          : <div style={{width:32,height:32,flexShrink:0,background:'rgba(214,31,31,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><IconGlyph iconId="nota" size={16}/></div>}
+                        <div style={{minWidth:0}}>
+                          <div style={{fontFamily:'var(--mono)',fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
+                          <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-dim)',letterSpacing:'0.06em'}}>{r.artist||r.category}{r.album?` · ${r.album}`:''}</div>
+                        </div>
+                      </div>
+                    ));
+              })()}
+            </div>
           </div>
 
           <div className="player">
@@ -3133,42 +3178,6 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
         </div>
       </div>
 
-      {/* Buscador global dentro de la página de canción */}
-      <div className="section">
-        <div className="panel searchbar">
-          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
-          <div className="panel-body searchbar-body">
-            <div className="search-row">
-              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
-                value={detailSearch} onChange={e => setDetailSearch(e.target.value)} />
-              {detailSearch && <button className="mini-btn alt" onClick={() => setDetailSearch('')}>✕</button>}
-            </div>
-            {detailSearch.trim() && (() => {
-              const q = detailSearch.trim().toLowerCase();
-              const results = allFiles.filter(f =>
-                (f.name||'').toLowerCase().includes(q) ||
-                (f.artist||f.category||'').toLowerCase().includes(q) ||
-                (f.album||'').toLowerCase().includes(q) ||
-                (f.genre||'').toLowerCase().includes(q)
-              ).slice(0, 20);
-              return results.length === 0
-                ? <div style={{padding:'10px 0', color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11}}>◇ Sin resultados</div>
-                : results.map((r, i) => (
-                    <div key={r.id} onClick={() => { onOpenFile(r.id); setDetailSearch(''); }}
-                         style={{display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}>
-                      {r.thumbnail
-                        ? <img src={r.thumbnail} alt="" style={{width:32,height:32,objectFit:'cover',flexShrink:0}} />
-                        : <div style={{width:32,height:32,flexShrink:0,background:'rgba(214,31,31,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><IconGlyph iconId="nota" size={16}/></div>}
-                      <div style={{minWidth:0}}>
-                        <div style={{fontFamily:'var(--mono)',fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
-                        <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-dim)',letterSpacing:'0.06em'}}>{r.artist||r.category}{r.album?` · ${r.album}`:''}</div>
-                      </div>
-                    </div>
-                  ));
-            })()}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
