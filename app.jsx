@@ -752,6 +752,25 @@ function Nav({ current, onNav, allCats }) {
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
         <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
+        {hiddenCats.length > 0 && (
+          <div ref={dropRef} className="nav-more">
+            <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
+                    onClick={() => setDropOpen(p => !p)}>
+              ▼ +{hiddenCats.length}
+            </button>
+            {dropOpen && (
+              <div className="nav-dropdown">
+                {hiddenCats.map(artist => (
+                  <button key={artist}
+                          className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                          onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
+                    <NavGlyph kind="MÚSICA" />{artist}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -764,25 +783,6 @@ function Nav({ current, onNav, allCats }) {
           </button>
         ))}
       </div>
-      {hiddenCats.length > 0 && (
-        <div ref={dropRef} className="nav-more">
-          <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
-                  onClick={() => setDropOpen(p => !p)}>
-            ▼ +{hiddenCats.length}
-          </button>
-          {dropOpen && (
-            <div className="nav-dropdown">
-              {hiddenCats.map(artist => (
-                <button key={artist}
-                        className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                        onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
-                  <NavGlyph kind="MÚSICA" />{artist}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </nav>
   );
 }
