@@ -2877,11 +2877,14 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   /* Upload */
   .dz-sub { font-size: 14px; }
 
-  /* Lib tree */
+  /* Lib tree (sidebar) */
   .lib-tree { font-size: 14px; }
   .lib-song-row { font-size: 13px; }
   .lib-album-name { font-size: 13px; }
   .lib-tree-wrap { overflow-x: hidden; }
+
+  /* Terminal ASCII tree */
+  .terminal { font-size: 11px; padding: 10px 10px; margin-top: 14px; }
 
   /* Stats / bar chart */
   .stat-num { font-size: 18px; }
@@ -3217,7 +3220,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .lib-song-row:hover .lib-play { opacity: 1; }
 .lib-song-direct { padding-left: 22px !important; }
 .lib-song-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 10px; width: 18px; flex-shrink: 0; text-align: right; }
-.lib-song-name { flex: 1; min-width: 0; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-song-name { color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-empty { padding: 16px 12px; color: var(--fg-dim); font-size: 18px; }
 
 /* ─── Play Queue (right sidebar) ────────────────────────────── */
