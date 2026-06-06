@@ -488,7 +488,7 @@ input:not([type=range]), textarea {
   .statusbar { font-size: 11px; padding: 3px 8px; }
   .nav { gap: 4px; padding: 4px 8px; }
   .album-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-  .cat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .cat-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }
 }
 
