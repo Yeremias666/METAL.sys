@@ -212,17 +212,7 @@ input:not([type=range]), textarea {
    VIGNETTE + GLASS — corner darkening, screen curvature illusion
    =========================================================== */
 .crt-vignette {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 102;
-  background:
-    radial-gradient(
-      ellipse at center,
-      transparent 50%,
-      rgba(0, 0, 0, calc(var(--vignette) * 0.5)) 80%,
-      rgba(0, 0, 0, var(--vignette)) 100%
-    );
+  display: none;
 }
 
 /* Glass highlight — top-left sheen + inner frame over scrollbar */
@@ -277,6 +267,8 @@ input:not([type=range]), textarea {
   font-size: 18px;
   color: var(--fg-secondary);
   letter-spacing: 0.05em;
+  overflow: visible;
+  position: relative;
 }
 .statusbar .left, .statusbar .right { display: flex; gap: 18px; align-items: center; }
 .statusbar .blob {
@@ -290,12 +282,6 @@ input:not([type=range]), textarea {
 @keyframes blink { 50% { opacity: 0.25; } }
 
 /* User button */
-.user-btn-wrap {
-  position: fixed;
-  top: 6px;
-  right: 14px;
-  z-index: 500;
-}
 .user-btn {
   background: none;
   border: 2px solid var(--fg-primary);
@@ -314,18 +300,18 @@ input:not([type=range]), textarea {
 .user-btn--active { border-color: var(--fg-primary); color: var(--fg-primary); }
 .user-menu {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   right: 0;
-  min-width: 180px;
-  background: var(--bg-panel);
+  min-width: 200px;
+  background: var(--bg-deep);
   border: 2px solid var(--fg-primary);
   padding: 8px 0;
-  z-index: 200;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  z-index: 9999;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.9);
 }
 .user-menu-header {
   padding: 8px 14px 10px;
-  border-bottom: 1px solid var(--fg-dim);
+  border-bottom: 1px solid var(--fg-primary);
   margin-bottom: 4px;
 }
 .user-menu button {
@@ -337,11 +323,37 @@ input:not([type=range]), textarea {
   font-family: var(--mono);
   font-size: 13px;
   text-align: left;
-  padding: 6px 14px;
+  padding: 7px 14px;
   cursor: pointer;
   letter-spacing: 0.04em;
 }
-.user-menu button:hover { background: var(--bg-hover); color: var(--fg-primary); }
+.user-menu button:hover { background: var(--fg-primary); color: var(--bg-deep); }
+
+/* Profile avatar */
+.profile-avatar {
+  width: 80px; height: 80px;
+  border: 2px solid var(--fg-primary);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--fg-primary);
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.profile-avatar:hover .profile-avatar-overlay { opacity: 1; }
 
 /* Auth modal */
 .auth-modal-backdrop {

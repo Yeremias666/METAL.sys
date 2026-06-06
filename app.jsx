@@ -668,7 +668,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0 }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -688,6 +688,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0 }) {
       <div className="right">
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
+        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} />
       </div>
     </div>
   );
@@ -3304,33 +3305,48 @@ function Terminal({ files, localFiles = [], allCats }) {
 }
 
 // ─── AUTH ICONS ────────────────────────────────────────────────
-function IconSkullUser({ size = 40 }) {
+function IconSkullUser({ size = 28 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      {/* Skull */}
-      <ellipse cx="20" cy="11" rx="7" ry="7.5" />
-      <circle cx="17" cy="10" r="1.8" fill="currentColor" stroke="none" />
-      <circle cx="23" cy="10" r="1.8" fill="currentColor" stroke="none" />
-      <path d="M17.5 15 L17.5 17 M20 15 L20 17 M22.5 15 L22.5 17" strokeWidth="1.4" />
-      {/* Neck */}
-      <line x1="20" y1="18.5" x2="20" y2="22" />
-      {/* Body */}
-      <line x1="20" y1="22" x2="20" y2="32" />
-      {/* Arms */}
-      <line x1="20" y1="24" x2="13" y2="28" />
-      <line x1="20" y1="24" x2="27" y2="28" />
-      {/* Legs */}
-      <line x1="20" y1="32" x2="15" y2="38" />
-      <line x1="20" y1="32" x2="25" y2="38" />
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" shapeRendering="crispEdges">
+      {/* Top of cranium */}
+      <rect x="6" y="0" width="4" height="1"/>
+      <rect x="4" y="1" width="8" height="1"/>
+      <rect x="3" y="2" width="10" height="1"/>
+      <rect x="2" y="3" width="12" height="2"/>
+      {/* Face - sides and nose bridge (eye sockets are the gaps) */}
+      <rect x="2" y="5" width="2" height="4"/>
+      <rect x="12" y="5" width="2" height="4"/>
+      <rect x="6" y="5" width="4" height="4"/>
+      {/* Bottom of cranium */}
+      <rect x="2" y="9" width="12" height="1"/>
+      {/* Cheeks */}
+      <rect x="2" y="10" width="4" height="1"/>
+      <rect x="10" y="10" width="4" height="1"/>
+      <rect x="3" y="11" width="3" height="1"/>
+      <rect x="10" y="11" width="3" height="1"/>
+      {/* Jaw */}
+      <rect x="3" y="12" width="10" height="1"/>
+      {/* Teeth */}
+      <rect x="3" y="13" width="1" height="2"/>
+      <rect x="5" y="13" width="1" height="3"/>
+      <rect x="7" y="13" width="1" height="3"/>
+      <rect x="9" y="13" width="1" height="3"/>
+      <rect x="11" y="13" width="1" height="2"/>
     </svg>
   );
 }
 
-function IconUserQuestion({ size = 40 }) {
+function IconUserQuestion({ size = 28 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-      <circle cx="20" cy="20" r="18" />
-      <text x="20" y="28" textAnchor="middle" fontSize="22" fontFamily="monospace" fill="currentColor" stroke="none">?</text>
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" shapeRendering="crispEdges">
+      {/* Pixel ? mark */}
+      <rect x="5" y="1" width="6" height="1"/>
+      <rect x="4" y="2" width="2" height="1"/>
+      <rect x="10" y="2" width="2" height="1"/>
+      <rect x="10" y="3" width="2" height="2"/>
+      <rect x="7" y="5" width="3" height="2"/>
+      <rect x="7" y="9" width="2" height="2"/>
+      <rect x="7" y="13" width="2" height="2"/>
     </svg>
   );
 }
@@ -3428,7 +3444,7 @@ function AuthModal({ onClose, onLogin }) {
 }
 
 // ─── USER BUTTON ────────────────────────────────────────────────
-function UserButton({ authUser, onOpenAuth, onLogout }) {
+function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const ref = React.useRef(null);
 
@@ -3459,9 +3475,122 @@ function UserButton({ authUser, onOpenAuth, onLogout }) {
             <div style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-primary)', letterSpacing:'0.08em'}}>{authUser.username}</div>
             <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
           </div>
+          <button onClick={() => { setMenuOpen(false); onOpenProfile(); }}>⚙ PERFIL</button>
           <button onClick={() => { setMenuOpen(false); onLogout(); }}>✕ CERRAR SESIÓN</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── PROFILE MODAL ──────────────────────────────────────────────
+function resizeImageToDataURL(file, size = 128) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const s = Math.min(img.width, img.height);
+        const ox = (img.width - s) / 2;
+        const oy = (img.height - s) / 2;
+        ctx.drawImage(img, ox, oy, s, s, 0, 0, size, size);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function ProfileModal({ authUser, authToken, onClose, onUpdate }) {
+  const [avatar, setAvatar]       = React.useState(authUser.avatar || null);
+  const [newPass, setNewPass]     = React.useState('');
+  const [newPass2, setNewPass2]   = React.useState('');
+  const [err, setErr]             = React.useState('');
+  const [msg, setMsg]             = React.useState('');
+  const [saving, setSaving]       = React.useState(false);
+  const fileRef = React.useRef(null);
+
+  const pickAvatar = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { setErr('Solo se admiten imágenes'); return; }
+    try {
+      const data = await resizeImageToDataURL(file, 128);
+      setAvatar(data);
+      setErr('');
+    } catch { setErr('Error al procesar la imagen'); }
+  };
+
+  const save = async () => {
+    if (newPass && newPass !== newPass2) { setErr('Las contraseñas no coinciden'); return; }
+    if (newPass && newPass.length < 6) { setErr('Contraseña demasiado corta (mín. 6)'); return; }
+    setErr(''); setSaving(true);
+    try {
+      const body = { avatar };
+      if (newPass) body.newPassword = newPass;
+      const r = await fetch('/api/auth/profile', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (!r.ok) { setErr(d.error || 'Error al guardar'); setSaving(false); return; }
+      onUpdate({ ...authUser, avatar });
+      setMsg('Guardado correctamente');
+      setNewPass(''); setNewPass2('');
+    } catch { setErr('Error de conexión'); }
+    setSaving(false);
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{maxWidth:420}} onClick={e => e.stopPropagation()}>
+        <div className="modal-hd">
+          <span>// METAL.SYS · PERFIL</span>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          {/* Avatar */}
+          <div style={{display:'flex', alignItems:'center', gap:20, marginBottom:20}}>
+            <div className="profile-avatar" onClick={() => fileRef.current.click()} title="Cambiar foto">
+              {avatar
+                ? <img src={avatar} alt="" style={{width:80,height:80,objectFit:'cover'}} />
+                : <IconSkullUser size={60} />}
+              <div className="profile-avatar-overlay">CAMBIAR</div>
+            </div>
+            <div>
+              <div style={{fontFamily:'var(--pixel)', fontSize:13, color:'var(--fg-primary)', letterSpacing:'0.08em'}}>{authUser.username}</div>
+              <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:4}}>{authUser.email}</div>
+            </div>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={pickAvatar} />
+
+          {/* Change password */}
+          <div style={{borderTop:'1px solid var(--fg-dim)', paddingTop:14, marginBottom:14}}>
+            <div style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-dim)', letterSpacing:'0.08em', marginBottom:10}}>CAMBIAR CONTRASEÑA (opcional)</div>
+            <div className="field" style={{marginBottom:8}}>
+              <div className="field-label">NUEVA CONTRASEÑA</div>
+              <input className="field-input" type="password" value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="mín. 6 caracteres" />
+            </div>
+            <div className="field">
+              <div className="field-label">CONFIRMAR CONTRASEÑA</div>
+              <input className="field-input" type="password" value={newPass2} onChange={e=>setNewPass2(e.target.value)} placeholder="repite la contraseña" />
+            </div>
+          </div>
+
+          {err && <div style={{color:'var(--fg-primary)', fontFamily:'var(--pixel)', fontSize:11, marginBottom:10}}>! {err}</div>}
+          {msg && <div style={{color:'#44ff88', fontFamily:'var(--pixel)', fontSize:11, marginBottom:10}}>✓ {msg}</div>}
+          <div className="form-actions">
+            <button className="big-btn" onClick={save} disabled={saving}>{saving ? '...' : '✓ GUARDAR'}</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -4258,6 +4387,7 @@ function App() {
   const [authUser,  setAuthUser]    = useState(() => { try { const u = localStorage.getItem('metalsys_auth_user'); return u ? JSON.parse(u) : null; } catch { return null; } });
   const [authToken, setAuthToken]   = useState(() => localStorage.getItem('metalsys_auth_token') || null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
@@ -5011,11 +5141,7 @@ function App() {
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} />
-          <div style={{position:'relative'}}>
-            <div className="user-btn-wrap">
-              <UserButton authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} />
-            </div>
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} />
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
@@ -5133,7 +5259,6 @@ function App() {
             </div>
           </div>
         </div>
-        </div>
 
         <div className="crt-scanlines"></div>
         {t.rollbar && <div className="crt-rollbar"></div>}
@@ -5194,6 +5319,17 @@ function App() {
 
       {showAuthModal && (
         <AuthModal onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
+      )}
+
+      {showProfileModal && authUser && (
+        <ProfileModal
+          authUser={authUser} authToken={authToken}
+          onClose={() => setShowProfileModal(false)}
+          onUpdate={(updated) => {
+            setAuthUser(updated);
+            localStorage.setItem('metalsys_auth_user', JSON.stringify(updated));
+          }}
+        />
       )}
 
       <TweaksPanel>
