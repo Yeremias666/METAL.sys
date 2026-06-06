@@ -707,8 +707,31 @@ function Banner({ onNav }) {
   );
 }
 
-function Nav({ current, onNav, allCats }) {
+function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile }) {
   const [dropOpen, setDropOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchRef = useRef(null);
+
+  const searchResults = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return [...files, ...localFiles]
+      .filter(f => isAudioFile(f) && (
+        (f.name||'').toLowerCase().includes(q) ||
+        (f.artist||f.category||'').toLowerCase().includes(q) ||
+        (f.album||'').toLowerCase().includes(q) ||
+        (f.genre||'').toLowerCase().includes(q)
+      ))
+      .slice(0, 12);
+  }, [searchQuery, files, localFiles]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const handler = e => { if (searchRef.current && !searchRef.current.contains(e.target)) { setSearchOpen(false); setSearchQuery(''); } };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchOpen]);
   const [hiddenCats, setHiddenCats] = useState([]);
   const navLeftRef = useRef(null);
   const dropRef    = useRef(null);
@@ -772,6 +795,25 @@ function Nav({ current, onNav, allCats }) {
             )}
           </div>
         )}
+        <div ref={searchRef} className="nav-search-wrap">
+          <input className="nav-search-input" placeholder="⌕ Buscar..."
+            value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+            onFocus={() => setSearchOpen(true)}
+            onKeyDown={e => e.key === 'Escape' && (setSearchOpen(false), setSearchQuery(''))} />
+          {searchOpen && searchQuery.trim() && (
+            <div className="nav-search-box">
+              {searchResults.length > 0
+                ? searchResults.map(f => (
+                    <button key={f.id} className="nav-search-item" onClick={() => { onOpenFile(f.id); setSearchOpen(false); setSearchQuery(''); }}>
+                      <span className="nav-search-name">{f.name}</span>
+                      <span className="nav-search-meta">{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</span>
+                    </button>
+                  ))
+                : <div className="nav-search-empty">◇ Sin resultados</div>
+              }
+            </div>
+          )}
+        </div>
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -994,26 +1036,46 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
 }
 
 function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
+  const [query, setQuery] = useState('');
   const allFiles = [...files, ...localFiles].filter(isAudioFile);
   const sorted = [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? sorted.filter(f =>
+        (f.name||'').toLowerCase().includes(q) ||
+        (f.artist||f.category||'').toLowerCase().includes(q) ||
+        (f.album||'').toLowerCase().includes(q) ||
+        (f.genre||'').toLowerCase().includes(q)
+      )
+    : sorted;
   return (
     <div>
       <div className="panel">
         <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
         <div className="panel-body">
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12 }}>
-            <div>
-              <p>Todas las canciones de la biblioteca ordenadas alfabéticamente.</p>
-              <p style={{ color:'var(--fg-dim)', fontSize:14 }}>{sorted.length} canción{sorted.length===1?'':'es'} disponibles.</p>
-            </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:12 }}>
             <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
           </div>
+          <div style={{position:'relative'}}>
+            <input
+              className="field-input"
+              style={{width:'100%', boxSizing:'border-box', paddingLeft:32, fontSize:15}}
+              placeholder="Buscar por nombre, artista, álbum, género..."
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+            />
+            <span style={{position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--fg-dim)', pointerEvents:'none', fontSize:14}}>⌕</span>
+            {query && <button onClick={() => setQuery('')} style={{position:'absolute', right:8, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg-dim)', cursor:'pointer', fontSize:16, padding:0}}>✕</button>}
+          </div>
+          {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visible.length} resultado{visible.length===1?'':'s'}</div>}
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {sorted.length === 0
-          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
-          : sorted.map((f, i) => (
+        {visible.length === 0
+          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
+              {q ? `◇ Sin resultados para "${query}"` : '◇ Sin canciones todavía'}
+            </div>
+          : visible.map((f, i) => (
             <div key={f.id}
                  style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
                  onClick={() => onOpenFile(f.id)}>
@@ -2813,8 +2875,14 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext }) {
   const [editing, setEditing] = useState(false);
+  const [editingBmId, setEditingBmId]     = useState(null);
+  const [editBmDraft, setEditBmDraft]     = useState('');
+  const [editingClipId, setEditingClipId] = useState(null);
+  const [editClipDraft, setEditClipDraft] = useState('');
+  const [bmSearch, setBmSearch]           = useState('');
+  const [clipSearch, setClipSearch]       = useState('');
   const [draft, setDraft] = useState({ name: file.name, description: file.description, category: file.category });
   const [tab, setTab] = useState('desc');
   useEffect(() => { setDraft({ name: file.name, description: file.description, category: file.category }); }, [file.id]);
@@ -2987,18 +3055,41 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
             {tab === 'bookmarks' && (
               <div className="player-section">
                 <div className="player-section-label">MARCADORES</div>
+                {(bookmarks[file.id]||[]).length > 0 && (
+                  <div style={{position:'relative', marginBottom:10}}>
+                    <input className="field-input" style={{width:'100%', boxSizing:'border-box', paddingLeft:28, fontSize:13}}
+                      placeholder="Filtrar marcadores..." value={bmSearch} onChange={e => setBmSearch(e.target.value)} />
+                    <span style={{position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', color:'var(--fg-dim)', fontSize:13, pointerEvents:'none'}}>⌕</span>
+                    {bmSearch && <button onClick={() => setBmSearch('')} style={{position:'absolute', right:6, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg-dim)', cursor:'pointer', fontSize:14, padding:0}}>✕</button>}
+                  </div>
+                )}
                 {(bookmarks[file.id]||[]).length === 0
                   ? <div className="bm-empty">◇ Sin marcadores — crea uno desde ··· en el reproductor</div>
-                  : <div className="bm-list">
-                      {(bookmarks[file.id]||[]).map(bm => (
-                        <div key={bm.id} className="bm-item">
-                          <span className="bm-name">{bm.name}</span>
-                          <span className="bm-time">{fmtTimeSec(bm.time)}</span>
-                          <button onClick={() => onSeekBookmark(bm.time)} title="Ir al marcador">▶</button>
-                          <button onClick={() => onDeleteBookmark(file.id, bm.id)} title="Eliminar">✕</button>
-                        </div>
-                      ))}
-                    </div>
+                  : (() => {
+                      const bms = (bookmarks[file.id]||[]).filter(b => !bmSearch || b.name.toLowerCase().includes(bmSearch.toLowerCase()));
+                      return bms.length === 0
+                        ? <div className="bm-empty">◇ Sin resultados</div>
+                        : <div className="bm-list">
+                            {bms.map(bm => (
+                              <div key={bm.id} className="bm-item">
+                                {editingBmId === bm.id
+                                  ? <input className="field-input" style={{flex:1,padding:'2px 6px',fontSize:14}} autoFocus
+                                      value={editBmDraft} onChange={e => setEditBmDraft(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') { onUpdateBookmark(file.id, bm.id, editBmDraft); setEditingBmId(null); }
+                                        if (e.key === 'Escape') setEditingBmId(null);
+                                      }}
+                                      onBlur={() => { onUpdateBookmark(file.id, bm.id, editBmDraft); setEditingBmId(null); }} />
+                                  : <span className="bm-name" onDoubleClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }}>{bm.name}</span>
+                                }
+                                <span className="bm-time">{fmtTimeSec(bm.time)}</span>
+                                <button onClick={() => onSeekBookmark(bm.time)} title="Ir al marcador">▶</button>
+                                <button onClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }} title="Editar">✎</button>
+                                <button onClick={() => onDeleteBookmark(file.id, bm.id)} title="Eliminar">✕</button>
+                              </div>
+                            ))}
+                          </div>;
+                    })()
                 }
               </div>
             )}
@@ -3006,24 +3097,47 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
             {tab === 'clips' && (
               <div className="player-section">
                 <div className="player-section-label">CLIPS</div>
+                {(clipStore[file.id]||[]).length > 0 && (
+                  <div style={{position:'relative', marginBottom:10}}>
+                    <input className="field-input" style={{width:'100%', boxSizing:'border-box', paddingLeft:28, fontSize:13}}
+                      placeholder="Filtrar clips..." value={clipSearch} onChange={e => setClipSearch(e.target.value)} />
+                    <span style={{position:'absolute', left:8, top:'50%', transform:'translateY(-50%)', color:'var(--fg-dim)', fontSize:13, pointerEvents:'none'}}>⌕</span>
+                    {clipSearch && <button onClick={() => setClipSearch('')} style={{position:'absolute', right:6, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fg-dim)', cursor:'pointer', fontSize:14, padding:0}}>✕</button>}
+                  </div>
+                )}
                 {(clipStore[file.id]||[]).length === 0
                   ? <div className="clip-empty">◇ Sin clips — crea uno desde ··· en el reproductor</div>
-                  : <div className="clip-list">
-                      {(clipStore[file.id]||[]).map(clip => {
-                        const isActive = activeClip && activeClip.id === clip.id;
-                        return (
-                          <div key={clip.id} className={`clip-item${isActive?' active-clip':''}`}>
-                            <span className="clip-name">{clip.name}</span>
-                            <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
-                            {isActive
-                              ? <button onClick={onStopClip} title="Detener clip">■</button>
-                              : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
-                            }
-                            <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  : (() => {
+                      const clips = (clipStore[file.id]||[]).filter(c => !clipSearch || c.name.toLowerCase().includes(clipSearch.toLowerCase()));
+                      return clips.length === 0
+                        ? <div className="clip-empty">◇ Sin resultados</div>
+                        : <div className="clip-list">
+                            {clips.map(clip => {
+                              const isActive = activeClip && activeClip.id === clip.id;
+                              return (
+                                <div key={clip.id} className={`clip-item${isActive?' active-clip':''}`}>
+                                  {editingClipId === clip.id
+                                    ? <input className="field-input" style={{flex:1,padding:'2px 6px',fontSize:14}} autoFocus
+                                        value={editClipDraft} onChange={e => setEditClipDraft(e.target.value)}
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter') { onUpdateClip(file.id, clip.id, editClipDraft); setEditingClipId(null); }
+                                          if (e.key === 'Escape') setEditingClipId(null);
+                                        }}
+                                        onBlur={() => { onUpdateClip(file.id, clip.id, editClipDraft); setEditingClipId(null); }} />
+                                    : <span className="clip-name" onDoubleClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); }}>{clip.name}</span>
+                                  }
+                                  <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
+                                  {isActive
+                                    ? <button onClick={onStopClip} title="Detener clip">■</button>
+                                    : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
+                                  }
+                                  <button onClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); }} title="Editar">✎</button>
+                                  <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
+                                </div>
+                              );
+                            })}
+                          </div>;
+                    })()
                 }
               </div>
             )}
@@ -4943,6 +5057,9 @@ function App() {
   const deleteBookmark = (fileId, bmId) => {
     setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(b => b.id !== bmId) }));
   };
+  const updateBookmark = (fileId, bmId, name) => {
+    setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(b => b.id === bmId ? { ...b, name } : b) }));
+  };
   const seekToBookmark = (time) => { seek(time); };
 
   // Clip handlers
@@ -4952,6 +5069,9 @@ function App() {
   const deleteClip = (fileId, clipId) => {
     setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(c => c.id !== clipId) }));
     setActiveClip(prev => (prev && prev.id === clipId) ? null : prev);
+  };
+  const updateClip = (fileId, clipId, name) => {
+    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(c => c.id === clipId ? { ...c, name } : c) }));
   };
   const playClip = (clip) => {
     setActiveClip(clip);
@@ -5156,7 +5276,7 @@ function App() {
             {/* Center column */}
             <div className="col-main">
               <Banner onNav={setRoute} />
-              <Nav current={route} onNav={setRoute} allCats={allCats} />
+              <Nav current={route} onNav={setRoute} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
               <Marquee />
               <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
@@ -5229,9 +5349,9 @@ function App() {
                                 analyser={analyserRef}
                                 likedIds={likedIds} onToggleLike={toggleLike}
                                 bookmarks={bookmarks} onAddBookmark={addBookmark}
-                                onDeleteBookmark={deleteBookmark} onSeekBookmark={seekToBookmark}
+                                onDeleteBookmark={deleteBookmark} onUpdateBookmark={updateBookmark} onSeekBookmark={seekToBookmark}
                                 clipStore={clipStore} onAddClip={addClip}
-                                onDeleteClip={deleteClip} onPlayClip={playClip}
+                                onDeleteClip={deleteClip} onUpdateClip={updateClip} onPlayClip={playClip}
                                 onStopClip={stopClip} activeClip={activeClip}
                                 position={position}
                                 onPrev={goDetailPrev} onNext={goDetailNext}

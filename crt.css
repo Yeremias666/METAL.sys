@@ -529,6 +529,59 @@ input:not([type=range]), textarea {
   text-align: left;
   white-space: nowrap;
 }
+
+/* Nav search */
+.nav-search-wrap { position: relative; flex-shrink: 0; }
+.nav-search-input {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg-deep);
+  color: var(--fg-primary);
+  border: 1px solid var(--fg-dim);
+  padding: 0.2em 0.6em;
+  width: 180px;
+  outline: none;
+  letter-spacing: 0.04em;
+}
+.nav-search-input:focus { border-color: var(--fg-primary); }
+.nav-search-box {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 320px;
+  background: var(--bg-deep);
+  border: 2px solid var(--fg-primary);
+  z-index: 600;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.8);
+}
+.nav-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--fg-primary);
+  color: var(--fg-primary);
+  font-family: var(--mono);
+  font-size: 14px;
+  padding: 8px 12px;
+  outline: none;
+}
+.nav-search-results { display: flex; flex-direction: column; max-height: 340px; overflow-y: auto; }
+.nav-search-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(214,31,31,0.15);
+  cursor: pointer;
+  text-align: left;
+}
+.nav-search-item:hover { background: rgba(214,31,31,0.12); }
+.nav-search-name { font-family: var(--mono); font-size: 14px; color: var(--fg-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-search-meta { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nav-search-empty { padding: 12px; font-family: var(--pixel); font-size: 11px; color: var(--fg-dim); }
 .nav button {
   font-family: var(--mono);
   font-size: inherit;
@@ -3602,13 +3655,17 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: rgba(214,31,31,0.15);
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
-  font-size: 16px;
+  font-family: var(--pixel);
+  font-size: 14px;
   width: 38px; height: 38px;
   padding: 0;
   cursor: pointer;
   letter-spacing: 0.1em;
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .mp-menu-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
 .mp-menu-dropdown {
@@ -3665,8 +3722,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   cursor: pointer;
 }
 .bm-item button:hover, .clip-item button:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
-.clip-item.active-clip { border-color: var(--fg-success); background: rgba(196,255,0,0.06); }
-.clip-item.active-clip .clip-name { color: var(--fg-success); }
+.clip-item.active-clip { border-color: var(--fg-primary); background: rgba(214,31,31,0.10); }
+.clip-item.active-clip .clip-name { color: var(--fg-primary); }
 .bm-empty, .clip-empty { padding: 14px 0; color: var(--fg-dim); font-size: 19px; }
 
 /* ─── Waveform on progress bar ───────────────────────────────── */
