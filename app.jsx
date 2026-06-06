@@ -2706,6 +2706,16 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         </div>
       </div>
       <div className="mp-controls">
+        <div className="mp-menu-wrap">
+          <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones">···</button>
+          {showMenu && (
+            <PlayerMenuDropdown
+              onCreateBookmark={onCreateBookmark}
+              onCreateClip={onCreateClip}
+              onClose={onCloseMenu}
+            />
+          )}
+        </div>
         <button onClick={onShuffle} title="Aleatorio" style={{lineHeight:0}}><IconShuffle active={shuffleActive} /></button>
         <button onClick={onPrev} title="Anterior">◀◀</button>
         <button className="mp-play" onClick={onPlayPause}>{isPlaying ? '❚❚' : '▶'}</button>
@@ -2713,25 +2723,15 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
+        {likedIds && track && (
+          <LikeButton fileId={track.id} likedIds={likedIds} onToggle={onToggleLike} />
+        )}
       </div>
       <div className="mp-volume">
         <span style={{lineHeight:0, display:'inline-flex'}}><IconVolume level={volume} /></span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
                onChange={(e) => onVolume(parseFloat(e.target.value))} />
       </div>
-      <div className="mp-menu-wrap">
-        <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones">···</button>
-        {showMenu && (
-          <PlayerMenuDropdown
-            onCreateBookmark={onCreateBookmark}
-            onCreateClip={onCreateClip}
-            onClose={onCloseMenu}
-          />
-        )}
-      </div>
-      {likedIds && track && (
-        <LikeButton fileId={track.id} likedIds={likedIds} onToggle={onToggleLike} />
-      )}
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
     </div>
   );
@@ -3183,6 +3183,8 @@ function RecentActivity({ log }) {
 
 // ─── TERMINAL ──────────────────────────────────────────────────
 function Terminal({ files, localFiles = [], allCats }) {
+  const [expanded, setExpanded] = React.useState(false);
+  const COLLAPSED_LINES = 15;
   const allFiles = [...files, ...localFiles];
   const total = allFiles.reduce((a, f) => a + f.fileSize, 0);
   const trunc = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
@@ -3280,7 +3282,188 @@ function Terminal({ files, localFiles = [], allCats }) {
     </div>
   );
 
-  return <div className="terminal">{lines}</div>;
+  const visibleLines = expanded ? lines : lines.slice(0, COLLAPSED_LINES);
+  const hasMore = lines.length > COLLAPSED_LINES;
+
+  return (
+    <div className="terminal">
+      {visibleLines}
+      {hasMore && (
+        <div className="line" style={{marginTop: 6}}>
+          <button onClick={() => setExpanded(e => !e)} style={{
+            fontFamily: 'var(--pixel)', fontSize: 'inherit', background: 'transparent',
+            border: '1px solid var(--fg-dim)', color: 'var(--fg-accent)',
+            padding: '2px 10px', cursor: 'pointer', letterSpacing: '0.08em'
+          }}>
+            {expanded ? '▲ COLAPSAR' : `▼ VER TODO (${lines.length - COLLAPSED_LINES} líneas más)`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── AUTH ICONS ────────────────────────────────────────────────
+function IconSkullUser({ size = 40 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      {/* Skull */}
+      <ellipse cx="20" cy="11" rx="7" ry="7.5" />
+      <circle cx="17" cy="10" r="1.8" fill="currentColor" stroke="none" />
+      <circle cx="23" cy="10" r="1.8" fill="currentColor" stroke="none" />
+      <path d="M17.5 15 L17.5 17 M20 15 L20 17 M22.5 15 L22.5 17" strokeWidth="1.4" />
+      {/* Neck */}
+      <line x1="20" y1="18.5" x2="20" y2="22" />
+      {/* Body */}
+      <line x1="20" y1="22" x2="20" y2="32" />
+      {/* Arms */}
+      <line x1="20" y1="24" x2="13" y2="28" />
+      <line x1="20" y1="24" x2="27" y2="28" />
+      {/* Legs */}
+      <line x1="20" y1="32" x2="15" y2="38" />
+      <line x1="20" y1="32" x2="25" y2="38" />
+    </svg>
+  );
+}
+
+function IconUserQuestion({ size = 40 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="20" cy="20" r="18" />
+      <text x="20" y="28" textAnchor="middle" fontSize="22" fontFamily="monospace" fill="currentColor" stroke="none">?</text>
+    </svg>
+  );
+}
+
+// ─── AUTH MODAL ─────────────────────────────────────────────────
+function AuthModal({ onClose, onLogin }) {
+  const [tab, setTab]       = React.useState('login');
+  const [login, setLogin]   = React.useState('');
+  const [username, setUsername] = React.useState('');
+  const [email, setEmail]   = React.useState('');
+  const [pass, setPass]     = React.useState('');
+  const [pass2, setPass2]   = React.useState('');
+  const [err, setErr]       = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+
+  const submit = async () => {
+    setErr(''); setLoading(true);
+    try {
+      if (tab === 'login') {
+        if (!login || !pass) { setErr('Completa todos los campos'); setLoading(false); return; }
+        const r = await fetch('/api/auth/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, password: pass }) });
+        const d = await r.json();
+        if (!r.ok) { setErr(d.error || 'Error al iniciar sesión'); setLoading(false); return; }
+        onLogin(d);
+      } else {
+        if (!username || !email || !pass || !pass2) { setErr('Completa todos los campos'); setLoading(false); return; }
+        if (pass !== pass2) { setErr('Las contraseñas no coinciden'); setLoading(false); return; }
+        const r = await fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ username, email, password: pass }) });
+        const d = await r.json();
+        if (!r.ok) { setErr(d.error || 'Error al registrarse'); setLoading(false); return; }
+        onLogin(d);
+      }
+    } catch { setErr('Error de conexión'); }
+    setLoading(false);
+  };
+
+  React.useEffect(() => {
+    const k = e => { if (e.key === 'Escape') onClose(); if (e.key === 'Enter') submit(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [login, username, email, pass, pass2, tab]);
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" style={{maxWidth:380}} onClick={e => e.stopPropagation()}>
+        <div className="modal-hd">
+          <span>// METAL.SYS · ACCESO</span>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="tabs" style={{marginBottom:18}}>
+            <button className={tab==='login' ? 'active':''} onClick={()=>{setTab('login');setErr('');}}>INICIAR SESIÓN</button>
+            <button className={tab==='register' ? 'active':''} onClick={()=>{setTab('register');setErr('');}}>REGISTRARSE</button>
+          </div>
+          {tab === 'login' ? (<>
+            <div className="field">
+              <div className="field-label">USUARIO O EMAIL</div>
+              <input className="field-input" value={login} onChange={e=>setLogin(e.target.value)} placeholder="usuario o correo..." autoFocus />
+            </div>
+            <div className="field">
+              <div className="field-label">CONTRASEÑA</div>
+              <input className="field-input" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="••••••" />
+            </div>
+          </>) : (<>
+            <div className="field">
+              <div className="field-label">NOMBRE DE USUARIO</div>
+              <input className="field-input" value={username} onChange={e=>setUsername(e.target.value)} placeholder="solo letras, números y _" autoFocus />
+            </div>
+            <div className="field">
+              <div className="field-label">EMAIL</div>
+              <input className="field-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="correo@ejemplo.com" />
+            </div>
+            <div className="field">
+              <div className="field-label">CONTRASEÑA</div>
+              <input className="field-input" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="mín. 6 caracteres" />
+            </div>
+            <div className="field">
+              <div className="field-label">CONFIRMAR CONTRASEÑA</div>
+              <input className="field-input" type="password" value={pass2} onChange={e=>setPass2(e.target.value)} placeholder="repite la contraseña" />
+            </div>
+          </>)}
+          {err && <div style={{color:'var(--fg-primary)', fontFamily:'var(--pixel)', fontSize:11, marginBottom:10}}>! {err}</div>}
+          <div className="form-actions">
+            <button className="big-btn" onClick={submit} disabled={loading}>
+              {loading ? '...' : tab==='login' ? '▶ ENTRAR' : '✓ CREAR CUENTA'}
+            </button>
+          </div>
+          <div style={{marginTop:14, color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, lineHeight:1.6}}>
+            Sin cuenta: la app funciona igual pero solo guarda datos en este navegador.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── USER BUTTON ────────────────────────────────────────────────
+function UserButton({ authUser, onOpenAuth, onLogout }) {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  if (!authUser) {
+    return (
+      <button className="user-btn" onClick={onOpenAuth} title="Iniciar sesión / Registrarse">
+        <IconUserQuestion size={28} />
+      </button>
+    );
+  }
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <button className="user-btn user-btn--active" onClick={() => setMenuOpen(p => !p)} title={authUser.username}>
+        {authUser.avatar
+          ? <img src={authUser.avatar} alt="" style={{width:28,height:28,borderRadius:'50%',objectFit:'cover'}} />
+          : <IconSkullUser size={28} />}
+      </button>
+      {menuOpen && (
+        <div className="user-menu">
+          <div className="user-menu-header">
+            <div style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-primary)', letterSpacing:'0.08em'}}>{authUser.username}</div>
+            <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
+          </div>
+          <button onClick={() => { setMenuOpen(false); onLogout(); }}>✕ CERRAR SESIÓN</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function Footer() {
@@ -4072,6 +4255,10 @@ function App() {
   const [playLog,    setPlayLog]    = useState(loadPLog);
   const [bookmarks, setBookmarks]   = useState(loadBookmarks);   // {fileId: [{id,name,time}]}
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
+  const [authUser,  setAuthUser]    = useState(() => { try { const u = localStorage.getItem('metalsys_auth_user'); return u ? JSON.parse(u) : null; } catch { return null; } });
+  const [authToken, setAuthToken]   = useState(() => localStorage.getItem('metalsys_auth_token') || null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const syncTimerRef = useRef(null);
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
@@ -4578,6 +4765,47 @@ function App() {
     addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
   };
 
+  // Auth handlers
+  const handleLogin = (data) => {
+    setAuthUser({ username: data.username, email: data.email, avatar: data.avatar });
+    setAuthToken(data.token);
+    localStorage.setItem('metalsys_auth_token', data.token);
+    localStorage.setItem('metalsys_auth_user', JSON.stringify({ username: data.username, email: data.email, avatar: data.avatar }));
+    setShowAuthModal(false);
+    // Load cloud data after login
+    fetch('/api/userdata', { headers: { Authorization: `Bearer ${data.token}` } })
+      .then(r => r.json()).then(d => {
+        if (d.bookmarks)  setBookmarks(d.bookmarks);
+        if (d.clipStore)  setClipStore(d.clipStore);
+        if (d.likedIds)   setLikedIds(new Set(d.likedIds));
+        if (d.playCounts) setPlayCounts(d.playCounts);
+      }).catch(() => {});
+  };
+
+  const handleLogout = async () => {
+    if (authToken) {
+      fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).catch(() => {});
+    }
+    setAuthUser(null); setAuthToken(null);
+    localStorage.removeItem('metalsys_auth_token');
+    localStorage.removeItem('metalsys_auth_user');
+  };
+
+  // Sync to cloud with debounce
+  const scheduleSync = React.useCallback(() => {
+    if (!authToken) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      fetch('/api/userdata', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookmarks, clipStore, likedIds: [...likedIds], playCounts }),
+      }).catch(() => {});
+    }, 2000);
+  }, [authToken, bookmarks, clipStore, likedIds, playCounts]);
+
+  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts]);
+
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {
     setBookmarks(prev => ({ ...prev, [fileId]: [...(prev[fileId]||[]), bm] }));
@@ -4629,7 +4857,7 @@ function App() {
           const buf = await slice.arrayBuffer();
           const tags = await _parseID3Buffer(buf);
           return {
-            id: 'local_' + Math.random().toString(36).slice(2),
+            id: 'local_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
             name: tags.title || name.replace(/\.[^.]+$/, ''),
             artist: tags.albumArtist || tags.artist || '',
             album: tags.album || '',
@@ -4784,6 +5012,10 @@ function App() {
       <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
           <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} />
+          <div style={{position:'relative'}}>
+            <div className="user-btn-wrap">
+              <UserButton authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} />
+            </div>
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
@@ -4901,6 +5133,7 @@ function App() {
             </div>
           </div>
         </div>
+        </div>
 
         <div className="crt-scanlines"></div>
         {t.rollbar && <div className="crt-rollbar"></div>}
@@ -4957,6 +5190,10 @@ function App() {
           onSave={clip => { addClip(currentTrack.id, clip); setShowClipModal(false); }}
           onClose={() => setShowClipModal(false)}
         />
+      )}
+
+      {showAuthModal && (
+        <AuthModal onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
       )}
 
       <TweaksPanel>
