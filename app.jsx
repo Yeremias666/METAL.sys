@@ -795,25 +795,6 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
             )}
           </div>
         )}
-        <div ref={searchRef} className="nav-search-wrap">
-          <input className="nav-search-input" placeholder="⌕ Buscar..."
-            value={searchQuery} onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-            onFocus={() => setSearchOpen(true)}
-            onKeyDown={e => e.key === 'Escape' && (setSearchOpen(false), setSearchQuery(''))} />
-          {searchOpen && searchQuery.trim() && (
-            <div className="nav-search-box">
-              {searchResults.length > 0
-                ? searchResults.map(f => (
-                    <button key={f.id} className="nav-search-item" onClick={() => { onOpenFile(f.id); setSearchOpen(false); setSearchQuery(''); }}>
-                      <span className="nav-search-name">{f.name}</span>
-                      <span className="nav-search-meta">{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</span>
-                    </button>
-                  ))
-                : <div className="nav-search-empty">◇ Sin resultados</div>
-              }
-            </div>
-          )}
-        </div>
       </div>
       {/* Botones de artistas: solo los que caben, el resto en dropdown */}
       <div className="nav-left" ref={navLeftRef}>
@@ -2875,8 +2856,9 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile }) {
   const [editing, setEditing] = useState(false);
+  const [detailSearch, setDetailSearch] = useState('');
   const [editingBmId, setEditingBmId]     = useState(null);
   const [editBmDraft, setEditBmDraft]     = useState('');
   const [editingClipId, setEditingClipId] = useState(null);
@@ -3148,6 +3130,43 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
               <button className="big-btn" onClick={() => onDownload(file)}>↓ DESCARGAR AHORA</button>
               <button className="big-btn ghost" onClick={() => { if (confirm(`¿Eliminar "${file.name}" de la bóveda?`)) onDelete(file); }}>✕ ELIMINAR</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Buscador global dentro de la página de canción */}
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                value={detailSearch} onChange={e => setDetailSearch(e.target.value)} />
+              {detailSearch && <button className="mini-btn alt" onClick={() => setDetailSearch('')}>✕</button>}
+            </div>
+            {detailSearch.trim() && (() => {
+              const q = detailSearch.trim().toLowerCase();
+              const results = allFiles.filter(f =>
+                (f.name||'').toLowerCase().includes(q) ||
+                (f.artist||f.category||'').toLowerCase().includes(q) ||
+                (f.album||'').toLowerCase().includes(q) ||
+                (f.genre||'').toLowerCase().includes(q)
+              ).slice(0, 20);
+              return results.length === 0
+                ? <div style={{padding:'10px 0', color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11}}>◇ Sin resultados</div>
+                : results.map((r, i) => (
+                    <div key={r.id} onClick={() => { onOpenFile(r.id); setDetailSearch(''); }}
+                         style={{display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}>
+                      {r.thumbnail
+                        ? <img src={r.thumbnail} alt="" style={{width:32,height:32,objectFit:'cover',flexShrink:0}} />
+                        : <div style={{width:32,height:32,flexShrink:0,background:'rgba(214,31,31,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><IconGlyph iconId="nota" size={16}/></div>}
+                      <div style={{minWidth:0}}>
+                        <div style={{fontFamily:'var(--mono)',fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
+                        <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-dim)',letterSpacing:'0.06em'}}>{r.artist||r.category}{r.album?` · ${r.album}`:''}</div>
+                      </div>
+                    </div>
+                  ));
+            })()}
           </div>
         </div>
       </div>
@@ -5355,7 +5374,9 @@ function App() {
                                 onStopClip={stopClip} activeClip={activeClip}
                                 position={position}
                                 onPrev={goDetailPrev} onNext={goDetailNext}
-                                hasPrev={hasPrevDetail} hasNext={hasNextDetail} />
+                                hasPrev={hasPrevDetail} hasNext={hasNextDetail}
+                                allFiles={[...files, ...localFiles].filter(isAudioFile)}
+                                onOpenFile={openFile} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
