@@ -479,17 +479,20 @@ input:not([type=range]), textarea {
 }
 /* Móvil: contenido central ocupa todo, sin sidebars */
 @media (max-width: 600px) {
+  body { font-size: 13px; }
   .page { grid-template-columns: 1fr; padding: 0; }
   .col-left, .col-right { display: none; }
-  .col-main { padding: 0 8px 80px; }
+  .col-main { padding: 0 6px 80px; }
   .music-player { padding: 6px 8px; gap: 6px; }
   .mp-volume { display: none; }
   .mp-info { min-width: 0; }
   .statusbar { font-size: 11px; padding: 3px 8px; }
-  .nav { gap: 4px; padding: 4px 8px; }
-  .album-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .nav { gap: 4px; padding: 4px 8px; overflow-x: auto; }
+  .album-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .cat-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }
+  .banner-title { font-size: 15px; }
+  .banner-sub { font-size: 12px; }
 }
 
 /* Legacy */
@@ -2833,13 +2836,14 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
 /* ─── Responsive polish ─────────────────────────────────── */
 @media (max-width: 700px) {
-  body { font-size: 18px; }
-  .page { padding: 12px 14px 80px; }
-  .statusbar { flex-direction: column; align-items: flex-start; gap: 4px; font-size: 16px; }
-  .banner { padding: 14px 16px; }
-  .banner-title { font-size: 22px; }
-  .banner-sub { font-size: 18px; }
-  .nav { gap: 6px; }
+  body { font-size: 15px; }
+  .page { padding: 8px 10px 80px; }
+  .statusbar { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 12px; padding: 4px 10px; }
+  .ascii-logo { display: none; }
+  .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
+  .banner-title { font-size: 18px; }
+  .banner-sub { font-size: 13px; margin-top: 4px; }
+  .nav { gap: 4px; overflow-x: auto; }
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .file-card-name { font-size: 17px; }
   .panel-hd { font-size: 11px; padding: 5px 10px; }
