@@ -331,7 +331,7 @@ input:not([type=range]), textarea {
   margin-bottom: 18px;
   flex-wrap: nowrap;
   align-items: center;
-  font-size: 22px;
+  font-size: clamp(10px, 1.4vw, 22px);
 }
 .nav-system {
   flex-shrink: 0;
@@ -355,11 +355,11 @@ input:not([type=range]), textarea {
 }
 .nav-more-btn {
   font-family: var(--mono);
-  font-size: 22px;
+  font-size: inherit;
   background: transparent;
   color: var(--fg-accent);
   border: 1px solid var(--fg-dim);
-  padding: 4px 14px;
+  padding: 0.2em 0.6em;
   cursor: pointer;
   letter-spacing: 0.06em;
   transition: all 0.08s;
@@ -396,11 +396,11 @@ input:not([type=range]), textarea {
 }
 .nav button {
   font-family: var(--mono);
-  font-size: 22px;
+  font-size: inherit;
   background: transparent;
   color: var(--fg-text);
   border: 1px solid var(--fg-dim);
-  padding: 4px 14px;
+  padding: 0.2em 0.6em;
   cursor: pointer;
   letter-spacing: 0.06em;
   transition: all 0.08s;
@@ -487,7 +487,6 @@ input:not([type=range]), textarea {
   .mp-info { min-width: 0; }
   .statusbar { font-size: 11px; padding: 3px 8px; }
   .nav { gap: 4px; padding: 4px 8px; }
-  .nav button { font-size: 9px; padding: 4px 6px; }
   .album-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
   .cat-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .two-col { grid-template-columns: 1fr; }
@@ -2841,7 +2840,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner-title { font-size: 22px; }
   .banner-sub { font-size: 18px; }
   .nav { gap: 6px; }
-  .nav button { font-size: 16px; padding: 6px 10px; }
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
   .file-card-name { font-size: 17px; }
   .panel-hd { font-size: 11px; padding: 5px 10px; }
