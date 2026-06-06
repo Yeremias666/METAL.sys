@@ -291,26 +291,26 @@ input:not([type=range]), textarea {
 
 /* User button */
 .user-btn-wrap {
-  position: absolute;
+  position: fixed;
   top: 6px;
   right: 14px;
-  z-index: 50;
+  z-index: 500;
 }
 .user-btn {
   background: none;
-  border: 2px solid var(--fg-dim);
-  color: var(--fg-secondary);
+  border: 2px solid var(--fg-primary);
+  color: var(--fg-primary);
   cursor: pointer;
-  border-radius: 50%;
-  width: 38px;
-  height: 38px;
+  border-radius: 0;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
-  transition: border-color 0.15s, color 0.15s;
+  transition: background 0.15s;
 }
-.user-btn:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
+.user-btn:hover { background: var(--fg-primary); color: var(--bg-main); }
 .user-btn--active { border-color: var(--fg-primary); color: var(--fg-primary); }
 .user-menu {
   position: absolute;
