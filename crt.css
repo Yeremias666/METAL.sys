@@ -331,7 +331,7 @@ input:not([type=range]), textarea {
   margin-bottom: 18px;
   flex-wrap: nowrap;
   align-items: center;
-  font-size: clamp(10px, 1.4vw, 22px);
+  font-size: clamp(13px, 1.4vw, 22px);
 }
 .nav-system {
   flex-shrink: 0;
