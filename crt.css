@@ -3053,9 +3053,10 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
   .banner-title { font-size: clamp(12px, 4vw, 18px); white-space: nowrap; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
-  .nav { flex-wrap: wrap; gap: 3px; margin-bottom: 10px; }
+  .nav { flex-wrap: wrap; gap: 6px; margin-bottom: 10px; font-size: 15px; }
   .nav-system { flex-wrap: wrap; width: 100%; }
   .nav-left { display: none; }
+  .nav button { padding: 0.45em 0.9em; min-height: 40px; }
   .crt-screen { border-radius: 0; }
 
   /* Hero / text */
@@ -4024,7 +4025,13 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ─── Botones play siempre visibles en dispositivos touch ──────── */
 @media (max-width: 700px) {
   .cat-card .cat-card-play,
-  .album-card .ac-play-btn { opacity: 1; }
+  .album-card .ac-play-btn {
+    opacity: 1;
+    background: var(--fg-primary);
+    border-color: var(--fg-accent);
+    box-shadow: 0 0 14px rgba(214,31,31,0.8);
+    color: #000;
+  }
 }
 
 /* ─── Fila de canción estilo TODO (TrackList) ──────────────────── */
