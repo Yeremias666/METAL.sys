@@ -642,16 +642,17 @@ input:not([type=range]), textarea {
 }
 
 .col-left {
-  padding: 16px 14px 32px 16px;
   min-width: 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
-  scrollbar-width: none;
-  align-self: start;
+  align-self: stretch;
+  position: relative;
+  overflow: hidden;
 }
-.col-left::-webkit-scrollbar { display: none; }
+.col-left-inner {
+  position: absolute;
+  inset: 0;
+  padding: 16px 14px 32px 16px;
+  overflow: hidden;
+}
 
 .col-main {
   min-width: 0;
