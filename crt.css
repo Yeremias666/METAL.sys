@@ -3161,6 +3161,22 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .mp-artist { font-size: 14px; }
   .mp-time { font-size: 11px; }
   .mp-progress { grid-template-columns: 36px 1fr 36px; gap: 6px; }
+
+  /* ── Radio / DetailPage audio ────────────────────────── */
+  /* Hide side grilles — cover takes full width */
+  .radio-grille { display: none; }
+  .radio-mid { grid-template-columns: 1fr; }
+  .radio-cover-frame { width: min(260px, calc(100vw - 80px)); height: min(260px, calc(100vw - 80px)); }
+
+  /* Info strip: reduce font so it fits one line */
+  .radio-strip-album { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .radio-strip-meta  { font-size: 9px; white-space: nowrap; flex-shrink: 0; }
+  .radio-strip-genre { display: none; }
+
+  /* Knobs bar: slightly smaller on narrow screens */
+  .radio-knob       { width: 24px; height: 24px; }
+  .radio-knob.small { width: 16px; height: 16px; }
+  .radio-play-btn   { width: 52px; height: 52px; }
 }
 @media (max-width: 480px) {
   .file-grid { grid-template-columns: 1fr; }
