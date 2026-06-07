@@ -637,16 +637,19 @@ input:not([type=range]), textarea {
 .page {
   display: grid;
   grid-template-columns: 280px 1fr 360px;
-  align-items: stretch;
+  align-items: start;
   padding: 0;
 }
 
 .col-left {
   padding: 16px 14px 32px 16px;
   min-width: 0;
-  min-height: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
   overflow-y: auto;
   scrollbar-width: none;
+  align-self: start;
 }
 .col-left::-webkit-scrollbar { display: none; }
 
