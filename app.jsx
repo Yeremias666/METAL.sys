@@ -2825,23 +2825,28 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   };
   const progressPct = duration > 0 ? (position / duration) * 100 : 0;
 
-  const seekFromEvent = useCallback((e) => {
+  const seekFromClientX = useCallback((clientX) => {
     if (!barRef.current || !duration) return;
     const r = barRef.current.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+    const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
     onSeek(pct * duration);
   }, [duration, onSeek]);
 
   useEffect(() => {
-    const onMove = (e) => { if (draggingRef.current) seekFromEvent(e); };
-    const onUp   = () => { draggingRef.current = false; };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup',   onUp);
+    const onMove  = (e) => { if (draggingRef.current) seekFromClientX(e.clientX); };
+    const onUp    = () => { draggingRef.current = false; };
+    const onTouch = (e) => { if (draggingRef.current && e.touches[0]) { e.preventDefault(); seekFromClientX(e.touches[0].clientX); } };
+    window.addEventListener('mousemove',  onMove);
+    window.addEventListener('mouseup',    onUp);
+    window.addEventListener('touchmove',  onTouch, { passive: false });
+    window.addEventListener('touchend',   onUp);
     return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup',   onUp);
+      window.removeEventListener('mousemove',  onMove);
+      window.removeEventListener('mouseup',    onUp);
+      window.removeEventListener('touchmove',  onTouch);
+      window.removeEventListener('touchend',   onUp);
     };
-  }, [seekFromEvent]);
+  }, [seekFromClientX]);
 
   return (
     <div className="music-player">
@@ -2858,7 +2863,8 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <div className="mp-progress">
           <span className="mp-time">{fmtTime(position)}</span>
           <div className="mp-bar" ref={barRef}
-            onMouseDown={(e) => { draggingRef.current = true; seekFromEvent(e); }}
+            onMouseDown={(e) => { draggingRef.current = true; seekFromClientX(e.clientX); }}
+            onTouchStart={(e) => { draggingRef.current = true; if (e.touches[0]) seekFromClientX(e.touches[0].clientX); }}
             style={{cursor: 'pointer'}}>
             {waveform && (
               <svg key={track.id} className="mp-waveform" viewBox={`0 0 ${waveform.length} 2`} preserveAspectRatio="none">
@@ -5585,18 +5591,13 @@ function App() {
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
     const allF = [...files, ...localFiles].filter(isAudioFile);
-    const isCurrentlyPlaying = currentTrackId === currentFile.id;
     const artist = currentFile.category || currentFile.artist;
-    // Only use playContext scope when THIS file is the one playing
-    if (isCurrentlyPlaying && playContext.type === 'all') {
-      return [...allF].sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
-    }
-    if (isCurrentlyPlaying && playContext.type === 'album' && currentFile.album) {
+    // Always navigate within the album, falling back to the full artist
+    if (currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
-    // Default: navigate within the artist
     return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
-  }, [currentFile, currentTrackId, files, localFiles, playContext]);
+  }, [currentFile, files, localFiles]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;

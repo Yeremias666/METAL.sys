@@ -3053,22 +3053,11 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
   .banner-title { font-size: clamp(12px, 4vw, 18px); white-space: nowrap; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
-  .nav {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 10px;
-    font-size: 13px;
-  }
-  .nav-system { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: 1; }
+  .nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; font-size: 13px; }
+  .nav-system { display: contents; }
   .nav-left { display: none; }
-  .nav button {
-    min-height: 44px;
-    padding: 0.3em 0.75em;
-    white-space: nowrap;
-    font-size: 13px;
-  }
-  .nav-more { flex-shrink: 0; }
+  .nav .prompt { display: none; }
+  .nav button { min-height: 44px; padding: 0.3em 0.75em; white-space: nowrap; font-size: 13px; }
   .nav-more-btn { min-height: 44px; padding: 0.3em 0.75em; }
   .crt-screen { border-radius: 0; }
 
@@ -3079,6 +3068,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   /* Grids */
   .cat-grid { grid-template-columns: repeat(2, 1fr); }
   .file-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .album-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .search-filters { grid-template-columns: 1fr; }
 
