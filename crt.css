@@ -2947,7 +2947,7 @@ input:not([type=range]), textarea {
 
 /* Push page content up when music player visible */
 body:has(.music-player) .crt-content { padding-bottom: 100px; }
-@media (max-width: 700px) { body:has(.music-player) .crt-content { padding-bottom: 180px; } }
+@media (max-width: 700px) { body:has(.music-player) .crt-content { padding-bottom: 160px; } }
 
 /* ─── Upload progress page ────────────────────────────────── */
 .upload-progress {
@@ -3046,17 +3046,19 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ─── Responsive polish ─────────────────────────────────── */
 @media (max-width: 700px) {
   body { font-size: 15px; }
-  .page { padding: 8px 10px 80px; }
+  .page { padding: 8px 10px 16px; }
   .statusbar { font-size: 10px; padding: 4px 8px; gap: 6px; letter-spacing: 0; }
   .statusbar .left, .statusbar .right { gap: 8px; }
   .ascii-logo { display: none; }
   .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
   .banner-title { font-size: clamp(12px, 4vw, 18px); white-space: nowrap; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
-  .nav { flex-wrap: wrap; gap: 6px; margin-bottom: 10px; font-size: 15px; }
-  .nav-system { flex-wrap: wrap; width: 100%; }
+  .nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; font-size: 14px; }
+  .nav-system { display: contents; }
   .nav-left { display: none; }
-  .nav button { padding: 0.45em 0.9em; min-height: 40px; }
+  .nav button { padding: 0.45em 0.5em; min-height: 42px; width: 100%; }
+  .nav-more { grid-column: span 1; }
+  .nav-more-btn { width: 100%; min-height: 42px; padding: 0.45em 0.5em; }
   .crt-screen { border-radius: 0; }
 
   /* Hero / text */
@@ -3366,10 +3368,15 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   padding-top: 10px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-size: 18px;
   color: var(--fg-dim);
   flex-wrap: wrap;
   gap: 12px;
+}
+@media (max-width: 700px) {
+  .footer { flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 16px; }
+  .footer > div:last-child { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 }
 .badge {
   display: inline-block;
@@ -4072,4 +4079,49 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .is-touch .big-btn.ghost:hover { color: var(--fg-secondary); border-color: var(--fg-secondary); box-shadow: none; }
 .is-touch .search-suggestion:hover { background: transparent; }
 .is-touch button { -webkit-tap-highlight-color: transparent; }
+
+/* ── Boot / loading screen ─────────────────────────────────── */
+/* Visible while JS loads; React replaces #root content on mount */
+.boot-screen {
+  position: fixed;
+  inset: 0;
+  background: #08070a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.boot-logo {
+  font-family: 'Courier New', monospace;
+  font-size: clamp(28px, 8vw, 52px);
+  font-weight: bold;
+  color: #d61f1f;
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 24px rgba(214,31,31,0.8), 0 0 48px rgba(214,31,31,0.4);
+}
+.boot-sub {
+  font-family: 'Courier New', monospace;
+  font-size: clamp(12px, 3vw, 16px);
+  color: #7a3030;
+  letter-spacing: 0.2em;
+}
+.boot-bar {
+  width: min(280px, 60vw);
+  height: 4px;
+  background: rgba(214,31,31,0.15);
+  border: 1px solid rgba(214,31,31,0.3);
+  overflow: hidden;
+}
+.boot-bar-fill {
+  height: 100%;
+  background: #d61f1f;
+  box-shadow: 0 0 8px #d61f1f;
+  animation: boot-progress 2.5s ease-in-out infinite;
+}
+@keyframes boot-progress {
+  0%   { width: 0%;   margin-left: 0; }
+  50%  { width: 60%;  margin-left: 20%; }
+  100% { width: 0%;   margin-left: 100%; }
+}
 
