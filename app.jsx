@@ -1136,12 +1136,27 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
   );
 }
 
-function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, artistMeta = {} }) {
+function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, onOpenFile, artistMeta = {} }) {
   const [query, setQuery] = useState('');
-  const allFiles = [...files, ...localFiles];
-  const totalSongs = allFiles.filter(isAudioFile).length;
-  const q = query.trim().toLowerCase();
-  const visibleArtists = q ? artists.filter(a => a.toLowerCase().includes(q)) : artists;
+  const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
+  const gq = normStr(query.trim());
+  const suggestions = useMemo(() => {
+    if (!gq) return [];
+    const artistHits = artists.filter(a => normStr(a).includes(gq)).slice(0, 2).map(a => {
+      const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
+      return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+    });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const songHits = allFiles.filter(f => normStr(f.name).includes(gq)).slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...songHits].slice(0, 5);
+  }, [gq, artists, allFiles]);
+
   return (
     <div>
       <div className="panel">
@@ -1160,13 +1175,46 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
                 value={query} onChange={e => setQuery(e.target.value)} />
               {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
             </div>
-            {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visibleArtists.length} resultado{visibleArtists.length===1?'':'s'}</div>}
+            {gq && (
+              <div className="search-suggestions">
+                {suggestions.length === 0 ? (
+                  <div className="search-suggestion empty">Sin coincidencias.</div>
+                ) : suggestions.map((item, idx) => (
+                  <button key={idx} className="search-suggestion search-suggestion-anim"
+                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
+                    setQuery('');
+                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
+                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                    else onOpenFile && onOpenFile(item.file.id);
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="search-suggestion-thumb">
+                        {item.type === 'artist'
+                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                          : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                          {item.type === 'artist' ? 'ARTISTA'
+                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="search-item-type">
+                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
       <div className="cat-grid" style={{marginTop:14}}>
-        {visibleArtists.map((artist) => {
+        {artists.map((artist) => {
           const songs = allFiles.filter((f) => (f.category || f.artist) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
@@ -2759,6 +2807,13 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
   const draggingRef = useRef(false);
+  const liked = likedIds ? likedIds.has(track.id) : false;
+  const [likePop, setLikePop] = useState(false);
+  const prevLiked = useRef(liked);
+  useEffect(() => {
+    if (liked && !prevLiked.current) { setLikePop(true); setTimeout(() => setLikePop(false), 250); }
+    prevLiked.current = liked;
+  }, [liked]);
 
   const fmtTime = (s) => {
     if (!s || !isFinite(s)) return '0:00';
@@ -2835,8 +2890,13 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
-        {likedIds && track && (
-          <LikeButton fileId={track.id} likedIds={likedIds} onToggle={onToggleLike} />
+        {likedIds && onToggleLike && (
+          <button onClick={(e) => { e.stopPropagation(); onToggleLike(track.id); }}
+                  title={liked ? 'Quitar de Me Gusta' : 'Me Gusta'}
+                  className={likePop ? 'like-pop-anim' : ''}
+                  style={{fontSize:16, background: liked ? 'rgba(214,31,31,0.35)' : undefined, boxShadow: liked ? '0 0 10px var(--fg-primary)' : undefined}}>
+            {liked ? '♥' : '♡'}
+          </button>
         )}
       </div>
       <div className="mp-volume">
@@ -2924,7 +2984,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile }) {
   const [editing, setEditing] = useState(false);
   const [detailSearch, setDetailSearch] = useState('');
   const [editingBmId, setEditingBmId]     = useState(null);
@@ -3169,7 +3229,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                                   : <span className="bm-name" onDoubleClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }}>{bm.name}</span>
                                 }
                                 <span className="bm-time">{fmtTimeSec(bm.time)}</span>
-                                <button onClick={() => { onPlayAudio(file); onSeekBookmark(bm.time); }} title="Ir al marcador">▶</button>
+                                <button onClick={() => onSeekBookmarkInFile(file, bm.time)} title="Ir al marcador">▶</button>
                                 <button onClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }} title="Editar">✎</button>
                                 <button onClick={() => onDeleteBookmark(file.id, bm.id)} title="Eliminar">✕</button>
                               </div>
@@ -3229,7 +3289,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                                       <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
                                       {isActive
                                         ? <button onClick={onStopClip} title="Detener clip">■</button>
-                                        : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
+                                        : <button onClick={() => onPlayClipFromFile(file, clip)} title="Reproducir clip">▶</button>
                                       }
                                       <button onClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); setEditClipStart(fmtTimeMs(clip.start)); setEditClipEnd(fmtTimeMs(clip.end)); }} title="Editar">✎</button>
                                       <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
@@ -5031,6 +5091,11 @@ function App() {
           const url = URL.createObjectURL(f);
           localBlobRef.current = url;
           audio.src = url;
+          if (pendingSeekRef.current !== null) {
+            const _t = pendingSeekRef.current; pendingSeekRef.current = null;
+            const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
+            audio.addEventListener('loadeddata', _seek);
+          }
           audio.play().catch(() => {});
         } catch (e) { console.error('Local file read error:', e); }
       })();
@@ -5055,6 +5120,11 @@ function App() {
           const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
           const { url } = await r.json();
           audio.src = url;
+          if (pendingSeekRef.current !== null) {
+            const _t = pendingSeekRef.current; pendingSeekRef.current = null;
+            const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
+            audio.addEventListener('loadeddata', _seek);
+          }
           audio.play().catch(() => {});
         } catch (e) { console.error('[R2] signed URL error:', e); }
       })();
@@ -5062,6 +5132,11 @@ function App() {
     }
 
     audio.src = file.fileData;
+    if (pendingSeekRef.current !== null) {
+      const _t = pendingSeekRef.current; pendingSeekRef.current = null;
+      const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
+      audio.addEventListener('loadeddata', _seek);
+    }
     audio.play().catch(() => {});
 
     if (!waveforms[file.id]) {
@@ -5184,6 +5259,32 @@ function App() {
       setPosition(time);
     } else {
       pendingSeekRef.current = time;
+    }
+  };
+
+  // Atomic: start a file (if needed) and seek to a clip position
+  const playClipFromFile = (file, clip) => {
+    setActiveClip(clip);
+    const audio = audioRef.current;
+    if (currentTrackId === file.id) {
+      audio.currentTime = clip.start;
+      audio.play().catch(() => {});
+    } else {
+      pendingSeekRef.current = clip.start;   // set BEFORE startTrack changes audio.src
+      startTrack(file);
+    }
+  };
+
+  // Atomic: start a file (if needed) and seek to a bookmark time
+  const seekBookmarkInFile = (file, time) => {
+    const audio = audioRef.current;
+    if (currentTrackId === file.id) {
+      audio.currentTime = time;
+      setPosition(time);
+      audio.play().catch(() => {});
+    } else {
+      pendingSeekRef.current = time;         // set BEFORE startTrack changes audio.src
+      startTrack(file);
     }
   };
 
@@ -5434,7 +5535,7 @@ function App() {
               )}
               {route.page === 'BANDAS' && (
                 <BandasPage artists={allArtists} files={files} localFiles={localFiles}
-                            onNav={setRoute}
+                            onNav={setRoute} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                             artistMeta={artistMeta} />
@@ -5491,8 +5592,10 @@ function App() {
                                 likedIds={likedIds} onToggleLike={toggleLike}
                                 bookmarks={bookmarks} onAddBookmark={addBookmark}
                                 onDeleteBookmark={deleteBookmark} onUpdateBookmark={updateBookmark} onSeekBookmark={seekToBookmark}
+                                onSeekBookmarkInFile={seekBookmarkInFile}
                                 clipStore={clipStore} onAddClip={addClip}
                                 onDeleteClip={deleteClip} onUpdateClip={updateClip} onPlayClip={playClip}
+                                onPlayClipFromFile={playClipFromFile}
                                 onStopClip={stopClip} activeClip={activeClip}
                                 position={position}
                                 onPrev={goDetailPrev} onNext={goDetailNext}
