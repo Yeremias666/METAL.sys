@@ -3056,50 +3056,50 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .nav {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
+    gap: 5px;
     margin-bottom: 10px;
-    background: rgba(214,31,31,0.22);
-    border: 1px solid rgba(214,31,31,0.22);
   }
   .nav-system { display: contents; }
   .nav-left { display: none; }
   .nav .prompt { display: none; }
   .nav button {
     width: 100%;
-    min-height: 56px;
-    padding: 8px 6px 7px;
+    min-height: 54px;
+    padding: 7px 4px 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    border: none;
+    border: 1px solid rgba(214,31,31,0.28);
     border-radius: 0;
-    background: #080306;
-    font-size: 9.5px;
+    background: transparent;
+    font-size: 9px;
     font-family: var(--mono);
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--fg-text);
+    color: var(--fg-dim);
     white-space: nowrap;
   }
-  .nav button svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.6; margin-right: 0; vertical-align: 0; }
+  .nav button svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.55; margin-right: 0; vertical-align: 0; }
   .nav button.active {
     background: var(--fg-primary);
     color: var(--bg-deep);
+    border-color: var(--fg-primary);
+    box-shadow: 0 0 10px rgba(214,31,31,0.4);
   }
   .nav button.active svg { opacity: 1; }
   .nav-more { grid-column: span 1; }
   .nav-more-btn {
     width: 100%;
-    min-height: 56px;
-    padding: 8px 6px 7px;
-    font-size: 9.5px;
+    min-height: 54px;
+    padding: 7px 4px 6px;
+    font-size: 9px;
     font-family: var(--mono);
-    letter-spacing: 0.12em;
-    border: none;
+    letter-spacing: 0.1em;
+    border: 1px solid rgba(214,31,31,0.28);
     border-radius: 0;
-    background: #080306;
+    background: transparent;
   }
   .crt-screen { border-radius: 0; }
 
@@ -4127,27 +4127,23 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .boot-screen {
   position: fixed;
   inset: 0;
+  z-index: 9999;
   background: #060408;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding: clamp(16px, 4vw, 40px);
+  padding: clamp(14px, 3vw, 36px);
   font-family: 'Courier New', Courier, monospace;
-  font-size: clamp(11px, 2.2vw, 15px);
-  line-height: 1.7;
-  /* subtle scanline overlay */
-  background-image: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0,0,0,0.18) 2px,
-    rgba(0,0,0,0.18) 4px
-  );
+  font-size: clamp(10px, 1.6vw, 14px);
+  line-height: 1.75;
 }
 .boot-line {
   opacity: 0;
   color: #a8a8a8;
-  white-space: pre;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
   animation: boot-appear 0.06s ease-out forwards;
 }
 .boot-ts       { color: #4a5a4a; }
