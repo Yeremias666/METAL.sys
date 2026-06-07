@@ -2874,7 +2874,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-controls">
         <div className="mp-menu-wrap">
-          <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones" style={{lineHeight:0}}>
+          <button className="mp-menu-btn" onClick={onOpenMenu} onMouseDown={e => e.stopPropagation()} title="Opciones" style={{lineHeight:0}}>
             <svg width="16" height="5" viewBox="0 0 16 5" fill="currentColor"><circle cx="2" cy="2.5" r="2"/><circle cx="8" cy="2.5" r="2"/><circle cx="14" cy="2.5" r="2"/></svg>
           </button>
           {showMenu && (
@@ -4701,6 +4701,7 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
   const syncReadyRef = useRef(false); // blocks scheduleSync until initial cloud load completes
+  const isMobile = window.innerWidth <= 700;
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
@@ -5570,6 +5571,7 @@ function App() {
           <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} />
           <div className="page">
             {/* Left sidebar */}
+            {!isMobile && (
             <div className="col-left">
               <LibraryTree
                 files={files} localFiles={localFiles} allCats={allCats}
@@ -5578,6 +5580,7 @@ function App() {
                 onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
                 onPlayFile={f => { setManualQueue(null); startTrack(f); }} />
             </div>
+            )}
 
             {/* Center column */}
             <div className="col-main">
@@ -5683,6 +5686,7 @@ function App() {
             </div>
 
             {/* Right sidebar */}
+            {!isMobile && (
             <div className="col-right">
               <PlayQueueWithNowPlaying
                 queue={effectiveQueue} currentId={currentTrackId}
@@ -5694,6 +5698,7 @@ function App() {
               <PlaysCounter playCounts={playCounts} />
               <RecentActivity log={log} />
             </div>
+            )}
           </div>
         </div>
 
@@ -5722,7 +5727,7 @@ function App() {
                    onClose={stopMusic}
                    tags={currentTrackId ? id3Cache[currentTrackId] : null}
                    analyser={analyserRef}
-                   onOpenMenu={() => setShowPlayerMenu(true)}
+                   onOpenMenu={() => setShowPlayerMenu(prev => !prev)}
                    showMenu={showPlayerMenu}
                    onCloseMenu={() => setShowPlayerMenu(false)}
                    onCreateBookmark={() => { setShowPlayerMenu(false); setShowBookmarkModal(true); }}

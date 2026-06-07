@@ -3163,8 +3163,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .mp-progress { grid-template-columns: 36px 1fr 36px; gap: 6px; }
 
   /* ── Radio / DetailPage audio ────────────────────────── */
-  /* Hide side grilles — cover takes full width */
+  /* Hide side grilles and VU bars (disabled on mobile anyway) */
   .radio-grille { display: none; }
+  .radio-vu { display: none; }
   .radio-mid { grid-template-columns: 1fr; }
   .radio-cover-frame { width: min(260px, calc(100vw - 80px)); height: min(260px, calc(100vw - 80px)); }
 
