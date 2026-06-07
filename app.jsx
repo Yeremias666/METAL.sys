@@ -1037,9 +1037,9 @@ function TrackList({ files, onOpen, onPlay }) {
               ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
               : noteIcon}
             <div style={{flex:1, minWidth:0}}>
-              <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
+              <div className="tl-name">{f.name}</div>
               <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-              {f.album && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
+              {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
             </div>
             <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
           </div>
@@ -5619,7 +5619,15 @@ function App() {
                 onNav={setRoute} onOpenFile={openFile}
                 onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
                 onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
-                onPlayFile={f => { setManualQueue(null); startTrack(f); }} />
+                onPlayFile={f => {
+                  const artist = f.category || f.artist;
+                  const ctx = f.album
+                    ? { type: 'album', artist, album: f.album, shuffle: false }
+                    : { type: 'artist', artist, shuffle: false };
+                  setManualQueue(null);
+                  setPlayContext(ctx);
+                  startTrack(f, ctx);
+                }} />
             </div>
             )}
 
@@ -5692,7 +5700,15 @@ function App() {
                               artistMeta={artistMeta} onUpdateArtistMeta={updateArtistMeta}
                               onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                               onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)}
-                              onPlayFile={(f) => { setManualQueue([f]); startTrack(f); }} />
+                              onPlayFile={(f) => {
+                                const artist = f.category || f.artist;
+                                const ctx = f.album
+                                  ? { type: 'album', artist, album: f.album, shuffle: false }
+                                  : { type: 'artist', artist, shuffle: false };
+                                setManualQueue(null);
+                                setPlayContext(ctx);
+                                startTrack(f, ctx);
+                              }} />
               )}
               {route.page === 'DETAIL' && (
                 currentFile
