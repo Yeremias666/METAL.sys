@@ -4741,6 +4741,13 @@ function App() {
     return () => { clearInterval(id); window.removeEventListener('resize', update); };
   }, [currentTrackId]);
 
+  // Detect touch device once on mount — used by CSS to suppress sticky hover
+  useEffect(() => {
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      document.documentElement.classList.add('is-touch');
+    }
+  }, []);
+
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);

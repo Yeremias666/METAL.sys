@@ -3145,8 +3145,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
     left: 4px; right: 4px; bottom: 4px;
     grid-template-columns: 56px 1fr;
     grid-template-rows: auto auto auto;
-    gap: 6px 10px;
-    padding: 10px 12px 10px;
+    gap: 10px 10px;
+    padding: 10px 12px 12px;
   }
   .music-player .mp-info-wrap { display: contents; }
   .music-player .mp-cover    { grid-column: 1; grid-row: 1; width: 56px; height: 56px; align-self: center; }
@@ -4037,15 +4037,15 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
 @media (max-width: 700px) { .track-list-play { opacity: 1; } }
 
-/* ── Touch devices: prevent hover styles sticking after tap ── */
-@media (hover: none) and (pointer: coarse) {
-  .mp-controls button:hover { background: transparent; color: var(--fg-primary); box-shadow: none; }
-  .mp-controls .mp-play:hover { background: transparent; border-color: var(--fg-primary); box-shadow: none; color: var(--fg-primary); }
-  .mini-btn:hover { background: transparent; color: var(--fg-primary); }
-  .mini-btn.alt:hover { background: transparent; color: var(--fg-primary); }
-  .big-btn:hover { transform: none; box-shadow: 2px 2px 0 rgba(214,31,31,0.2); }
-  .big-btn.ghost:hover { color: var(--fg-secondary); border-color: var(--fg-secondary); box-shadow: none; }
-  .search-suggestion:hover { background: transparent; }
-  button { -webkit-tap-highlight-color: transparent; }
-}
+/* ── Touch devices: suppress sticky hover after tap ────────── */
+/* JS adds .is-touch to <html> when ontouchstart or maxTouchPoints detected */
+.is-touch .mp-controls button:hover { background: rgba(214,31,31,0.15); color: var(--fg-primary); box-shadow: none; text-shadow: 0 0 6px var(--fg-primary); }
+.is-touch .mp-controls .mp-play:hover { background: rgba(214,31,31,0.15); border-color: var(--fg-primary); box-shadow: none; color: var(--fg-primary); }
+.is-touch .mp-menu-btn:hover { background: transparent; box-shadow: none; }
+.is-touch .mini-btn:hover { background: transparent; color: var(--fg-primary); }
+.is-touch .mini-btn.alt:hover { background: transparent; color: var(--fg-primary); }
+.is-touch .big-btn:hover { transform: none; box-shadow: 2px 2px 0 rgba(214,31,31,0.2); }
+.is-touch .big-btn.ghost:hover { color: var(--fg-secondary); border-color: var(--fg-secondary); box-shadow: none; }
+.is-touch .search-suggestion:hover { background: transparent; }
+.is-touch button { -webkit-tap-highlight-color: transparent; }
 
