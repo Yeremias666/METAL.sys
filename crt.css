@@ -2947,7 +2947,8 @@ input:not([type=range]), textarea {
 
 /* Push page content up when music player visible */
 body:has(.music-player) .crt-content { padding-bottom: 100px; }
-@media (max-width: 700px) { body:has(.music-player) .crt-content { padding-bottom: 160px; } }
+@media (max-width: 700px) { body:has(.music-player) .crt-content { padding-bottom: 100px; } }
+@media (max-width: 600px) { body:has(.music-player) .col-main { padding-bottom: 0; } }
 
 /* ─── Upload progress page ────────────────────────────────── */
 .upload-progress {
@@ -4075,16 +4076,80 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .tl-name { font-family: var(--mono); font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ── Touch devices: suppress sticky hover after tap ────────── */
+/* ── Touch devices: suppress ALL sticky hover effects after tap ─ */
 /* JS adds .is-touch to <html> when ontouchstart or maxTouchPoints detected */
-.is-touch .mp-controls button:hover { background: rgba(214,31,31,0.15); color: var(--fg-primary); box-shadow: none; text-shadow: 0 0 6px var(--fg-primary); }
-.is-touch .mp-controls .mp-play:hover { background: rgba(214,31,31,0.15); border-color: var(--fg-primary); box-shadow: none; color: var(--fg-primary); }
-.is-touch .mp-menu-btn:hover { background: transparent; box-shadow: none; }
+
+/* Nav */
+.is-touch .nav button:hover { background: transparent; color: var(--fg-text); border-color: transparent; box-shadow: none; }
+.is-touch .nav button.active:hover { background: var(--fg-primary); color: var(--bg-deep); border-color: var(--fg-primary); box-shadow: 0 0 12px var(--fg-primary); }
+.is-touch .nav-more-btn:hover { background: transparent; color: var(--fg-text); box-shadow: none; }
+.is-touch .nav-search-item:hover { background: transparent; }
+/* User / auth */
+.is-touch .user-btn:hover { background: transparent; color: var(--fg-text); }
+.is-touch .user-menu button:hover { background: transparent; color: inherit; }
+.is-touch .profile-avatar:hover .profile-avatar-overlay { opacity: 0; }
+.is-touch .auth-submit:hover { opacity: 1; }
+/* Buttons */
+.is-touch .cat-upload-btn:hover { background: transparent; color: inherit; box-shadow: none; }
 .is-touch .mini-btn:hover { background: transparent; color: var(--fg-primary); }
 .is-touch .mini-btn.alt:hover { background: transparent; color: var(--fg-primary); }
 .is-touch .big-btn:hover { transform: none; box-shadow: 2px 2px 0 rgba(214,31,31,0.2); }
 .is-touch .big-btn.ghost:hover { color: var(--fg-secondary); border-color: var(--fg-secondary); box-shadow: none; }
+.is-touch .modal-x:hover { color: inherit; }
+.is-touch .tabs button:hover:not(.active) { background: transparent; color: inherit; }
+.is-touch .sort-select:hover { border-color: inherit; }
+.is-touch .dir-btn:hover { background: transparent; color: inherit; box-shadow: none; }
+.is-touch .like-btn:hover { border-color: inherit; color: inherit; }
+.is-touch .music-player .like-btn:hover { background: transparent; color: inherit; box-shadow: none; }
+.is-touch .mp-controls button:hover { background: rgba(214,31,31,0.15); color: var(--fg-primary); box-shadow: none; text-shadow: 0 0 6px var(--fg-primary); }
+.is-touch .mp-controls .mp-play:hover { background: rgba(214,31,31,0.15); border-color: var(--fg-primary); box-shadow: none; color: var(--fg-primary); }
+.is-touch .mp-menu-btn:hover { background: transparent; box-shadow: none; }
+.is-touch .mp-close:hover { background: transparent; color: inherit; box-shadow: none; }
+.is-touch .mp-menu-dropdown button:hover { background: transparent; color: inherit; }
+.is-touch .bm-item button:hover, .is-touch .clip-item button:hover { border-color: inherit; color: inherit; }
+.is-touch .radio-play-btn:hover { background: transparent; box-shadow: none; }
+.is-touch .radio-nav-btn:hover:not(:disabled) { background: transparent; box-shadow: none; }
+/* Cards */
+.is-touch .cat-card:hover { transform: none; box-shadow: none; }
+.is-touch .cat-card:hover .cat-card-play { opacity: 0; }
+.is-touch .cat-card-play:hover { background: transparent; box-shadow: none; }
+.is-touch .album-card:hover { transform: none; box-shadow: none; z-index: auto; }
+.is-touch .album-card:hover .album-card-thumb { overflow: hidden; }
+.is-touch .album-card:hover .ac-vinyl-disc { transform: none; }
+.is-touch .album-card:hover .album-card-vinyl { transform: none; }
+.is-touch .album-card:hover .ac-play-btn { opacity: 1; }
+.is-touch .ac-play-btn:hover { background: transparent; border-color: inherit; box-shadow: none; }
+.is-touch .album-pill:hover { border-color: inherit; color: inherit; }
+.is-touch .file-card:hover { background: transparent; box-shadow: none; }
+.is-touch .stat-highlight:hover { border-color: inherit; box-shadow: none; }
+/* Lists / rows */
+.is-touch .track-list-row:hover { background: transparent; }
+.is-touch .track-list-play:hover { background: transparent; color: var(--fg-primary); box-shadow: none; }
 .is-touch .search-suggestion:hover { background: transparent; }
+.is-touch .lib-artist-row:hover { background: transparent; }
+.is-touch .lib-name:hover { color: inherit; text-decoration: none; }
+.is-touch .lib-artist-row:hover .lib-play { opacity: 0; }
+.is-touch .lib-album-row:hover { background: transparent; }
+.is-touch .lib-album-row:hover .lib-play { opacity: 0; }
+.is-touch .lib-song-row:hover { background: transparent; color: inherit; }
+.is-touch .lib-song-row:hover .lib-play { opacity: 0; }
+.is-touch .pq-item:hover { background: transparent; }
+.is-touch .pq-item:hover .pq-drag-handle { opacity: 0; }
+.is-touch .top-song-row:hover { background: transparent; }
+.is-touch .local-track-row:hover { background: transparent; }
+.is-touch .lib-play:hover { background: transparent !important; color: inherit !important; opacity: 1; }
+.is-touch .file-list thead th:hover { background: transparent; }
+.is-touch .file-list tbody tr:hover { background: transparent; }
+.is-touch .zip-entry.is-dir:hover { background: transparent; border-left-color: inherit; }
+.is-touch .zip-entry.is-file:hover { background: transparent; }
+/* Other */
+.is-touch .cat-pill:hover { border-color: inherit; color: inherit; }
+.is-touch .cat-pill.new:hover { background: transparent; }
+.is-touch .thumb-zone:hover { background: transparent; box-shadow: none; }
+.is-touch .dropzone:hover { background: transparent; }
+.is-touch .cassette .controls button:hover { background: transparent; color: inherit; }
+.is-touch .widget .cassette:hover { transform: none; box-shadow: none; }
+.is-touch .footer-link:hover { color: var(--fg-dim); }
 .is-touch button { -webkit-tap-highlight-color: transparent; }
 
 /* ── Boot / loading screen ─────────────────────────────────── */

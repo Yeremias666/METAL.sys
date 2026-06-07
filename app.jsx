@@ -4293,7 +4293,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                           ? <img className="pod-cover" src={song.thumbnail||song.coverArt} alt="" style={{width:56,height:56,objectFit:'cover',border:`2px solid ${color}`,imageRendering:'pixelated',boxShadow:`0 0 10px ${color}55`}}/>
                           : <div className="pod-cover-empty" style={{width:56,height:56,border:`2px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center',color,margin:'0 auto'}}><IconGlyph iconId="nota" size={32}/></div>}
                         <div className="pod-name" style={{fontFamily:'var(--mono)',fontSize:14,color:'var(--fg-text)',marginTop:4,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{song.name}</div>
-                        <div style={{fontFamily:'var(--pixel)',fontSize:8,color:'var(--fg-dim)',letterSpacing:'0.08em',marginTop:2}}>{song.artist||song.category||''}</div>
+                        <div style={{fontFamily:'var(--pixel)',fontSize:8,color:'var(--fg-dim)',letterSpacing:'0.08em',marginTop:2}}>{song.category||song.artist||''}</div>
                         <div style={{fontFamily:'var(--pixel)',fontSize:10,color,marginTop:3,textShadow:`0 0 8px ${color}`}}>▶ {plays}×</div>
                       </div>
                       {/* Pedestal */}
