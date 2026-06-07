@@ -1049,19 +1049,29 @@ function TrackList({ files, onOpen, onPlay }) {
   );
 }
 
-function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll, onPlayFile }) {
+function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav }) {
   const [query, setQuery] = useState('');
-  const allFiles = [...files, ...localFiles].filter(isAudioFile);
-  const sorted = [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-  const q = query.trim().toLowerCase();
-  const visible = q
-    ? sorted.filter(f =>
-        (f.name||'').toLowerCase().includes(q) ||
-        (f.artist||f.category||'').toLowerCase().includes(q) ||
-        (f.album||'').toLowerCase().includes(q) ||
-        (f.genre||'').toLowerCase().includes(q)
-      )
-    : sorted;
+  const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
+  const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
+  const gq = normStr(query.trim());
+  const suggestions = useMemo(() => {
+    if (!gq) return [];
+    const artistHits = allCats.filter(a => normStr(a).includes(gq))
+      .slice(0, 2).map(a => {
+        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
+        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+      });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const songHits = allFiles.filter(f => normStr(f.name).includes(gq)).slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...songHits].slice(0, 5);
+  }, [gq, allCats, allFiles]);
+
   return (
     <div>
       <div className="panel">
@@ -1079,16 +1089,47 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll, onPlayFil
                 value={query} onChange={e => setQuery(e.target.value)} />
               {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
             </div>
-            {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visible.length} resultado{visible.length===1?'':'s'}</div>}
+            {gq && (
+              <div className="search-suggestions">
+                {suggestions.length === 0 ? (
+                  <div className="search-suggestion empty">Sin coincidencias.</div>
+                ) : suggestions.map((item, idx) => (
+                  <button key={idx} className="search-suggestion search-suggestion-anim"
+                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
+                    setQuery('');
+                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
+                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                    else onOpenFile(item.file.id);
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="search-suggestion-thumb">
+                        {item.type === 'artist'
+                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                          : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                          {item.type === 'artist' ? 'ARTISTA'
+                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="search-item-type">
+                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {visible.length === 0
-          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
-              {q ? `◇ Sin resultados para "${query}"` : '◇ Sin canciones todavía'}
-            </div>
-          : <TrackList files={visible} onOpen={onOpenFile} onPlay={onPlayFile} />
+        {sorted.length === 0
+          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
+          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile} />
         }
       </div></div></div>
     </div>
@@ -2776,7 +2817,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-controls">
         <div className="mp-menu-wrap">
-          <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones">···</button>
+          <button className="mp-menu-btn" onClick={onOpenMenu} title="Opciones" style={{lineHeight:0}}>
+            <svg width="16" height="5" viewBox="0 0 16 5" fill="currentColor"><circle cx="2" cy="2.5" r="2"/><circle cx="8" cy="2.5" r="2"/><circle cx="14" cy="2.5" r="2"/></svg>
+          </button>
           {showMenu && (
             <PlayerMenuDropdown
               onCreateBookmark={onCreateBookmark}
@@ -3126,7 +3169,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                                   : <span className="bm-name" onDoubleClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }}>{bm.name}</span>
                                 }
                                 <span className="bm-time">{fmtTimeSec(bm.time)}</span>
-                                <button onClick={() => onSeekBookmark(bm.time)} title="Ir al marcador">▶</button>
+                                <button onClick={() => { onPlayAudio(file); onSeekBookmark(bm.time); }} title="Ir al marcador">▶</button>
                                 <button onClick={() => { setEditingBmId(bm.id); setEditBmDraft(bm.name); }} title="Editar">✎</button>
                                 <button onClick={() => onDeleteBookmark(file.id, bm.id)} title="Eliminar">✕</button>
                               </div>
@@ -4724,8 +4767,9 @@ function App() {
     const audio = audioRef.current;
     const onCanPlay = () => {
       if (pendingSeekRef.current !== null) {
-        audio.currentTime = pendingSeekRef.current;
+        const t = pendingSeekRef.current;
         pendingSeekRef.current = null;
+        audio.currentTime = t;
       }
     };
     audio.addEventListener('canplay', onCanPlay);
@@ -5133,7 +5177,15 @@ function App() {
   const updateBookmark = (fileId, bmId, name) => {
     setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(b => b.id === bmId ? { ...b, name } : b) }));
   };
-  const seekToBookmark = (time) => { seek(time); };
+  const seekToBookmark = (time) => {
+    const audio = audioRef.current;
+    if (audio.readyState >= 2) {
+      audio.currentTime = time;
+      setPosition(time);
+    } else {
+      pendingSeekRef.current = time;
+    }
+  };
 
   // Clip handlers
   const addClip = (fileId, clip) => {
@@ -5370,6 +5422,7 @@ function App() {
               )}
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
+                              allCats={allCats} onNav={setRoute}
                               onOpenFile={openFile}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
                               onPlayFile={(f) => {
