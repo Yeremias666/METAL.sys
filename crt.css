@@ -3054,53 +3054,28 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner-title { font-size: clamp(12px, 4vw, 18px); white-space: nowrap; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
   .nav {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 5px;
-    margin-bottom: 10px;
-  }
-  .nav-system { display: contents; }
-  .nav-left { display: none; }
-  .nav .prompt { display: none; }
-  .nav button {
-    width: 100%;
-    min-height: 54px;
-    padding: 7px 4px 6px;
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-    border: 1px solid rgba(214,31,31,0.28);
-    border-radius: 0;
-    background: transparent;
-    font-size: 9px;
-    font-family: var(--mono);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--fg-dim);
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: visible;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    font-size: 13px;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav-system { display: flex; flex-shrink: 0; gap: 4px; align-items: center; }
+  .nav-left { display: none; }
+  .nav button {
+    min-height: 44px;
+    padding: 0.3em 0.75em;
     white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 13px;
   }
-  .nav button svg { width: 18px; height: 18px; flex-shrink: 0; opacity: 0.55; margin-right: 0; vertical-align: 0; }
-  .nav button.active {
-    background: var(--fg-primary);
-    color: var(--bg-deep);
-    border-color: var(--fg-primary);
-    box-shadow: 0 0 10px rgba(214,31,31,0.4);
-  }
-  .nav button.active svg { opacity: 1; }
-  .nav-more { grid-column: span 1; }
-  .nav-more-btn {
-    width: 100%;
-    min-height: 54px;
-    padding: 7px 4px 6px;
-    font-size: 9px;
-    font-family: var(--mono);
-    letter-spacing: 0.1em;
-    border: 1px solid rgba(214,31,31,0.28);
-    border-radius: 0;
-    background: transparent;
-  }
+  .nav-more { flex-shrink: 0; }
+  .nav-more-btn { min-height: 44px; padding: 0.3em 0.75em; }
   .crt-screen { border-radius: 0; }
 
   /* Hero / text */
