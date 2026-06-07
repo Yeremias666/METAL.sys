@@ -4749,6 +4749,21 @@ function App() {
     }
   }, []);
 
+  // Remove CMD boot overlay once React has mounted; respect minimum 2.5s display time
+  useEffect(() => {
+    const el = document.getElementById('boot-overlay');
+    if (!el) return;
+    const BOOT_MIN = 2500;
+    const elapsed = performance.now();
+    const remaining = Math.max(0, BOOT_MIN - elapsed);
+    const t = setTimeout(() => {
+      el.style.transition = 'opacity 0.4s ease';
+      el.style.opacity = '0';
+      setTimeout(() => el.remove(), 420);
+    }, remaining);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);

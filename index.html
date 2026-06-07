@@ -15,18 +15,19 @@
 <script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
 </head>
 <body>
-<div id="root"><div class="boot-screen">
-  <div class="boot-line l1">METAL.SYS BIOS v2.06.2026 &nbsp;&nbsp;Copyright (C) Yeremias</div>
-  <div class="boot-line l2">CPU: AUDIO-X1 @ 320kbps &nbsp;&nbsp;VAULT: 8.62 GB &nbsp;&nbsp;NODE 01</div>
-  <div class="boot-line l3 boot-sep">────────────────────────────────────────────</div>
-  <div class="boot-line l4"><span class="boot-ok">[  OK  ]</span> Subsistema de audio inicializado</div>
-  <div class="boot-line l5"><span class="boot-ok">[  OK  ]</span> Índice de biblioteca cargado</div>
-  <div class="boot-line l6"><span class="boot-ok">[  OK  ]</span> Vault montado correctamente</div>
-  <div class="boot-line l7"><span class="boot-ok">[  OK  ]</span> Motor de reproducción listo</div>
-  <div class="boot-line l8"><span class="boot-ok">[  OK  ]</span> Interfaz CRT inicializada</div>
-  <div class="boot-line l9 boot-sep">────────────────────────────────────────────</div>
-  <div class="boot-line l10 boot-ready">SISTEMA LISTO — Cargando interfaz... <span class="boot-cursor">█</span></div>
-</div></div>
+<div id="boot-overlay" class="boot-screen">
+  <div class="boot-line l1"><span class="boot-ts">[    0.000000]</span> METAL.SYS kernel 5.15.0-metal #1 SMP x86_64</div>
+  <div class="boot-line l2"><span class="boot-ts">[    0.000000]</span> Command line: root=/dev/vault ro quiet splash</div>
+  <div class="boot-line l3"><span class="boot-ts">[    0.138291]</span> audio_drv: PCM subsystem initialized (44100Hz stereo)</div>
+  <div class="boot-line l4"><span class="boot-ts">[    0.274803]</span> vault_fs: mounting /dev/sda1 on /vault</div>
+  <div class="boot-line l5"><span class="boot-ts">[    0.276541]</span> vault_fs: OK &mdash; 8.62 GB, 847 tracks indexed</div>
+  <div class="boot-line l6"><span class="boot-ts">[    0.431209]</span> id3_parser: tag engine v2.4 ready</div>
+  <div class="boot-line l7"><span class="boot-ts">[    0.589012]</span> playback_drv: engine online @ 44100Hz</div>
+  <div class="boot-line l8"><span class="boot-ts">[    0.714883]</span> crt_drv: phosphor-metal [1920x1080 @ 60Hz]</div>
+  <div class="boot-line l9 boot-starting">         Starting METAL.SYS Interface...</div>
+  <div class="boot-line l10"><span class="boot-ok">[  OK  ]</span> Started <span class="boot-em">METAL.SYS</span> Interface.<span class="boot-cursor"> █</span></div>
+</div>
+<div id="root"></div>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel" src="app.jsx"></script>
 </body>
