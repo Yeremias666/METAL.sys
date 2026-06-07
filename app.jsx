@@ -758,8 +758,8 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
   useEffect(() => {
     if (!dropOpen) return;
     const handler = (e) => { if (!dropRef.current?.contains(e.target)) setDropOpen(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('pointerdown', handler);
+    return () => document.removeEventListener('pointerdown', handler);
   }, [dropOpen]);
 
   const dropActive = hiddenCats.some(c => current.page === 'CAT' && current.cat === c);
@@ -4752,19 +4752,41 @@ function App() {
     }
   }, []);
 
-  // Remove CMD boot overlay once React has mounted; respect minimum 2.5s display time
+  // Remove CMD boot overlay once React has mounted
   useEffect(() => {
     const el = document.getElementById('boot-overlay');
     if (!el) return;
-    const BOOT_MIN = 2500;
+
+    const ANIM_DONE = 2300; // last CSS animation (.l10) completes at ~2.25s from page load
     const elapsed = performance.now();
-    const remaining = Math.max(0, BOOT_MIN - elapsed);
-    const t = setTimeout(() => {
+
+    function removeBoot() {
       el.style.transition = 'opacity 0.4s ease';
       el.style.opacity = '0';
-      setTimeout(() => el.remove(), 420);
-    }, remaining);
-    return () => clearTimeout(t);
+      setTimeout(() => { if (el.parentNode) el.remove(); }, 420);
+    }
+
+    let t;
+    if (elapsed >= ANIM_DONE) {
+      // Babel was slow — animations already played; flash any remaining lines and exit quickly
+      el.querySelectorAll('.boot-line, .boot-cursor').forEach(n => {
+        n.style.animation = 'none';
+        n.style.opacity = '1';
+      });
+      t = setTimeout(removeBoot, 350);
+    } else {
+      // Animations still running — wait for them to finish naturally
+      t = setTimeout(removeBoot, ANIM_DONE - elapsed + 300);
+    }
+
+    // BFCache: if browser restores page from back/forward cache, remove overlay immediately
+    const onPageShow = e => { if (e.persisted) { clearTimeout(t); if (el.parentNode) el.remove(); } };
+    window.addEventListener('pageshow', onPageShow);
+
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('pageshow', onPageShow);
+    };
   }, []);
 
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);

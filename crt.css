@@ -3055,23 +3055,17 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
   .nav {
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overflow-y: visible;
+    flex-wrap: wrap;
     gap: 4px;
     margin-bottom: 10px;
-    padding-bottom: 2px;
-    scrollbar-width: none;
     font-size: 13px;
   }
-  .nav::-webkit-scrollbar { display: none; }
-  .nav-system { display: flex; flex-shrink: 0; gap: 4px; align-items: center; }
+  .nav-system { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; flex: 1; }
   .nav-left { display: none; }
   .nav button {
     min-height: 44px;
     padding: 0.3em 0.75em;
     white-space: nowrap;
-    flex-shrink: 0;
     font-size: 13px;
   }
   .nav-more { flex-shrink: 0; }
