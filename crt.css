@@ -644,9 +644,7 @@ input:not([type=range]), textarea {
 .col-left {
   padding: 16px 14px 32px 16px;
   min-width: 0;
-  position: sticky;
-  top: 0;
-  max-height: 100vh;
+  max-height: calc(100vh - 60px);
   overflow-y: auto;
 }
 

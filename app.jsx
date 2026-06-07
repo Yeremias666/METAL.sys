@@ -1016,31 +1016,19 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   );
 }
 
-function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll, onNav, allCats = [] }) {
-  const [gQuery, setGQuery] = useState('');
-  const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
-  const sorted = useMemo(() => [...allFiles].filter(isAudioFile).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
-  const gq = normStr(gQuery.trim());
-
-  const gSuggestions = useMemo(() => {
-    if (!gq) return [];
-    const artistHits = allCats.filter(a => normStr(a).includes(gq))
-      .slice(0, 2).map(a => {
-        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
-        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
-      });
-    const albumMap = new Map();
-    allFiles.forEach(f => {
-      if (!f.album) return;
-      const key = `${f.artist||f.category}::${f.album}`;
-      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
-    });
-    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
-    const songHits = allFiles.filter(f => isAudioFile(f) && normStr(f.name).includes(gq))
-      .slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
-    return [...artistHits, ...albumHits, ...songHits].slice(0, 5);
-  }, [gq, allCats, allFiles]);
-
+function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
+  const [query, setQuery] = useState('');
+  const allFiles = [...files, ...localFiles].filter(isAudioFile);
+  const sorted = [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
+  const q = query.trim().toLowerCase();
+  const visible = q
+    ? sorted.filter(f =>
+        (f.name||'').toLowerCase().includes(q) ||
+        (f.artist||f.category||'').toLowerCase().includes(q) ||
+        (f.album||'').toLowerCase().includes(q) ||
+        (f.genre||'').toLowerCase().includes(q)
+      )
+    : sorted;
   return (
     <div>
       <div className="panel">
@@ -1055,52 +1043,19 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll, onNav, al
           <div className="panel-body searchbar-body">
             <div className="search-row">
               <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
-                value={gQuery} onChange={e => setGQuery(e.target.value)} />
-              {gQuery && <button className="mini-btn alt" onClick={() => setGQuery('')}>✕</button>}
+                value={query} onChange={e => setQuery(e.target.value)} />
+              {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
             </div>
-            {gq && (
-              <div className="search-suggestions">
-                {gSuggestions.length === 0 ? (
-                  <div className="search-suggestion empty">Sin coincidencias.</div>
-                ) : gSuggestions.map((item, idx) => (
-                  <button key={idx} className="search-suggestion search-suggestion-anim"
-                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
-                    setGQuery('');
-                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
-                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
-                    else onOpenFile(item.file.id);
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div className="search-suggestion-thumb">
-                        {item.type === 'artist'
-                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
-                          : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
-                      </div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
-                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
-                          {item.type === 'artist' ? 'ARTISTA'
-                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
-                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="search-item-type">
-                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+            {q && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', marginTop:6, letterSpacing:'0.06em'}}>{visible.length} resultado{visible.length===1?'':'s'}</div>}
           </div>
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {sorted.length === 0
+        {visible.length === 0
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
-              ◇ Sin canciones todavía
+              {q ? `◇ Sin resultados para "${query}"` : '◇ Sin canciones todavía'}
             </div>
-          : sorted.map((f, i) => (
+          : visible.map((f, i) => (
             <div key={f.id}
                  style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
                  onClick={() => onOpenFile(f.id)}>
@@ -5361,8 +5316,7 @@ function App() {
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
                               onOpenFile={openFile}
-                              onPlayAll={() => playScope({ type: 'all' }, false)}
-                              onNav={setRoute} allCats={allCats} />
+                              onPlayAll={() => playScope({ type: 'all' }, false)} />
               )}
               {route.page === 'BANDAS' && (
                 <BandasPage artists={allArtists} files={files} localFiles={localFiles}
