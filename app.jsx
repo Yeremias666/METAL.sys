@@ -4700,6 +4700,7 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
+  const syncReadyRef = useRef(false); // blocks scheduleSync until initial cloud load completes
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
@@ -4749,6 +4750,24 @@ function App() {
     _catIconRegistry = Object.fromEntries(customCats.map(c => [c.name, c.icon]));
   }, [customCats]);
   useEffect(() => { saveLog(log); }, [log]);
+
+  // Fetch cloud user data on startup if already authenticated
+  useEffect(() => {
+    if (!authToken) { syncReadyRef.current = true; return; }
+    fetch('/api/userdata', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) {
+          if (d.bookmarks)  setBookmarks(d.bookmarks);
+          if (d.clipStore)  setClipStore(d.clipStore);
+          if (d.likedIds)   setLikedIds(new Set(d.likedIds));
+          if (d.playCounts) setPlayCounts(d.playCounts);
+          if (d.playLog)    setPlayLog(d.playLog);
+        }
+      })
+      .catch(() => {})
+      .finally(() => { syncReadyRef.current = true; });
+  }, []);
 
   // Cargar biblioteca de Cloudflare R2 al arrancar
   useEffect(() => {
@@ -5061,7 +5080,7 @@ function App() {
     if (context.type === 'album' && context.artist && context.album) {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
-    return combined;
+    return [...combined].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
   }, [files, localFiles]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
@@ -5268,7 +5287,7 @@ function App() {
 
   // Sync to cloud with debounce
   const scheduleSync = React.useCallback(() => {
-    if (!authToken) return;
+    if (!authToken || !syncReadyRef.current) return;
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
       fetch('/api/userdata', {

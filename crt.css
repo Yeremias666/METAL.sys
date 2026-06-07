@@ -3700,6 +3700,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .mp-menu-dropdown button:last-child { border-bottom: none; }
 .mp-menu-dropdown button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
+@media (max-width: 700px) {
+  .mp-menu-dropdown { right: auto; left: 0; }
+}
 
 /* ─── Bookmarks + Clips (DetailPage tabs) ────────────────────── */
 .bm-list, .clip-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
@@ -4033,4 +4036,16 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-list-row:hover .track-list-play { opacity: 1; }
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
 @media (max-width: 700px) { .track-list-play { opacity: 1; } }
+
+/* ── Touch devices: prevent hover styles sticking after tap ── */
+@media (hover: none) and (pointer: coarse) {
+  .mp-controls button:hover { background: transparent; color: var(--fg-primary); box-shadow: none; }
+  .mp-controls .mp-play:hover { background: transparent; border-color: var(--fg-primary); box-shadow: none; color: var(--fg-primary); }
+  .mini-btn:hover { background: transparent; color: var(--fg-primary); }
+  .mini-btn.alt:hover { background: transparent; color: var(--fg-primary); }
+  .big-btn:hover { transform: none; box-shadow: 2px 2px 0 rgba(214,31,31,0.2); }
+  .big-btn.ghost:hover { color: var(--fg-secondary); border-color: var(--fg-secondary); box-shadow: none; }
+  .search-suggestion:hover { background: transparent; }
+  button { -webkit-tap-highlight-color: transparent; }
+}
 
