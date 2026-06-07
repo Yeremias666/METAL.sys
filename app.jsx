@@ -2984,7 +2984,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav }) {
   const [editing, setEditing] = useState(false);
   const [detailSearch, setDetailSearch] = useState('');
   const [editingBmId, setEditingBmId]     = useState(null);
@@ -3020,6 +3020,27 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
     if (hasAudio) requestID3(file);
   }, [file.id]);
 
+  const dq = normStr(detailSearch.trim());
+  const detailSuggestions = useMemo(() => {
+    if (!dq) return [];
+    const cats = (allCats || []).map(c => typeof c === 'string' ? c : (c.name || ''));
+    const artistHits = cats.filter(a => normStr(a).includes(dq))
+      .slice(0, 2).map(a => {
+        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
+        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+      });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(dq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const songHits = allFiles.filter(f => normStr(f.name).includes(dq))
+      .slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...songHits].slice(0, 5);
+  }, [dq, allCats, allFiles]);
+
   const saveEdit = () => {
     onUpdate({ ...file, name: (draft.name || '').trim() || file.name, description: (draft.description || '').trim(), category: draft.category });
     setEditing(false);
@@ -3044,29 +3065,40 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                   value={detailSearch} onChange={e => setDetailSearch(e.target.value)} />
                 {detailSearch && <button className="mini-btn alt" onClick={() => setDetailSearch('')}>✕</button>}
               </div>
-              {detailSearch.trim() && (() => {
-                const q = detailSearch.trim().toLowerCase();
-                const results = allFiles.filter(f =>
-                  (f.name||'').toLowerCase().includes(q) ||
-                  (f.artist||f.category||'').toLowerCase().includes(q) ||
-                  (f.album||'').toLowerCase().includes(q) ||
-                  (f.genre||'').toLowerCase().includes(q)
-                ).slice(0, 20);
-                return results.length === 0
-                  ? <div style={{padding:'10px 0', color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:11}}>◇ Sin resultados</div>
-                  : results.map((r, i) => (
-                      <div key={r.id} onClick={() => { onOpenFile(r.id); setDetailSearch(''); }}
-                           style={{display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}>
-                        {r.thumbnail
-                          ? <img src={r.thumbnail} alt="" style={{width:32,height:32,objectFit:'cover',flexShrink:0}} />
-                          : <div style={{width:32,height:32,flexShrink:0,background:'rgba(214,31,31,0.08)',display:'flex',alignItems:'center',justifyContent:'center'}}><IconGlyph iconId="nota" size={16}/></div>}
-                        <div style={{minWidth:0}}>
-                          <div style={{fontFamily:'var(--mono)',fontSize:15,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{r.name}</div>
-                          <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-dim)',letterSpacing:'0.06em'}}>{r.artist||r.category}{r.album?` · ${r.album}`:''}</div>
+              {dq && (
+                <div className="search-suggestions">
+                  {detailSuggestions.length === 0 ? (
+                    <div className="search-suggestion empty">Sin coincidencias.</div>
+                  ) : detailSuggestions.map((item, idx) => (
+                    <button key={idx} className="search-suggestion search-suggestion-anim"
+                            style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
+                      setDetailSearch('');
+                      if (item.type === 'artist') onNav && onNav({ page: 'CAT', cat: item.label });
+                      else if (item.type === 'album') onNav && onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                      else onOpenFile(item.file.id);
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div className="search-suggestion-thumb">
+                          {item.type === 'artist'
+                            ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                            : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                        </div>
+                        <div style={{ textAlign: 'left' }}>
+                          <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                          <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                            {item.type === 'artist' ? 'ARTISTA'
+                              : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                              : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                          </div>
                         </div>
                       </div>
-                    ));
-              })()}
+                      <span className="search-item-type">
+                        {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : 'CANCIÓN'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -5264,14 +5296,16 @@ function App() {
 
   // Atomic: start a file (if needed) and seek to a clip position
   const playClipFromFile = (file, clip) => {
-    setActiveClip(clip);
     const audio = audioRef.current;
     if (currentTrackId === file.id) {
+      setActiveClip(clip);
       audio.currentTime = clip.start;
       audio.play().catch(() => {});
     } else {
       pendingSeekRef.current = clip.start;   // set BEFORE startTrack changes audio.src
+      setManualQueue([file]);
       startTrack(file);
+      setActiveClip(clip);                   // AFTER startTrack so it wins over its setActiveClip(null)
     }
   };
 
@@ -5284,6 +5318,7 @@ function App() {
       audio.play().catch(() => {});
     } else {
       pendingSeekRef.current = time;         // set BEFORE startTrack changes audio.src
+      setManualQueue([file]);                // single-file queue keeps prev/next sane
       startTrack(file);
     }
   };
@@ -5476,15 +5511,18 @@ function App() {
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
     const allF = [...files, ...localFiles].filter(isAudioFile);
-    if (playContext.type === 'all') {
+    const isCurrentlyPlaying = currentTrackId === currentFile.id;
+    const artist = currentFile.category || currentFile.artist;
+    // Only use playContext scope when THIS file is the one playing
+    if (isCurrentlyPlaying && playContext.type === 'all') {
       return [...allF].sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
     }
-    const artist = currentFile.category || currentFile.artist;
-    if (playContext.type === 'album' && currentFile.album) {
+    if (isCurrentlyPlaying && playContext.type === 'album' && currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
+    // Default: navigate within the artist
     return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
-  }, [currentFile, files, localFiles, playContext]);
+  }, [currentFile, currentTrackId, files, localFiles, playContext]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;
@@ -5601,7 +5639,7 @@ function App() {
                                 onPrev={goDetailPrev} onNext={goDetailNext}
                                 hasPrev={hasPrevDetail} hasNext={hasNextDetail}
                                 allFiles={[...files, ...localFiles].filter(isAudioFile)}
-                                onOpenFile={openFile} />
+                                onOpenFile={openFile} onNav={setRoute} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
                     </div></div>
