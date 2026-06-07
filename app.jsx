@@ -2377,6 +2377,8 @@ function useVuBars(analyser, isPlaying, barCount) {
       setVuData(new Array(barCount).fill(4));
       return;
     }
+    // On mobile: skip the rAF loop entirely — 60x/s setState thrashes React on low-end devices
+    if (window.innerWidth <= 700) return;
     if (node.context.state === 'suspended') node.context.resume().catch(() => {});
     const data = new Uint8Array(node.frequencyBinCount);
     const tick = () => {
@@ -4800,8 +4802,8 @@ function App() {
       const rms = Math.sqrt(sum/data.length);
       if (pulse) pulse.style.opacity = Math.min(0.7, rms * 3.2).toFixed(3);
 
-      // Waveform en tiempo real para archivos R2 (sin descarga extra)
-      if (waveformBufRef.current && audio && audio.duration > 0) {
+      // Waveform en tiempo real para archivos R2 (sin descarga extra) — omitir en móvil
+      if (waveformBufRef.current && audio && audio.duration > 0 && window.innerWidth > 700) {
         const idx = Math.min(299, Math.floor((audio.currentTime / audio.duration) * 300));
         if (rms > (waveformBufRef.current[idx] || 0)) waveformBufRef.current[idx] = rms;
         waveformFrRef.current = (waveformFrRef.current + 1) % 20;
