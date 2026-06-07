@@ -5292,14 +5292,12 @@ function App() {
           <div className="page">
             {/* Left sidebar */}
             <div className="col-left">
-              <div className="col-left-inner">
-                <LibraryTree
-                  files={files} localFiles={localFiles} allCats={allCats}
-                  onNav={setRoute} onOpenFile={openFile}
-                  onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
-                  onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
-                  onPlayFile={f => { setManualQueue(null); startTrack(f); }} />
-              </div>
+              <LibraryTree
+                files={files} localFiles={localFiles} allCats={allCats}
+                onNav={setRoute} onOpenFile={openFile}
+                onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
+                onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
+                onPlayFile={f => { setManualQueue(null); startTrack(f); }} />
             </div>
 
             {/* Center column */}

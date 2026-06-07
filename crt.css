@@ -642,16 +642,8 @@ input:not([type=range]), textarea {
 }
 
 .col-left {
-  min-width: 0;
-  align-self: stretch;
-  position: relative;
-  overflow: hidden;
-}
-.col-left-inner {
-  position: absolute;
-  inset: 0;
   padding: 16px 14px 32px 16px;
-  overflow: hidden;
+  min-width: 0;
 }
 
 .col-main {
