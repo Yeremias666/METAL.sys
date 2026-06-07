@@ -5172,8 +5172,7 @@ function App() {
     audio.play().catch(() => {});
 
     if (!waveforms[file.id]) {
-      // Archivo local: pre-calcular waveform completo con OfflineAudioContext
-      (async () => {
+      const calcWaveform = async () => {
         try {
           const resp = await fetch(file.fileData);
           const buf = await resp.arrayBuffer();
@@ -5189,7 +5188,13 @@ function App() {
           }
           setWaveforms(prev => ({ ...prev, [file.id]: out }));
         } catch {}
-      })();
+      };
+      if (window.innerWidth <= 700) {
+        if (window.requestIdleCallback) requestIdleCallback(calcWaveform, { timeout: 5000 });
+        else setTimeout(calcWaveform, 1500);
+      } else {
+        calcWaveform();
+      }
     }
   };
 
