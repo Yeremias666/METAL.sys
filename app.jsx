@@ -1820,17 +1820,17 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
       <div className="panel">
         <div className="panel-hd">
-          <span style={{display:'flex', alignItems:'center', gap:10}}>
-            <button className="cat-upload-btn" style={{width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
+          <span style={{display:'flex', alignItems:'center', gap:8, minWidth:0, flex:1, overflow:'hidden'}}>
+            <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
                     onClick={() => selectedAlbum ? (setSelectedAlbum(null), setShowResults(false), setQuery('')) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
             {artistImage && (
-              <img src={artistImage} alt={cat} style={{width:32, height:32, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
+              <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
             )}
-            <span>{cat}</span>
+            <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{cat}</span>
           </span>
-          <span style={{display:'flex', alignItems:'center', gap:8}}>
-            <span className="dots">/// {list.length} CANCIÓN{list.length === 1 ? '' : 'ES'}</span>
-            <button className="cat-upload-btn" style={{width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
+          <span style={{display:'flex', alignItems:'center', gap:6, flexShrink:0}}>
+            <span className="dots" style={{whiteSpace:'nowrap'}}>/// {list.length}</span>
+            <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
                     onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
               ✎ EDITAR
             </button>
@@ -4096,9 +4096,14 @@ function LikeButton({ fileId, likedIds, onToggle }) {
 }
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
-function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike }) {
+function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile }) {
   const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
+  const noteIcon = (
+    <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+    </div>
+  );
   return (
     <div>
       <div className="panel">
@@ -4116,17 +4121,27 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
       {liked.length === 0
         ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-            {liked.map((f, i) => (
-              <div key={f.id} style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
-                   onClick={() => onOpenFile(f.id)}>
-                {f.thumbnail && <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2}} />}
-                <div style={{flex:1, minWidth:0}}>
-                  <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
-                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album ? ` · ${f.album}` : ''}</div>
+            {liked.map((f) => {
+              const trackNum = f.track ? f.track.split('/')[0] : null;
+              const discNum  = f.disc ? parseInt(f.disc) || 1 : null;
+              const trackLabel = trackNum ? ((discNum && discNum > 1) ? `${discNum}·${trackNum}` : trackNum) : null;
+              return (
+                <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}>
+                  {trackLabel && (
+                    <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{trackLabel}</span>
+                  )}
+                  {f.thumbnail
+                    ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+                    : noteIcon}
+                  <div style={{flex:1, minWidth:0}}>
+                    <div className="tl-name">{f.name}</div>
+                    <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album && f.album !== (f.artist||f.category) ? ` · ${f.album}` : ''}</div>
+                  </div>
+                  <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile ? onPlayFile(f) : onOpenFile(f.id); }} title="Reproducir">▶</button>
+                  <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
                 </div>
-                <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
-              </div>
-            ))}
+              );
+            })}
           </div></div></div>
       }
     </div>
@@ -5532,8 +5547,13 @@ function App() {
       if (audio.paused) audio.play().catch(() => {}); else audio.pause();
       return;
     }
-    setManualQueue([file]);
-    startTrack(file);
+    const artist = file.category || file.artist;
+    const ctx = file.album
+      ? { type: 'album', artist, album: file.album, shuffle: false }
+      : { type: 'artist', artist, shuffle: false };
+    setManualQueue(null);
+    setPlayContext(ctx);
+    startTrack(file, ctx);
   };
   const playPause = () => {
     const audio = audioRef.current;
@@ -5673,7 +5693,16 @@ function App() {
                     setManualQueue(likedAudio);
                     startTrack(likedAudio[0], { type: 'all', shuffle: false });
                   }}
-                  onToggleLike={toggleLike} />
+                  onToggleLike={toggleLike}
+                  onPlayFile={f => {
+                    const artist = f.category || f.artist;
+                    const ctx = f.album
+                      ? { type: 'album', artist, album: f.album, shuffle: false }
+                      : { type: 'artist', artist, shuffle: false };
+                    setManualQueue(null);
+                    setPlayContext(ctx);
+                    startTrack(f, ctx);
+                  }} />
               )}
               {route.page === 'STATS' && (
                 <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />

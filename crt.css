@@ -3103,7 +3103,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .file-list .list-fname { font-size: 11px; }
 
   /* Panels */
-  .panel-hd { font-size: 11px; padding: 5px 10px; }
+  .panel-hd { font-size: 11px; padding: 5px 8px; flex-wrap: wrap; gap: 4px; row-gap: 4px; }
+  .panel-hd > span { min-width: 0; overflow: hidden; }
   .panel-body { padding: 10px 12px; }
 
   /* Upload */
