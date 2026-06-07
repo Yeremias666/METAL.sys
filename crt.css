@@ -4081,47 +4081,62 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .is-touch button { -webkit-tap-highlight-color: transparent; }
 
 /* ── Boot / loading screen ─────────────────────────────────── */
-/* Visible while JS loads; React replaces #root content on mount */
+/* ── CMD boot sequence — visible while JS loads; React replaces #root on mount ── */
 .boot-screen {
   position: fixed;
   inset: 0;
-  background: #08070a;
+  background: #060408;
   display: flex;
   flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 18px;
+  padding: clamp(24px, 8vw, 80px);
+  font-family: 'Courier New', Courier, monospace;
+  font-size: clamp(11px, 2.2vw, 15px);
+  line-height: 1.7;
+  /* subtle scanline overlay */
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.18) 2px,
+    rgba(0,0,0,0.18) 4px
+  );
 }
-.boot-logo {
-  font-family: 'Courier New', monospace;
-  font-size: clamp(28px, 8vw, 52px);
-  font-weight: bold;
+.boot-line {
+  opacity: 0;
+  color: #b0b0b0;
+  white-space: pre;
+  animation: boot-appear 0.08s ease-out forwards;
+}
+.boot-sep   { color: #3a1a1a; }
+.boot-ok    { color: #22bb44; font-weight: bold; }
+.boot-ready { color: #d61f1f; text-shadow: 0 0 12px rgba(214,31,31,0.6); }
+
+.boot-line.l1  { animation-delay: 0.05s; color: #e0e0e0; font-weight: bold; }
+.boot-line.l2  { animation-delay: 0.25s; }
+.boot-line.l3  { animation-delay: 0.42s; }
+.boot-line.l4  { animation-delay: 0.60s; }
+.boot-line.l5  { animation-delay: 0.90s; }
+.boot-line.l6  { animation-delay: 1.20s; }
+.boot-line.l7  { animation-delay: 1.50s; }
+.boot-line.l8  { animation-delay: 1.80s; }
+.boot-line.l9  { animation-delay: 2.00s; }
+.boot-line.l10 { animation-delay: 2.20s; }
+
+@keyframes boot-appear {
+  from { opacity: 0; filter: brightness(2); }
+  to   { opacity: 1; filter: brightness(1); }
+}
+
+.boot-cursor {
+  display: inline-block;
   color: #d61f1f;
-  letter-spacing: 0.12em;
-  text-shadow: 0 0 24px rgba(214,31,31,0.8), 0 0 48px rgba(214,31,31,0.4);
+  animation: boot-blink 0.6s step-end infinite;
+  animation-delay: 2.4s;
+  opacity: 0;
 }
-.boot-sub {
-  font-family: 'Courier New', monospace;
-  font-size: clamp(12px, 3vw, 16px);
-  color: #7a3030;
-  letter-spacing: 0.2em;
-}
-.boot-bar {
-  width: min(280px, 60vw);
-  height: 4px;
-  background: rgba(214,31,31,0.15);
-  border: 1px solid rgba(214,31,31,0.3);
-  overflow: hidden;
-}
-.boot-bar-fill {
-  height: 100%;
-  background: #d61f1f;
-  box-shadow: 0 0 8px #d61f1f;
-  animation: boot-progress 2.5s ease-in-out infinite;
-}
-@keyframes boot-progress {
-  0%   { width: 0%;   margin-left: 0; }
-  50%  { width: 60%;  margin-left: 20%; }
-  100% { width: 0%;   margin-left: 100%; }
+@keyframes boot-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
 }
 
