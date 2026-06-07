@@ -2870,12 +2870,16 @@ input:not([type=range]), textarea {
 .music-player .like-btn {
   width: 38px; height: 38px;
   padding: 0;
-  align-self: auto;
+  align-self: center;
   font-size: 16px;
   background: rgba(214,31,31,0.15);
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
   text-shadow: 0 0 6px var(--fg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 .music-player .like-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
 .music-player .like-btn.liked { background: rgba(214,31,31,0.35); box-shadow: 0 0 10px var(--fg-primary); }
@@ -3064,9 +3068,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .search-filters { grid-template-columns: 1fr; }
 
-  /* Botones play siempre visibles en touch (sin hover) */
-  .cat-card-play,
-  .ac-play-btn { opacity: 1; }
 
   /* File cards */
   .file-card-name { font-size: 13px; }
@@ -3664,7 +3665,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   width: 38px; height: 38px;
   padding: 0;
   cursor: pointer;
-  letter-spacing: 0.1em;
+  letter-spacing: 0;
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
   display: flex;
@@ -3998,4 +3999,37 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .mp-bar-knob {
   pointer-events: none;
 }
+
+/* ─── Botones play siempre visibles en dispositivos touch ──────── */
+@media (max-width: 700px) {
+  .cat-card .cat-card-play,
+  .album-card .ac-play-btn { opacity: 1; }
+}
+
+/* ─── Fila de canción estilo TODO (TrackList) ──────────────────── */
+.track-list-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px dotted rgba(214,31,31,0.15);
+  cursor: pointer;
+}
+.track-list-row:nth-child(even) { background: rgba(214,31,31,0.03); }
+.track-list-row:hover { background: rgba(214,31,31,0.07); }
+.track-list-play {
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  background: transparent;
+  border: 1px solid var(--fg-primary);
+  color: var(--fg-primary);
+  font-size: 11px;
+  cursor: pointer;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  padding-left: 2px;
+}
+.track-list-row:hover .track-list-play { opacity: 1; }
+.track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
+@media (max-width: 700px) { .track-list-play { opacity: 1; } }
 

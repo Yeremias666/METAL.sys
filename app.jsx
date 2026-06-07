@@ -1016,7 +1016,40 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   );
 }
 
-function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
+function TrackList({ files, onOpen, onPlay }) {
+  const noteIcon = (
+    <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+    </div>
+  );
+  return (
+    <div>
+      {files.map((f) => {
+        const trackNum = f.track ? f.track.split('/')[0] : null;
+        const discNum  = f.disc ? parseInt(f.disc) || 1 : null;
+        const trackLabel = trackNum ? ((discNum && discNum > 1) ? `${discNum}·${trackNum}` : trackNum) : null;
+        return (
+          <div key={f.id} className="track-list-row" onClick={() => onOpen(f.id)}>
+            {trackLabel && (
+              <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{trackLabel}</span>
+            )}
+            {f.thumbnail
+              ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+              : noteIcon}
+            <div style={{flex:1, minWidth:0}}>
+              <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
+              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+              {f.album && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
+            </div>
+            <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll, onPlayFile }) {
   const [query, setQuery] = useState('');
   const allFiles = [...files, ...localFiles].filter(isAudioFile);
   const sorted = [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
@@ -1055,22 +1088,7 @@ function AllSongsPage({ files, localFiles = [], onOpenFile, onPlayAll }) {
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
               {q ? `◇ Sin resultados para "${query}"` : '◇ Sin canciones todavía'}
             </div>
-          : visible.map((f, i) => (
-            <div key={f.id}
-                 style={{display:'flex', alignItems:'center', gap:10, padding:'8px 14px', borderBottom:'1px dotted rgba(214,31,31,0.15)', cursor:'pointer', background: i%2===0?'transparent':'rgba(214,31,31,0.03)'}}
-                 onClick={() => onOpenFile(f.id)}>
-              {f.thumbnail
-                ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2}} />
-                : <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
-                  </div>}
-              <div style={{flex:1, minWidth:0}}>
-                <div style={{fontFamily:'var(--mono)', fontSize:18, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{f.name}</div>
-                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-                {f.album && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
-              </div>
-            </div>
-          ))
+          : <TrackList files={visible} onOpen={onOpenFile} onPlay={onPlayFile} />
         }
       </div></div></div>
     </div>
@@ -1841,9 +1859,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   ◇ NO HAY CANCIONES PARA ESTE ÁLBUM ◇
                 </div>
               ) : (
-                <TrackListTable files={sortedSongs} sort={sort} setSort={setSort}
-                                onOpen={onOpenFile} onPlay={onPlayFile}
-                                selectedIds={selectedIds} toggleSel={toggleSel} />
+                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
               )}
             </div>
           </div>
@@ -1869,8 +1885,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               {searchSongs.length > 0 && (
                 <>
                   <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                  <TrackListTable files={searchSongs} sort={sort} setSort={setSort}
-                                  onOpen={onOpenFile} selectedIds={selectedIds} toggleSel={toggleSel} />
+                  <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
                 </>
               )}
               {searchAlbums.length === 0 && searchSongs.length === 0 && (
@@ -2873,6 +2888,8 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
   const [editBmDraft, setEditBmDraft]     = useState('');
   const [editingClipId, setEditingClipId] = useState(null);
   const [editClipDraft, setEditClipDraft] = useState('');
+  const [editClipStart, setEditClipStart] = useState('');
+  const [editClipEnd,   setEditClipEnd]   = useState('');
   const [bmSearch, setBmSearch]           = useState('');
   const [clipSearch, setClipSearch]       = useState('');
   const [draft, setDraft] = useState({ name: file.name, description: file.description, category: file.category });
@@ -3140,25 +3157,41 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                         : <div className="clip-list">
                             {clips.map(clip => {
                               const isActive = activeClip && activeClip.id === clip.id;
+                              const isEditing = editingClipId === clip.id;
+                              const saveClipEdit = () => {
+                                onUpdateClip(file.id, clip.id, { name: editClipDraft, start: parseTimeSec(editClipStart), end: parseTimeSec(editClipEnd) });
+                                setEditingClipId(null);
+                              };
                               return (
-                                <div key={clip.id} className={`clip-item${isActive?' active-clip':''}`}>
-                                  {editingClipId === clip.id
-                                    ? <input className="field-input" style={{flex:1,padding:'2px 6px',fontSize:14}} autoFocus
+                                <div key={clip.id} className={`clip-item${isActive?' active-clip':''}`} style={isEditing ? {flexWrap:'wrap', gap:4} : {}}>
+                                  {isEditing ? (
+                                    <>
+                                      <input className="field-input" style={{flex:2,minWidth:80,padding:'2px 6px',fontSize:13}} autoFocus
                                         value={editClipDraft} onChange={e => setEditClipDraft(e.target.value)}
-                                        onKeyDown={e => {
-                                          if (e.key === 'Enter') { onUpdateClip(file.id, clip.id, editClipDraft); setEditingClipId(null); }
-                                          if (e.key === 'Escape') setEditingClipId(null);
-                                        }}
-                                        onBlur={() => { onUpdateClip(file.id, clip.id, editClipDraft); setEditingClipId(null); }} />
-                                    : <span className="clip-name" onDoubleClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); }}>{clip.name}</span>
-                                  }
-                                  <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
-                                  {isActive
-                                    ? <button onClick={onStopClip} title="Detener clip">■</button>
-                                    : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
-                                  }
-                                  <button onClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); }} title="Editar">✎</button>
-                                  <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
+                                        placeholder="Nombre"
+                                        onKeyDown={e => { if (e.key === 'Enter') saveClipEdit(); if (e.key === 'Escape') setEditingClipId(null); }} />
+                                      <input className="field-input" style={{width:70,padding:'2px 4px',fontSize:13,textAlign:'center'}}
+                                        value={editClipStart} onChange={e => setEditClipStart(e.target.value)}
+                                        placeholder="0:00.000" title="Inicio (M:SS.mmm)" />
+                                      <span style={{color:'var(--fg-dim)',fontSize:11}}>→</span>
+                                      <input className="field-input" style={{width:70,padding:'2px 4px',fontSize:13,textAlign:'center'}}
+                                        value={editClipEnd} onChange={e => setEditClipEnd(e.target.value)}
+                                        placeholder="0:00.000" title="Fin (M:SS.mmm)" />
+                                      <button style={{padding:'2px 6px',fontSize:12,background:'rgba(214,31,31,0.2)',border:'1px solid var(--fg-primary)',color:'var(--fg-primary)',cursor:'pointer'}} onClick={saveClipEdit}>✓</button>
+                                      <button style={{padding:'2px 6px',fontSize:12,background:'transparent',border:'1px solid var(--fg-dim)',color:'var(--fg-dim)',cursor:'pointer'}} onClick={() => setEditingClipId(null)}>✕</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="clip-name" onDoubleClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); setEditClipStart(fmtTimeMs(clip.start)); setEditClipEnd(fmtTimeMs(clip.end)); }}>{clip.name}</span>
+                                      <span className="clip-range">{fmtTimeSec(clip.start)} → {fmtTimeSec(clip.end)}</span>
+                                      {isActive
+                                        ? <button onClick={onStopClip} title="Detener clip">■</button>
+                                        : <button onClick={() => { onPlayAudio(file); onPlayClip(clip); }} title="Reproducir clip">▶</button>
+                                      }
+                                      <button onClick={() => { setEditingClipId(clip.id); setEditClipDraft(clip.name); setEditClipStart(fmtTimeMs(clip.start)); setEditClipEnd(fmtTimeMs(clip.end)); }} title="Editar">✎</button>
+                                      <button onClick={() => onDeleteClip(file.id, clip.id)} title="Eliminar">✕</button>
+                                    </>
+                                  )}
                                 </div>
                               );
                             })}
@@ -4538,6 +4571,7 @@ function App() {
   const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
   const [waveforms, setWaveforms]   = useState({});              // {fileId: Float32Array}
   const activeClipRef    = useRef(null);
+  const pendingSeekRef   = useRef(null);
   const audioSyncRef     = useRef(null);
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
@@ -4686,6 +4720,17 @@ function App() {
       audio.removeEventListener('pause', onPause);
     };
   }, [currentTrackId, repeatMode]);
+  useEffect(() => {
+    const audio = audioRef.current;
+    const onCanPlay = () => {
+      if (pendingSeekRef.current !== null) {
+        audio.currentTime = pendingSeekRef.current;
+        pendingSeekRef.current = null;
+      }
+    };
+    audio.addEventListener('canplay', onCanPlay);
+    return () => audio.removeEventListener('canplay', onCanPlay);
+  }, []);
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
   // Artistas derivados del vault y de la carpeta local
@@ -5098,13 +5143,19 @@ function App() {
     setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(c => c.id !== clipId) }));
     setActiveClip(prev => (prev && prev.id === clipId) ? null : prev);
   };
-  const updateClip = (fileId, clipId, name) => {
-    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(c => c.id === clipId ? { ...c, name } : c) }));
+  const updateClip = (fileId, clipId, { name, start, end }) => {
+    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(c => c.id === clipId ? { ...c, name, start, end } : c) }));
+    setActiveClip(prev => (prev && prev.id === clipId) ? { ...prev, name, start, end } : prev);
   };
   const playClip = (clip) => {
     setActiveClip(clip);
-    seek(clip.start);
-    audioRef.current.play().catch(() => {});
+    const audio = audioRef.current;
+    if (audio.readyState >= 2) {
+      audio.currentTime = clip.start;
+    } else {
+      pendingSeekRef.current = clip.start;
+    }
+    audio.play().catch(() => {});
   };
   const stopClip = () => setActiveClip(null);
 
@@ -5272,12 +5323,15 @@ function App() {
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
     const allF = [...files, ...localFiles].filter(isAudioFile);
+    if (playContext.type === 'all') {
+      return [...allF].sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
+    }
     const artist = currentFile.category || currentFile.artist;
-    if (currentFile.album) {
-      return allF.filter(f => (f.category || f.artist) === artist && f.album === currentFile.album).sort(sortByDiscTrack);
+    if (playContext.type === 'album' && currentFile.album) {
+      return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
     return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
-  }, [currentFile, files, localFiles]);
+  }, [currentFile, files, localFiles, playContext]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;
@@ -5317,7 +5371,13 @@ function App() {
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
                               onOpenFile={openFile}
-                              onPlayAll={() => playScope({ type: 'all' }, false)} />
+                              onPlayAll={() => playScope({ type: 'all' }, false)}
+                              onPlayFile={(f) => {
+                                const allSorted = [...files, ...localFiles].filter(isAudioFile)
+                                  .sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
+                                setManualQueue(allSorted);
+                                startTrack(f, { type: 'all', shuffle: false });
+                              }} />
               )}
               {route.page === 'BANDAS' && (
                 <BandasPage artists={allArtists} files={files} localFiles={localFiles}
