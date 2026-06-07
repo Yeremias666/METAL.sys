@@ -4103,7 +4103,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                         <div style={{fontFamily:'var(--pixel)',fontSize:10,color,marginTop:3,textShadow:`0 0 8px ${color}`}}>▶ {plays}×</div>
                       </div>
                       {/* Pedestal */}
-                      <div style={{width:'100%',height:h,background:`linear-gradient(180deg,${color}33,${color}11)`,border:`1px solid ${color}`,borderBottom:'none',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`0 0 12px ${color}44`}}>
+                      <div style={{width:'100%',height:h,background:`linear-gradient(180deg,${color}44,${color}00)`,border:`1px solid ${color}`,borderBottom:'none',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:`-4px 0 8px ${color}22, 4px 0 8px ${color}22, 0 -4px 8px ${color}22`}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize:rank===1?22:16,color,textShadow:`0 0 10px ${color}`}}>{medals[i]}</span>
                       </div>
                     </div>
@@ -5050,6 +5050,7 @@ function App() {
         if (d.clipStore)  setClipStore(d.clipStore);
         if (d.likedIds)   setLikedIds(new Set(d.likedIds));
         if (d.playCounts) setPlayCounts(d.playCounts);
+        if (d.playLog)    setPlayLog(d.playLog);
       }).catch(() => {});
   };
 
@@ -5070,12 +5071,12 @@ function App() {
       fetch('/api/userdata', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookmarks, clipStore, likedIds: [...likedIds], playCounts }),
+        body: JSON.stringify({ bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog }),
       }).catch(() => {});
     }, 2000);
-  }, [authToken, bookmarks, clipStore, likedIds, playCounts]);
+  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog]);
 
-  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts]);
+  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog]);
 
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {

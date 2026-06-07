@@ -3064,6 +3064,10 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .search-filters { grid-template-columns: 1fr; }
 
+  /* Botones play siempre visibles en touch (sin hover) */
+  .cat-card-play,
+  .ac-play-btn { opacity: 1; }
+
   /* File cards */
   .file-card-name { font-size: 13px; }
   .file-card-body { height: auto; min-height: 56px; }
