@@ -4237,13 +4237,20 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
               {playlist.description && (
                 <p style={{color:'var(--fg-dim)', fontSize:14, marginBottom:8, fontFamily:'var(--mono)'}}>{playlist.description}</p>
               )}
-              <p style={{color:'var(--fg-dim)', fontSize:13, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
+              <div style={{color:'var(--fg)', fontSize:17, fontFamily:'var(--pixel)', letterSpacing:'0.08em', marginBottom:6, wordBreak:'break-word', lineHeight:1.3}}>
+                {playlist.name.toUpperCase()}
+              </div>
+              <p style={{color:'var(--fg-dim)', fontSize:13, fontFamily:'var(--pixel)', letterSpacing:'0.08em', margin:0}}>
                 {songs.length} canción{songs.length === 1 ? '' : 'es'}
                 {totalDur > 0 ? ` · ${fmtTimeSec(totalDur)}` : ''}
-                {playlist.createdAt ? ` · ${new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}` : ''}
               </p>
+              {playlist.createdAt && (
+                <p style={{color:'var(--fg-dim)', fontSize:12, fontFamily:'var(--pixel)', letterSpacing:'0.06em', margin:'3px 0 0'}}>
+                  {new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}
+                </p>
+              )}
               {songs.length > 0 && (
-                <button className="big-btn" style={{marginTop:12, whiteSpace:'nowrap'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
+                <button className="big-btn" style={{marginTop:12, width:'fit-content'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
               )}
             </div>
           </div>
