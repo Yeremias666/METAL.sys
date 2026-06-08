@@ -1632,7 +1632,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const [editDesc, setEditDesc] = useState('');
   const editImgInput = useRef(null);
   const meta = artistMeta[cat] || {};
-  useEffect(() => { if (prefillAlbum) setSelectedAlbum(prefillAlbum); }, [prefillAlbum]);
+  useEffect(() => { setSelectedAlbum(prefillAlbum || null); }, [prefillAlbum]);
 
   const albumObjects = [...new Set(list.map((f) => (f.album || 'SINGLE')).filter(Boolean))]
     .map((name) => {
@@ -1707,7 +1707,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   }, [currentSongs, sort]);
 
   const openAlbum = (album) => {
-    setSelectedAlbum(album);
+    onNav({ page: 'CAT', cat, album });
     setSelAlbums(new Set());
     setShowResults(false);
     setQuery('');
@@ -1777,7 +1777,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         <div className="panel-hd">
           <span style={{display:'flex', alignItems:'center', gap:8, minWidth:0, flex:1, overflow:'hidden'}}>
             <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
-                    onClick={() => selectedAlbum ? (setSelectedAlbum(null), setShowResults(false), setQuery('')) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
+                    onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
             {artistImage && (
               <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
             )}
@@ -5194,14 +5194,22 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, 
 
 // ─── HASH ROUTING ──────────────────────────────────────────────
 function routeToHash(r) {
-  if (r.page === 'CAT')    return '#cat/'    + encodeURIComponent(r.cat    || '');
+  if (r.page === 'CAT') {
+    const base = '#cat/' + encodeURIComponent(r.cat || '');
+    return r.album ? base + '/' + encodeURIComponent(r.album) : base;
+  }
   if (r.page === 'DETAIL') return '#detail/' + encodeURIComponent(r.fileId || '');
   return '#' + r.page.toLowerCase();
 }
 function hashToRoute(hash) {
   const h = (hash || '').replace(/^#/, '');
   if (!h || h === 'inicio') return { page: 'INICIO' };
-  if (h.startsWith('cat/'))    return { page: 'CAT',    cat:    decodeURIComponent(h.slice(4)) };
+  if (h.startsWith('cat/')) {
+    const parts = h.slice(4).split('/');
+    const cat   = decodeURIComponent(parts[0]);
+    const album = parts[1] ? decodeURIComponent(parts[1]) : undefined;
+    return album ? { page: 'CAT', cat, album } : { page: 'CAT', cat };
+  }
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
   const page = h.toUpperCase();
   const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','BANDAS','INSTALACION','ACERCA'];
