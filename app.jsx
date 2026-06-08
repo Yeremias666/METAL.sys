@@ -4292,20 +4292,38 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
 }
 
 // ─── PLAYLIST PAGE ──────────────────────────────────────────
-function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist }) {
+function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist, onNav, onOpenFile, allCats = [] }) {
   const [sort, setSort] = useState('alpha');
-  const [filterQ, setFilterQ] = useState('');
+  const [gQuery, setGQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
+  const gq = normStr(gQuery.trim());
+
+  const gSuggestions = useMemo(() => {
+    if (!gq) return [];
+    const artistHits = allCats.filter(a => normStr(a).includes(gq)).slice(0, 2).map(a => {
+      const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
+      return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+    });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const playlistHits = buildPlaylistHits(playlists, allFiles, gq);
+    const songHits = allFiles.filter(f => normStr(f.name).includes(gq)).slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...playlistHits, ...songHits].slice(0, 6);
+  }, [gq, allCats, allFiles, playlists]);
 
   const sorted = useMemo(() => {
-    const q = normStr(filterQ.trim());
-    const arr = [...playlists].filter(pl => !q || normStr(pl.name).includes(q));
+    const arr = [...playlists];
     if (sort === 'alpha')   return arr.sort((a,b) => (a.name||'').localeCompare(b.name||'', 'es', {sensitivity:'base'}));
     if (sort === 'created') return arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
     if (sort === 'songs')   return arr.sort((a,b) => (b.songIds?.length||0) - (a.songIds?.length||0));
     if (sort === 'played')  return arr.sort((a,b) => (b.lastPlayedAt||0) - (a.lastPlayedAt||0));
     return arr;
-  }, [playlists, sort, filterQ]);
+  }, [playlists, sort]);
 
   const SORT_OPTS = [
     ['alpha',   'A–Z'],
@@ -4319,13 +4337,6 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
       <div className="panel">
         <div className="panel-hd">PLAYLIST <span className="dots">/// {playlists.length} LISTA{playlists.length === 1 ? '' : 'S'}</span></div>
         <div className="panel-body">
-          <div style={{display:'flex', gap:10, flexWrap:'wrap', alignItems:'center', marginBottom:10}}>
-            <div className="search-row" style={{flex:'1 1 200px', minWidth:0}}>
-              <input className="field-input" placeholder="◈ BUSCAR PLAYLIST..."
-                     value={filterQ} onChange={e => setFilterQ(e.target.value)} />
-              {filterQ && <button className="mini-btn alt" onClick={() => setFilterQ('')}>✕</button>}
-            </div>
-          </div>
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
             {SORT_OPTS.map(([key, lbl]) => (
               <button key={key} onClick={() => setSort(key)}
@@ -4340,7 +4351,59 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
           </div>
         </div>
       </div>
-      {sorted.length === 0
+
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS, PLAYLISTS O CANCIONES..."
+                value={gQuery} onChange={e => setGQuery(e.target.value)} />
+              {gQuery && <button className="mini-btn alt" onClick={() => setGQuery('')}>✕</button>}
+            </div>
+            {gq && (
+              <div className="search-suggestions">
+                {gSuggestions.length === 0 ? (
+                  <div className="search-suggestion empty">Sin coincidencias.</div>
+                ) : gSuggestions.map((item, idx) => (
+                  <button key={idx} className="search-suggestion search-suggestion-anim"
+                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
+                    setGQuery('');
+                    if (item.type === 'artist') onNav && onNav({ page: 'CAT', cat: item.label });
+                    else if (item.type === 'album') onNav && onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                    else if (item.type === 'playlist') onNav && onNav({ page: 'PLAYLIST', playlistId: item.playlist.id });
+                    else onOpenFile && onOpenFile(item.file.id);
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="search-suggestion-thumb">
+                        {item.type === 'artist'
+                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                          : item.type === 'playlist'
+                            ? (item.thumb ? <img src={item.thumb} alt="" /> : <span style={{fontSize:16,color:'var(--fg-primary)'}}>◈</span>)
+                            : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                          {item.type === 'artist' ? 'ARTISTA'
+                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                            : item.type === 'playlist' ? `${(item.playlist.songIds||[]).length} CANCIONES`
+                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="search-item-type" style={item.type==='playlist'?{borderColor:'var(--fg-primary)',color:'var(--fg-primary)'}:{}}>
+                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : item.type === 'playlist' ? 'PLAYLIST' : 'CANCIÓN'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {playlists.length === 0
         ? (
           <div className="panel section">
             <div className="panel-body" style={{textAlign:'center', padding:'48px 0', color:'var(--fg-dim)', fontSize:18}}>
@@ -5420,7 +5483,7 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
   return (
     <div ref={ref} className="mp-menu-dropdown">
       <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
-      <button onClick={() => { onCreateClip(); onClose(); }}>✂ CREAR CLIP</button>
+      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{verticalAlign:'middle'}}>✂</span> CREAR CLIP</button>
       <div className="mp-menu-item--sub">
         <button onClick={() => setShowPlaylistSub(p => !p)}>
           ◈ AÑADIR A PLAYLIST <span style={{opacity:0.55, fontSize:10, marginLeft:4}}>▸</span>
@@ -5876,6 +5939,7 @@ function App() {
           if (d.likedIds)   setLikedIds(new Set(d.likedIds));
           if (d.playCounts) setPlayCounts(d.playCounts);
           if (d.playLog)    setPlayLog(d.playLog);
+          if (d.playlists)  setPlaylists(d.playlists);
           if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
         }
       })
@@ -6393,6 +6457,7 @@ function App() {
         if (d.likedIds)   setLikedIds(new Set(d.likedIds));
         if (d.playCounts) setPlayCounts(d.playCounts);
         if (d.playLog)    setPlayLog(d.playLog);
+        if (d.playlists)  setPlaylists(d.playlists);
         if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
       }).catch(() => {});
   };
@@ -6411,7 +6476,7 @@ function App() {
     if (!authToken || !syncReadyRef.current) return;
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog };
+      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog, playlists };
       if (perf.perfGlobal) {
         const { perfGlobal: _, ...cloudPerf } = perf;
         body.perf = cloudPerf;
@@ -6422,9 +6487,9 @@ function App() {
         body: JSON.stringify(body),
       }).catch(() => {});
     }, 2000);
-  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf]);
+  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists]);
 
-  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf]);
+  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists]);
 
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {
@@ -6838,7 +6903,8 @@ function App() {
               {route.page === 'PLAYLIST' && !route.playlistId && (
                 <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
                               onOpenPlaylist={(id) => navigateTo({ page: 'PLAYLIST', playlistId: id })}
-                              onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)} />
+                              onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
+                              onNav={navigateTo} onOpenFile={openFile} allCats={allCats} />
               )}
               {route.page === 'PLAYLIST' && route.playlistId && (
                 <PlaylistDetailPage
