@@ -665,6 +665,7 @@ function NavGlyph({ kind }) {
     case 'NOTA': return <svg {...p}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)" {...f}/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)" {...f}/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>;
     case 'DOWNLOAD': return <svg {...p}><path d="M12 4 V17 M6 13 L12 17 L18 13" {...s}/><path d="M4 21 H20" {...s}/></svg>;
     case 'INFO': return <svg {...p}><circle cx="12" cy="12" r="9" {...s}/><circle cx="12" cy="8" r="1" {...f}/><line x1="12" y1="11" x2="12" y2="17" {...s}/></svg>;
+    case 'INSTALAR': return <svg {...p}><rect x="3" y="13" width="18" height="7" rx="1" {...s}/><path d="M12 3 V13 M7 9 L12 13 L17 9" {...s}/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
   }
 }
@@ -776,6 +777,7 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
             )}
           </div>
         )}
+        <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
         <button className={current.page === 'ACERCA' ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
       </div>
     </nav>
@@ -4113,6 +4115,106 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
   );
 }
 
+// ─── INSTALACIÓN PAGE ───────────────────────────────────────
+
+function InstalacionCard({ title, icon, badge, badgeColor, items, footer }) {
+  return (
+    <div className="panel" style={{flex:'1 1 320px', minWidth:0}}>
+      <div className="panel-hd" style={{display:'flex', alignItems:'center', gap:10}}>
+        {icon}
+        {title}
+        {badge && (
+          <span style={{
+            marginLeft:'auto', fontFamily:'var(--pixel)', fontSize:9,
+            padding:'2px 7px', border:`1px solid ${badgeColor}`,
+            color: badgeColor, letterSpacing:'0.08em',
+          }}>{badge}</span>
+        )}
+      </div>
+      <div className="panel-body" style={{fontSize:15, lineHeight:1.75}}>
+        <ul style={{margin:'0 0 16px', paddingLeft:18, display:'flex', flexDirection:'column', gap:6}}>
+          {items.map((item, i) => (
+            <li key={i} style={{color: item.dim ? 'var(--fg-dim)' : 'var(--fg-text)'}}>
+              {item.label && <span style={{fontFamily:'var(--pixel)', fontSize:9, color:'var(--fg-accent)', marginRight:8}}>{item.label}</span>}
+              {item.text}
+            </li>
+          ))}
+        </ul>
+        {footer && (
+          <div style={{
+            borderTop:'1px dashed rgba(214,31,31,0.2)', paddingTop:10,
+            fontSize:13, color:'var(--fg-dim)', fontStyle:'italic',
+          }}>{footer}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function InstalacionPage() {
+  const androidIcon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{color:'#78c257', flexShrink:0}}>
+      <path d="M17.523 15.341a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zm-10.046 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zM1.5 8.5h21v9a2 2 0 0 1-2 2h-17a2 2 0 0 1-2-2v-9zm3.2-5.6 1.8 3.1h11l1.8-3.1"/>
+    </svg>
+  );
+  const windowsIcon = (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{color:'#00adef', flexShrink:0}}>
+      <path d="M3 5.5L10.5 4.5V11.5H3V5.5ZM11.5 4.35L21 3V11.5H11.5V4.35ZM3 12.5H10.5V19.5L3 18.5V12.5ZM11.5 12.5H21V21L11.5 19.65V12.5Z"/>
+    </svg>
+  );
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <div className="panel">
+        <div className="panel-hd">INSTALACIÓN <span className="dots">/// METAL.SYS</span></div>
+        <div className="panel-body">
+          <p style={{color:'var(--fg-dim)', fontSize:14}}>
+            Próximamente disponible como app nativa para Android y Windows. Esta página se actualizará con las instrucciones de instalación cuando las versiones estén listas.
+          </p>
+        </div>
+      </div>
+
+      <div style={{display:'flex', gap:12, flexWrap:'wrap'}}>
+
+        {/* ── ANDROID ── */}
+        <InstalacionCard
+          title="ANDROID"
+          icon={androidIcon}
+          badge="PRÓXIMAMENTE"
+          badgeColor="#78c257"
+          items={[
+            { label:'FORMATO', text:'APK instalable — Trusted Web Activity (TWA) sobre Chromium' },
+            { label:'VERSIÓN', text:'Android 8.0 (API 26) o superior' },
+            { label:'TAMAÑO',  text:'~5 MB (la app es un wrapper; el contenido se carga desde la nube)' },
+            { label:'AUDIO',   text:'Controles en pantalla de bloqueo y notificación del sistema' },
+            { label:'AUTO',    text:'Integración con Android Auto — en estudio', dim: false },
+            { label:'FUENTE',  text:'Instalación directa desde APK (no requiere Play Store)', dim: true },
+          ]}
+          footer="La versión Android estará disponible cuando la web alcance su estado final."
+        />
+
+        {/* ── WINDOWS ── */}
+        <InstalacionCard
+          title="WINDOWS"
+          icon={windowsIcon}
+          badge="PRÓXIMAMENTE"
+          badgeColor="#00adef"
+          items={[
+            { label:'FORMATO', text:'Instalador .exe — aplicación de escritorio con Electron o similar' },
+            { label:'VERSIÓN', text:'Windows 10 / 11 (64-bit)' },
+            { label:'TAMAÑO',  text:'~80–120 MB (runtime incluido)' },
+            { label:'AUDIO',   text:'Integración con Media Session de Windows — controles en la taskbar' },
+            { label:'OFFLINE', text:'Reproducción de archivos locales sin conexión', dim: false },
+            { label:'FUENTE',  text:'Instalador firmado — sin alertas de SmartScreen', dim: true },
+          ]}
+          footer="La versión Windows estará disponible junto a la versión Android."
+        />
+
+      </div>
+    </div>
+  );
+}
+
 // ─── ACERCA DE PAGE ─────────────────────────────────────────
 
 function AcercaPage() {
@@ -6167,7 +6269,8 @@ function App() {
                             onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
                             prefillCat={route.prefillCat} />
               )}
-              {route.page === 'ACERCA'  && <AcercaPage />}
+              {route.page === 'INSTALACION' && <InstalacionPage />}
+              {route.page === 'ACERCA'     && <AcercaPage />}
               {route.page === 'SPOTDL' && <SpotDLPage />}
               {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
               {route.page === 'CAT' && (
