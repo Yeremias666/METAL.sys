@@ -2755,7 +2755,7 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist }) {
   if (!track) return null;
   const BAR_COUNT = 90;
   const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
@@ -2841,6 +2841,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
               onCreateBookmark={onCreateBookmark}
               onCreateClip={onCreateClip}
               onClose={onCloseMenu}
+              playlists={playlists}
+              onAddToPlaylist={onAddToPlaylist}
+              onOpenCreatePlaylist={onOpenCreatePlaylist}
             />
           )}
         </div>
@@ -4084,6 +4087,32 @@ function LikeButton({ fileId, likedIds, onToggle }) {
 }
 
 // ─── PLAYLIST CARD ──────────────────────────────────────────
+function PlaylistAutoGrid({ playlist, allFiles }) {
+  if (playlist.coverArt) {
+    return <img className="ac-img" src={playlist.coverArt} alt={playlist.name} />;
+  }
+  const songs = (playlist.songIds || [])
+    .map(id => allFiles.find(f => f.id === id))
+    .filter(Boolean);
+  const covers = [];
+  const seenArtists = new Set();
+  for (const s of songs) {
+    const src = s.thumbnail || s.coverArt;
+    if (!src) continue;
+    const key = s.artist || s.id;
+    if (!seenArtists.has(key)) { seenArtists.add(key); covers.push(src); }
+    if (covers.length >= 4) break;
+  }
+  if (covers.length === 0) return <div className="ac-img ac-img-empty"><IconGlyph iconId="nota" size={36} /></div>;
+  if (covers.length === 1) return <img className="ac-img" src={covers[0]} alt={playlist.name} />;
+  const n = Math.min(covers.length, 4);
+  return (
+    <div className="ac-auto-grid" data-count={n}>
+      {covers.slice(0, n).map((src, i) => <img key={i} src={src} alt="" />)}
+    </div>
+  );
+}
+
 function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
   const cardRef = useRef(null);
   const SLIDE_OUT = 'translateY(-50%)';
@@ -4112,13 +4141,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
     if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
-  const songs = playlist.songIds
-    .map(id => allFiles.find(f => f.id === id))
-    .filter(Boolean);
-  const cover = songs.find(f => f.thumbnail || f.coverArt);
-  const coverEl = cover
-    ? <img className="ac-img" src={cover.thumbnail || cover.coverArt} alt={playlist.name} />
-    : <div className="ac-img ac-img-empty"><IconGlyph iconId="nota" size={36} /></div>;
+  const coverEl = <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />;
 
   const createdStr = playlist.createdAt
     ? new Date(playlist.createdAt).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })
@@ -5249,8 +5272,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
 }
 
 // ─── PLAYER MENU DROPDOWN ───────────────────────────────────
-function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose }) {
+function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const ref = useRef(null);
+  const [showPlaylistSub, setShowPlaylistSub] = useState(false);
   useEffect(() => {
     const h = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
     document.addEventListener('mousedown', h);
@@ -5260,6 +5284,19 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose }) {
     <div ref={ref} className="mp-menu-dropdown">
       <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
       <button onClick={() => { onCreateClip(); onClose(); }}>✂ CREAR CLIP</button>
+      <div className="mp-menu-item--sub">
+        <button onClick={() => setShowPlaylistSub(p => !p)}>
+          ◈ AÑADIR A PLAYLIST <span style={{opacity:0.55, fontSize:10, marginLeft:4}}>▸</span>
+        </button>
+        {showPlaylistSub && (
+          <div className="mp-menu-submenu">
+            {playlists.map(pl => (
+              <button key={pl.id} onClick={() => { onAddToPlaylist(pl.id); onClose(); }}>{pl.name}</button>
+            ))}
+            <button className="mp-menu-submenu-create" onClick={() => { onOpenCreatePlaylist(); onClose(); }}>＋ NUEVA PLAYLIST</button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -5304,6 +5341,75 @@ function ClipModal({ position, onSave, onClose }) {
           </div>
           <div className="form-actions">
             <button className="big-btn" onClick={()=>{const s=parseTimeSec(start),e2=parseTimeSec(end);if(e2>s)onSave({id:'CL'+Date.now(),name:name.trim()||'Clip',start:s,end:e2});}}>✓ GUARDAR CLIP</button>
+            <button className="big-btn ghost" onClick={onClose}>✕ CANCELAR</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CREATE PLAYLIST MODAL ───────────────────────────────────
+function CreatePlaylistModal({ onSave, onClose }) {
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [cover, setCover] = useState(null);
+  const fileRef = useRef(null);
+  useEffect(() => {
+    const k = e => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [onClose]);
+  const handleCoverFile = e => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setCover(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-hd">
+          <span>◈ NUEVA PLAYLIST</span>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body">
+          <div className="field">
+            <div className="field-label">NOMBRE *</div>
+            <input className="field-input" value={name} onChange={e => setName(e.target.value)}
+                   placeholder="Ej. Metal de los 80s..." autoFocus />
+          </div>
+          <div className="field">
+            <div className="field-label">DESCRIPCIÓN (opcional)</div>
+            <input className="field-input" value={desc} onChange={e => setDesc(e.target.value)}
+                   placeholder="Describe tu playlist..." />
+          </div>
+          <div className="field">
+            <div className="field-label">PORTADA (opcional)</div>
+            <div style={{display:'flex', alignItems:'center', gap:12}}>
+              {cover
+                ? <img src={cover} alt="portada" style={{width:56,height:56,objectFit:'cover',border:'1px solid var(--fg-primary)',display:'block'}} />
+                : <div style={{width:56,height:56,border:'1px dashed rgba(214,31,31,0.4)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--fg-dim)',fontSize:22,flexShrink:0}}>◈</div>
+              }
+              <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                <button className="big-btn" style={{fontSize:11,padding:'5px 12px'}} onClick={() => fileRef.current?.click()}>
+                  {cover ? '↺ CAMBIAR' : '＋ ELEGIR'}
+                </button>
+                {cover && (
+                  <button className="big-btn ghost" style={{fontSize:11,padding:'4px 12px'}} onClick={() => setCover(null)}>✕ QUITAR</button>
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleCoverFile} />
+            </div>
+            {!cover && (
+              <div style={{marginTop:8,fontSize:11,color:'var(--fg-dim)',fontFamily:'var(--mono)',lineHeight:1.4}}>
+                Sin portada → se genera automáticamente con las portadas de las canciones
+              </div>
+            )}
+          </div>
+          <div className="form-actions">
+            <button className="big-btn" onClick={() => { const n=name.trim(); if(n) onSave({name:n,description:desc.trim(),coverArt:cover}); }} disabled={!name.trim()}>✓ CREAR</button>
             <button className="big-btn ghost" onClick={onClose}>✕ CANCELAR</button>
           </div>
         </div>
@@ -5520,6 +5626,7 @@ function App() {
   const [playlists, setPlaylists] = useState(loadPlaylists);   // playlist[]
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
+  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
   const [showClipModal, setShowClipModal]         = useState(false);
   const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
@@ -5611,6 +5718,7 @@ function App() {
     _catIconRegistry = Object.fromEntries(customCats.map(c => [c.name, c.icon]));
   }, [customCats]);
   useEffect(() => { saveLog(log); }, [log]);
+  useEffect(() => { savePlaylists(playlists); }, [playlists]);
 
   // Fetch cloud user data on startup if already authenticated
   useEffect(() => {
@@ -6242,6 +6350,29 @@ function App() {
   };
   const stopClip = () => setActiveClip(null);
 
+  const addToPlaylist = (playlistId) => {
+    if (!currentTrackId) return;
+    setPlaylists(prev => prev.map(pl =>
+      pl.id === playlistId && !pl.songIds.includes(currentTrackId)
+        ? { ...pl, songIds: [...pl.songIds, currentTrackId] }
+        : pl
+    ));
+  };
+
+  const createPlaylist = ({ name, description, coverArt }) => {
+    const pl = {
+      id: 'PL' + Date.now(),
+      name,
+      description: description || '',
+      coverArt: coverArt || null,
+      songIds: currentTrackId ? [currentTrackId] : [],
+      createdAt: Date.now(),
+      lastPlayedAt: null,
+    };
+    setPlaylists(prev => [...prev, pl]);
+    setShowCreatePlaylistModal(false);
+  };
+
   // Import file from local folder (used by LocalPage)
   // ── LOCAL MUSIC (read from disk, no copy) ─────────────────────
   const scanLocalDir = async (dirHandle) => {
@@ -6670,6 +6801,9 @@ function App() {
                    onCloseMenu={() => setShowPlayerMenu(false)}
                    onCreateBookmark={() => { setShowPlayerMenu(false); setShowBookmarkModal(true); }}
                    onCreateClip={() => { setShowPlayerMenu(false); setShowClipModal(true); }}
+                   playlists={playlists}
+                   onAddToPlaylist={(plId) => { setShowPlayerMenu(false); addToPlaylist(plId); }}
+                   onOpenCreatePlaylist={() => { setShowPlayerMenu(false); setShowCreatePlaylistModal(true); }}
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
                    likedIds={likedIds} onToggleLike={toggleLike}
                    vuEnabled={perf.vuMeter} />
@@ -6695,6 +6829,13 @@ function App() {
           position={position}
           onSave={clip => { addClip(currentTrack.id, clip); setShowClipModal(false); }}
           onClose={() => setShowClipModal(false)}
+        />
+      )}
+
+      {showCreatePlaylistModal && (
+        <CreatePlaylistModal
+          onSave={createPlaylist}
+          onClose={() => setShowCreatePlaylistModal(false)}
         />
       )}
 

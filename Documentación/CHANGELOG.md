@@ -5,6 +5,22 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-08 — Sistema de playlists: crear desde el reproductor y portada automática
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Cambios
+- `PlayerMenuDropdown` ampliado con opción "◈ AÑADIR A PLAYLIST" que abre un submenú lateral con las playlists existentes y el botón "＋ NUEVA PLAYLIST".
+- `CreatePlaylistModal`: modal emergente con campos nombre (obligatorio), descripción (opcional) y portada (opcional). Al no elegir portada se genera automáticamente a partir de las portadas de las canciones añadidas.
+- `PlaylistAutoGrid`: componente nuevo que genera la portada tipo Spotify — 1 imagen si hay 1 artista, 2 en paralelo, 3 (1 arriba + 2 abajo) o 2×2 si hay 4+ artistas distintos. Sustituye al cover manual en `PlaylistCard`.
+- `addToPlaylist(playlistId)`: añade la canción en reproducción a una playlist existente (evita duplicados).
+- `createPlaylist({ name, description, coverArt })`: crea nueva playlist y añade la canción actual como primera entrada.
+- `useEffect` para `savePlaylists` añadido — las playlists ya se persistían pero sin efecto reactivo.
+- CSS: `.mp-menu-item--sub`, `.mp-menu-submenu`, `.mp-menu-submenu-create`, `.ac-auto-grid` y variantes `[data-count]`.
+
+---
+
 ## 2026-06-08 — Timeline de reproducciones dinámico con filtros
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
