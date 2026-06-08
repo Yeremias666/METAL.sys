@@ -776,7 +776,7 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
             )}
           </div>
         )}
-        <button className={current.page === 'ACERCA' ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA</button>
+        <button className={current.page === 'ACERCA' ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
       </div>
     </nav>
   );
@@ -3427,8 +3427,8 @@ const LOG_LABELS = {
   PAUSE: { label: 'PAUSA',      color: 'var(--fg-dim)'      },
   NEXT:  { label: 'SIGUIENTE',  color: 'var(--fg-secondary)'},
   PREV:  { label: 'ANTERIOR',   color: 'var(--fg-secondary)'},
-  LIKE:  { label: '♥ ME GUSTA', color: '#ff2bd6'            },
-  UNLIKE:{ label: '♡ QUITADO',  color: 'var(--fg-dim)'     },
+  LIKE:  { label: 'ME GUSTA',   color: '#ffb347'            },
+  UNLIKE:{ label: 'QUITADO',    color: 'var(--fg-dim)'     },
 };
 
 function RecentActivity({ log }) {
@@ -4267,15 +4267,6 @@ function AcercaPage() {
 
   return (
     <div style={{display:'flex', flexDirection:'column', gap:12}}>
-      <div className="panel">
-        <div className="panel-hd">ACERCA DE <span className="dots">/// METAL.SYS</span></div>
-        <div className="panel-body">
-          <p>Reproductor web personal con estética retro CRT. Bóveda privada de música con interfaz tipo consola underground de los 80.</p>
-          <p style={{color:'var(--fg-dim)', fontSize:13, marginTop:6}}>
-            Diseñado y construido por <span style={{color:'var(--fg-primary)'}}>Yeremias</span> · Est. 2026 · Sin frameworks pesados, sin backend clásico, sin compromisos estéticos.
-          </p>
-        </div>
-      </div>
       {sections.map(sec => (
         <div key={sec.id} className="panel">
           <div className="panel-hd" style={{fontSize:13}}>
@@ -4387,13 +4378,13 @@ function SpotDLPage() {
       {/* ── 1. REQUISITOS ── */}
       <SpotDLSection title="01 /// REQUISITOS PREVIOS">
         <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', marginBottom:12}}>PASO 1 — PYTHON</p>
-        <p>Descarga e instala desde <span style={{color:'var(--fg-accent)'}}>python.org/downloads</span>.</p>
+        <p>Descarga e instala desde <a href="https://www.python.org/downloads/" target="_blank" rel="noopener noreferrer" style={{color:'var(--fg-accent)'}}>python.org/downloads</a>.</p>
         <SpotDLNote>⚠ Marca <strong>"Add Python to PATH"</strong> durante la instalación o no funcionará ningún comando.</SpotDLNote>
         <SpotDLCmd>python --version</SpotDLCmd>
 
         <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'16px 0 8px'}}>PASO 2 — FFMPEG</p>
         <ol style={{paddingLeft:22, margin:'8px 0', display:'flex', flexDirection:'column', gap:6}}>
-          <li>Descarga desde <span style={{color:'var(--fg-accent)'}}>gyan.dev/ffmpeg/builds</span> → <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>ffmpeg-release-essentials.zip</code></li>
+          <li>Descarga desde <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank" rel="noopener noreferrer" style={{color:'var(--fg-accent)'}}>gyan.dev/ffmpeg/builds</a> → <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>ffmpeg-release-essentials.zip</code></li>
           <li>Extrae en <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\ffmpeg</code></li>
           <li>
             Añade <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\ffmpeg\bin</code> al PATH del sistema:
@@ -4421,7 +4412,7 @@ function SpotDLPage() {
       {/* ── 2. CREDENCIALES SPOTIFY ── */}
       <SpotDLSection title="02 /// CREDENCIALES DE SPOTIFY">
         <ol style={{paddingLeft:22, display:'flex', flexDirection:'column', gap:6}}>
-          <li>Ve a <span style={{color:'var(--fg-accent)'}}>developer.spotify.com/dashboard</span></li>
+          <li>Ve a <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer" style={{color:'var(--fg-accent)'}}>developer.spotify.com/dashboard</a></li>
           <li>Crear app → nombre libre, Redirect URI: <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>http://127.0.0.1:8888</code>, marcar Web API</li>
           <li>En Settings copia el <strong>Client ID</strong> y el <strong>Client Secret</strong></li>
         </ol>
@@ -4432,7 +4423,7 @@ function SpotDLPage() {
       <SpotDLSection title="03 /// COOKIES DE YOUTUBE (EVITAR BLOQUEOS)">
         <ol style={{paddingLeft:22, display:'flex', flexDirection:'column', gap:6}}>
           <li>Instala la extensión <strong>"Get cookies.txt LOCALLY"</strong> en Chrome o Edge</li>
-          <li>Ve a <span style={{color:'var(--fg-accent)'}}>youtube.com</span> con tu sesión iniciada</li>
+          <li>Ve a <a href="https://www.youtube.com" target="_blank" rel="noopener noreferrer" style={{color:'var(--fg-accent)'}}>youtube.com</a> con tu sesión iniciada</li>
           <li>Haz clic en la extensión → exporta las cookies → guarda como <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\Users\TuUsuario\cookies.txt</code></li>
         </ol>
         <SpotDLNote>Si empiezas a ver errores de YouTube (<code style={{fontFamily:'var(--mono)'}}>AudioProviderError</code>), renueva las cookies exportándolas de nuevo.</SpotDLNote>
@@ -6009,6 +6000,36 @@ function App() {
     setDuration(0);
     setActiveClip(null);
   };
+
+  // ── Media Session API ────────────────────────────────────────
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    if (!currentTrack) { navigator.mediaSession.metadata = null; return; }
+    const artwork = [];
+    const src = currentTrack.coverArt || currentTrack.coverUrl || currentTrack.thumbnail;
+    if (src) artwork.push({ src, sizes: '512x512', type: src.startsWith('data:image/png') ? 'image/png' : 'image/jpeg' });
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  currentTrack.name   || 'Sin título',
+      artist: currentTrack.artist || currentTrack.category || '',
+      album:  currentTrack.album  || '',
+      artwork,
+    });
+    navigator.mediaSession.setActionHandler('play',          () => { audioRef.current?.play().catch(()=>{}); });
+    navigator.mediaSession.setActionHandler('pause',         () => { audioRef.current?.pause(); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+    navigator.mediaSession.setActionHandler('nexttrack',     () => playNext());
+    navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
+  }, [currentTrackId, currentTrack]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+  }, [isPlaying]);
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator) || !duration) return;
+    navigator.mediaSession.setPositionState({ duration, playbackRate: 1, position: Math.min(position, duration) });
+  }, [position, duration]);
 
   // Clear multi-select when leaving CAT
   useEffect(() => { if (route.page !== 'CAT') clearSel(); }, [route.page, route.cat]);
