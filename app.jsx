@@ -747,13 +747,6 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
         <button className={current.page === 'LOCAL'       ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA'    ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
         <button className={current.page === 'BANDAS'      ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
-        {allCats.map(artist => (
-          <button key={artist}
-                  className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                  onClick={() => onNav({ page: 'CAT', cat: artist })}>
-            <NavGlyph kind="MÚSICA" />{artist}
-          </button>
-        ))}
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
         <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
       </div>
