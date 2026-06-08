@@ -25,6 +25,12 @@ const PLOG_KEY     = 'metalsys_plog_v1';
 const BMRK_KEY     = 'metalsys_bookmarks_v1';
 const CLIPS_KEY    = 'metalsys_clips_v1';
 const ARTIST_META_KEY = 'metalsys_artist_meta_v1';
+const PERF_KEY  = 'metalsys_perf_v1';
+const PERF_DEFAULTS = { scanlines:true, bloom:true, chroma:true, flicker:true, rollbar:true, jitter:true, vuMeter:true, marquee:true, perfGlobal:false };
+function loadPerf() {
+  try { return { ...PERF_DEFAULTS, ...JSON.parse(localStorage.getItem(PERF_KEY) || '{}') }; }
+  catch { return { ...PERF_DEFAULTS }; }
+}
 const SIZE_CAP  = 8 * 1024 * 1024;
 const VAULT_CAP = 25 * 1024 * 1024;
 
@@ -671,7 +677,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPerf }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -691,7 +697,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
       <div className="right">
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
-        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} />
+        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} perf={perf} setPerf={setPerf} />
       </div>
     </div>
   );
@@ -754,14 +760,14 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
   );
 }
 
-function Marquee({ allCats = [] }) {
+function Marquee({ allCats = [], active = true }) {
   const text = allCats.length > 0
     ? allCats.join("          ◆          ")
     : MARQUEE_LINES.join("          ◆          ");
   const seg = text + "          ◆          ";
   return (
     <div className="marquee">
-      <div className="marquee-track">
+      <div className="marquee-track" style={{ animationPlayState: active ? 'running' : 'paused' }}>
         <span>{seg}</span>
         <span>{seg}</span>
       </div>
@@ -2668,9 +2674,9 @@ function StatsPanel({ files, allCats }) {
 // Rendered as a sibling of MusicPlayer so its z-index can be LOWER
 // than the player (2147483625). The player paints on top, hiding the
 // bar overlap at the bottom. Only the portion above the player is visible.
-function VUBackdrop({ analyser, isPlaying }) {
+function VUBackdrop({ analyser, isPlaying, vuEnabled = true }) {
   const BAR_COUNT = 90;
-  const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
+  const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
   return (
     <div className="vu-backdrop" aria-hidden="true">
       {[...vuData.slice(0,-1)].reverse().concat(vuData.slice(0,-1)).map((h, i) => (
@@ -2751,10 +2757,10 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true }) {
   if (!track) return null;
   const BAR_COUNT = 90;
-  const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
+  const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
   const draggingRef = useRef(false);
@@ -3714,12 +3720,24 @@ function AuthModal({ onClose, onLogin }) {
 }
 
 // ─── USER BUTTON ────────────────────────────────────────────────
-function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile }) {
+function PerfToggle({ label, value, onChange }) {
+  return (
+    <div className="perf-row" onClick={() => onChange(!value)}>
+      <span className="perf-label">{label}</span>
+      <div className={`perf-switch${value ? '' : ' off'}`}>
+        <div className="perf-knob" />
+      </div>
+    </div>
+  );
+}
+
+function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPerf }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [showPerf, setShowPerf] = React.useState(false);
   const ref = React.useRef(null);
 
   React.useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setMenuOpen(false); };
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) { setMenuOpen(false); setShowPerf(false); } };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -3745,8 +3763,35 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile }) {
             <div style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-primary)', letterSpacing:'0.08em'}}>{authUser.username}</div>
             <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
           </div>
-          <button onClick={() => { setMenuOpen(false); onOpenProfile(); }}>⚙ PERFIL</button>
-          <button onClick={() => { setMenuOpen(false); onLogout(); }}>✕ CERRAR SESIÓN</button>
+          <button onClick={() => { setMenuOpen(false); setShowPerf(false); onOpenProfile(); }}>⚙ PERFIL</button>
+          <div className="user-menu-sep" />
+          <button className={showPerf ? 'active' : ''} onClick={() => setShowPerf(p => !p)}>
+            ▸ RENDIMIENTO
+          </button>
+          {showPerf && perf && (
+            <div className="perf-panel">
+              <PerfToggle label="Scanlines"        value={perf.scanlines} onChange={v => setPerf('scanlines', v)} />
+              <PerfToggle label="Bloom / brillo"   value={perf.bloom}     onChange={v => setPerf('bloom',     v)} />
+              <PerfToggle label="Aberr. cromática" value={perf.chroma}    onChange={v => setPerf('chroma',    v)} />
+              <PerfToggle label="Flicker"          value={perf.flicker}   onChange={v => setPerf('flicker',  v)} />
+              <PerfToggle label="Rollbar"          value={perf.rollbar}   onChange={v => setPerf('rollbar',  v)} />
+              <PerfToggle label="Jitter"           value={perf.jitter}    onChange={v => setPerf('jitter',   v)} />
+              <PerfToggle label="VU Meter"         value={perf.vuMeter}   onChange={v => setPerf('vuMeter',  v)} />
+              <PerfToggle label="Ticker"           value={perf.marquee}   onChange={v => setPerf('marquee',  v)} />
+              <div className="perf-global-sep" />
+              <div className="perf-row perf-global-row" onClick={() => setPerf('perfGlobal', !perf.perfGlobal)}>
+                <div>
+                  <div className="perf-label">Guardar en cuenta</div>
+                  <div className="perf-hint">Sincroniza a todos los dispositivos</div>
+                </div>
+                <div className={`perf-switch${perf.perfGlobal ? '' : ' off'}`}>
+                  <div className="perf-knob" />
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="user-menu-sep" />
+          <button onClick={() => { setMenuOpen(false); setShowPerf(false); onLogout(); }}>✕ CERRAR SESIÓN</button>
         </div>
       )}
     </div>
@@ -5149,6 +5194,12 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, 
 // ─── MAIN APP ──────────────────────────────────────────────────
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [perf, setPerfState] = useState(loadPerf);
+  const setPerf = (key, val) => setPerfState(p => {
+    const next = { ...p, [key]: val };
+    try { localStorage.setItem(PERF_KEY, JSON.stringify(next)); } catch {}
+    return next;
+  });
   const [route, setRoute] = useState({ page: 'INICIO' });
   const [files, setFiles] = useState(loadVault);
   const [customCats, setCustomCats] = useState(() => {
@@ -5319,6 +5370,7 @@ function App() {
           if (d.likedIds)   setLikedIds(new Set(d.likedIds));
           if (d.playCounts) setPlayCounts(d.playCounts);
           if (d.playLog)    setPlayLog(d.playLog);
+          if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
         }
       })
       .catch(() => {})
@@ -5348,13 +5400,13 @@ function App() {
 
   useEffect(() => {
     const root = document.documentElement;
-    root.style.setProperty('--scanline-opacity', t.scanlines);
+    root.style.setProperty('--scanline-opacity', perf.scanlines ? t.scanlines : 0);
     root.style.setProperty('--vignette', t.vignette);
-    root.style.setProperty('--chroma-x', `${t.chroma}px`);
+    root.style.setProperty('--chroma-x', perf.chroma ? `${t.chroma}px` : '0px');
     root.style.setProperty('--curve-radius', `${t.curvature}px`);
-    root.style.setProperty('--bloom', `${t.bloom}px`);
-    root.style.setProperty('--flicker-strength', t.flicker ? 1 : 0.0001);
-  }, [t]);
+    root.style.setProperty('--bloom', perf.bloom ? `${t.bloom}px` : '0px');
+    root.style.setProperty('--flicker-strength', (perf.flicker && t.flicker) ? 1 : 0.0001);
+  }, [t, perf]);
 
   // Keep activeClipRef in sync
   useEffect(() => { activeClipRef.current = activeClip; }, [activeClip]);
@@ -5830,6 +5882,7 @@ function App() {
         if (d.likedIds)   setLikedIds(new Set(d.likedIds));
         if (d.playCounts) setPlayCounts(d.playCounts);
         if (d.playLog)    setPlayLog(d.playLog);
+        if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
       }).catch(() => {});
   };
 
@@ -5847,15 +5900,20 @@ function App() {
     if (!authToken || !syncReadyRef.current) return;
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
+      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog };
+      if (perf.perfGlobal) {
+        const { perfGlobal: _, ...cloudPerf } = perf;
+        body.perf = cloudPerf;
+      }
       fetch('/api/userdata', {
         method: 'PUT',
         headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog }),
+        body: JSON.stringify(body),
       }).catch(() => {});
     }, 2000);
-  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog]);
+  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf]);
 
-  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog]);
+  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf]);
 
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {
@@ -6160,9 +6218,9 @@ function App() {
 
   return (
     <div className={`crt-stage ${phosphorClass}`}>
-      <div className="crt-screen" style={{ animationPlayState: t.flicker ? 'running' : 'paused' }}>
-        <div className="crt-content" style={{ animationPlayState: t.jitter ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} />
+      <div className="crt-screen" style={{ animationPlayState: (perf.flicker && t.flicker) ? 'running' : 'paused' }}>
+        <div className="crt-content" style={{ animationPlayState: (perf.jitter && t.jitter) ? 'running' : 'paused' }}>
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} perf={perf} setPerf={setPerf} />
           <div className="page">
             {/* Left sidebar */}
             {!isMobile && (
@@ -6188,7 +6246,7 @@ function App() {
             <div className="col-main">
               <Banner onNav={setRoute} />
               <Nav current={route} onNav={setRoute} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
-              <Marquee allCats={allCats} />
+              <Marquee allCats={allCats} active={perf.marquee} />
               <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
@@ -6325,7 +6383,7 @@ function App() {
         </div>
 
         <div className="crt-scanlines"></div>
-        {t.rollbar && <div className="crt-rollbar"></div>}
+        {perf.rollbar && t.rollbar && <div className="crt-rollbar"></div>}
         <div className="crt-vignette"></div>
         <div className="crt-glass"></div>
         <div className="crt-audio-pulse"></div>
@@ -6336,7 +6394,7 @@ function App() {
 
       {/* VU backdrop — sibling of player, z-index LOWER than player so player renders on top */}
       {currentTrack && (
-        <VUBackdrop analyser={analyserRef} isPlaying={isPlaying} />
+        <VUBackdrop analyser={analyserRef} isPlaying={isPlaying} vuEnabled={perf.vuMeter} />
       )}
 
       <MusicPlayer track={currentTrack} queue={effectiveQueue} isPlaying={isPlaying}
@@ -6355,7 +6413,8 @@ function App() {
                    onCreateBookmark={() => { setShowPlayerMenu(false); setShowBookmarkModal(true); }}
                    onCreateClip={() => { setShowPlayerMenu(false); setShowClipModal(true); }}
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
-                   likedIds={likedIds} onToggleLike={toggleLike} />
+                   likedIds={likedIds} onToggleLike={toggleLike}
+                   vuEnabled={perf.vuMeter} />
 
       {showCreateModal && (
         <CreateCategoryModal
