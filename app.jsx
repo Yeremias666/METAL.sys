@@ -1935,21 +1935,15 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               <div>
                 <div className="panel" style={{marginBottom:12}}>
                   <div className="panel-body" style={{display:'flex',justifyContent:'center',padding:'28px 14px'}}>
-                    {/* Desktop: vinilo con efecto */}
-                    <div className="vinyl-detail">
-                      <div className="ac-vinyl-disc" />
-                      {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt) && (
-                        <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
-                             alt={currentAlbum.name} className="vinyl-detail-cover" />
-                      )}
+                    <div className="album-detail-thumb"
+                         onMouseEnter={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%) translateX(54%)';} }}
+                         onMouseLeave={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%)';} }}>
+                      <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
+                      {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
+                        ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
+                               alt={currentAlbum.name} className="album-detail-cover-img" />
+                        : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
                     </div>
-                    {/* Movil: portada simple */}
-                    {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
-                      ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
-                             alt={currentAlbum.name} className="album-detail-mobile-cover" />
-                      : <div className="album-detail-mobile-cover album-detail-mobile-empty">
-                          <IconGlyph iconId="disco" size={60} />
-                        </div>}
                   </div>
                 </div>
                 <div className="panel" style={{marginBottom:12}}>

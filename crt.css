@@ -1440,64 +1440,41 @@ input:not([type=range]), textarea {
   position: sticky;
   top: 14px;
 }
-/* ─── Vinyl detail (grande, centrado) ────────────────────── */
-.vinyl-detail {
-  width: 280px;
-  height: 280px;
+/* ─── Album detail thumb (portada grande + vinilo saliendo) ── */
+.album-detail-thumb {
   position: relative;
-  filter: drop-shadow(0 10px 40px rgba(0,0,0,0.9)) drop-shadow(0 0 24px rgba(214,31,31,0.18));
+  width: 300px;
+  height: 300px;
+  overflow: visible;
+  flex-shrink: 0;
 }
-.vinyl-detail .ac-vinyl-disc {
-  animation-duration: 14s;
-  animation-play-state: running;
-}
-.vinyl-detail-cover {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 38%;
-  height: 38%;
-  border-radius: 50%;
+.album-detail-cover-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  z-index: 5;
-  pointer-events: none;
-}
-/* Portada simple para movil */
-.album-detail-mobile-cover {
-  display: none;
-  width: 200px;
-  height: 200px;
-  object-fit: cover;
-  border: 2px solid var(--fg-primary);
   image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  position: relative;
+  z-index: 2;
 }
-.album-detail-mobile-empty {
-  display: none;
-  width: 200px;
-  height: 200px;
-  border: 2px solid rgba(214,31,31,0.3);
-  background: rgba(214,31,31,0.04);
+.album-detail-cover-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(214,31,31,0.04);
+  border: 1px solid rgba(214,31,31,0.25);
+  position: relative;
+  z-index: 2;
   color: var(--fg-dim);
 }
+/* Movil: ocultar vinilo, solo portada */
+.is-touch .album-detail-thumb .album-card-vinyl { display: none; }
 @media (max-width: 700px) {
-  .album-detail-grid {
-    grid-template-columns: 1fr;
-  }
-  .album-detail-sidebar {
-    display: none;
-  }
-  .vinyl-detail {
-    display: none;
-  }
-  .album-detail-mobile-cover {
-    display: block;
-  }
-  .album-detail-mobile-empty {
-    display: flex;
-  }
+  .album-detail-grid { grid-template-columns: 1fr; }
+  .album-detail-sidebar { display: none; }
+  .album-detail-thumb { width: 220px; height: 220px; }
 }
 .album-card-body {
   padding: 12px;
