@@ -489,6 +489,7 @@ input:not([type=range]), textarea {
   position: relative;
   display: flex;
   align-items: stretch;
+  align-self: stretch;
 }
 .nav-more-btn {
   font-family: var(--mono);

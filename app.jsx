@@ -5138,6 +5138,7 @@ function App() {
   const audioSyncRef     = useRef(null);
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
+  const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
   // Waveform en tiempo real para archivos R2 (sin descarga extra)
   const waveformBufRef   = useRef(null);  // Float32Array(300) en construcción
   const waveformIdRef    = useRef(null);  // id de la pista que se está muestreando
@@ -5588,6 +5589,7 @@ function App() {
     if (!file) return;
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
+    msTransitionRef.current = true;
     ensureAnalyser();
     if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume().catch(() => {});
@@ -6031,9 +6033,14 @@ function App() {
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
-    navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
-    // Re-apply metadata when audio starts — mobile OS picks up the session at this moment
-    if (isPlaying && currentTrack) _applyMSMetadata(currentTrack);
+    if (isPlaying) {
+      msTransitionRef.current = false;
+      navigator.mediaSession.playbackState = 'playing';
+      if (currentTrack) _applyMSMetadata(currentTrack);
+    } else {
+      // Ignorar el pause que el navegador emite al cambiar de src entre pistas
+      if (!msTransitionRef.current) navigator.mediaSession.playbackState = 'paused';
+    }
   }, [isPlaying]);
 
   useEffect(() => {
