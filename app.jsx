@@ -25,6 +25,7 @@ const PLOG_KEY     = 'metalsys_plog_v1';
 const BMRK_KEY     = 'metalsys_bookmarks_v1';
 const CLIPS_KEY    = 'metalsys_clips_v1';
 const ARTIST_META_KEY = 'metalsys_artist_meta_v1';
+const PLAYLIST_KEY    = 'metalsys_playlists_v1';
 const PERF_KEY  = 'metalsys_perf_v1';
 const PERF_DEFAULTS = { scanlines:true, bloom:true, chroma:true, flicker:true, rollbar:true, jitter:true, vuMeter:true, marquee:true, audioPulse:true, perfGlobal:false };
 function loadPerf() {
@@ -80,6 +81,8 @@ function saveBookmarks(b) { try { localStorage.setItem(BMRK_KEY, JSON.stringify(
 function loadClipStore() { try { return JSON.parse(localStorage.getItem(CLIPS_KEY) || '{}'); } catch { return {}; } }
 function saveClipStore(c) { try { localStorage.setItem(CLIPS_KEY, JSON.stringify(c)); } catch {} }
 function loadArtistMeta() { try { return JSON.parse(localStorage.getItem(ARTIST_META_KEY) || '{}'); } catch { return {}; } }
+function loadPlaylists() { try { return JSON.parse(localStorage.getItem(PLAYLIST_KEY) || '[]'); } catch { return []; } }
+function savePlaylists(p) { try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(p)); } catch {} }
 function saveArtistMeta(m) { try { localStorage.setItem(ARTIST_META_KEY, JSON.stringify(m)); } catch {} }
 
 // IndexedDB: se usa exclusivamente para guardar el handle de carpeta local
@@ -4080,16 +4083,125 @@ function LikeButton({ fileId, likedIds, onToggle }) {
   );
 }
 
-// ─── PLAYLIST PAGE ──────────────────────────────────────────
-function PlaylistPage() {
+// ─── PLAYLIST CARD ──────────────────────────────────────────
+function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
+  const cardRef = useRef(null);
+  const SLIDE_OUT = 'translateY(-50%)';
+  const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
+
+  const onEnter = useCallback(() => {
+    const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
+    if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
+  }, []);
+  const onMove = useCallback((e) => {
+    const el = cardRef.current; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width * 0.5) / (r.width * 0.5);
+    const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
+    el.style.transition = 'box-shadow 0.06s';
+    el.style.transform  = `perspective(600px) rotateX(${-dy * 8}deg) rotateY(${dx * 8}deg) translateY(-10px) scale(1.05)`;
+    el.style.boxShadow  = `${-dx * 12}px ${-dy * 10}px 40px rgba(214,31,31,0.65), 0 0 24px rgba(214,31,31,0.35)`;
+    const vinyl = el.querySelector('.album-card-vinyl');
+    if (vinyl) vinyl.style.transform = SLIDE_IN;
+  }, []);
+  const onLeave = useCallback(() => {
+    const el = cardRef.current; if (!el) return;
+    el.style.transform = '';
+    el.style.boxShadow = '';
+    const vinyl = el.querySelector('.album-card-vinyl');
+    if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
+  }, []);
+
+  const songs = playlist.songIds
+    .map(id => allFiles.find(f => f.id === id))
+    .filter(Boolean);
+  const cover = songs.find(f => f.thumbnail || f.coverArt);
+  const coverEl = cover
+    ? <img className="ac-img" src={cover.thumbnail || cover.coverArt} alt={playlist.name} />
+    : <div className="ac-img ac-img-empty"><IconGlyph iconId="nota" size={36} /></div>;
+
+  const createdStr = playlist.createdAt
+    ? new Date(playlist.createdAt).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })
+    : '';
+
   return (
-    <div className="panel">
-      <div className="panel-hd">PLAYLIST <span className="dots">/// MIS LISTAS</span></div>
-      <div className="panel-body" style={{textAlign:'center', padding:'48px 0', color:'var(--fg-dim)', fontSize:18}}>
-        <div style={{fontSize:32, marginBottom:16, opacity:0.4}}>◈</div>
-        <div>Función en construcción.</div>
-        <div style={{fontSize:14, marginTop:8}}>Próximamente podrás crear y gestionar tus playlists aquí.</div>
+    <div ref={cardRef}
+         className="album-card album-card-anim"
+         style={{ animationDelay: `${index * 40}ms` }}
+         onClick={() => onOpen(playlist.id)}
+         onMouseEnter={onEnter} onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div className="album-card-thumb">
+        <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
+        {coverEl}
       </div>
+      <div className="album-card-body">
+        <div className="album-card-title">{playlist.name}</div>
+        <div className="album-card-sub">{songs.length} canción{songs.length === 1 ? '' : 'es'}{createdStr ? ` · ${createdStr}` : ''}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PLAYLIST PAGE ──────────────────────────────────────────
+function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist }) {
+  const [sort, setSort] = useState('alpha');
+  const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
+
+  const sorted = useMemo(() => {
+    const arr = [...playlists];
+    if (sort === 'alpha')   return arr.sort((a,b) => (a.name||'').localeCompare(b.name||'', 'es', {sensitivity:'base'}));
+    if (sort === 'created') return arr.sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+    if (sort === 'songs')   return arr.sort((a,b) => (b.songIds?.length||0) - (a.songIds?.length||0));
+    if (sort === 'played')  return arr.sort((a,b) => (b.lastPlayedAt||0) - (a.lastPlayedAt||0));
+    return arr;
+  }, [playlists, sort]);
+
+  const SORT_OPTS = [
+    ['alpha',   'A–Z'],
+    ['created', 'FECHA'],
+    ['songs',   'CANCIONES'],
+    ['played',  'RECIENTES'],
+  ];
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">PLAYLIST <span className="dots">/// {playlists.length} LISTA{playlists.length === 1 ? '' : 'S'}</span></div>
+        <div className="panel-body">
+          <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+            {SORT_OPTS.map(([key, lbl]) => (
+              <button key={key} onClick={() => setSort(key)}
+                style={{fontFamily:'var(--pixel)', fontSize:11, letterSpacing:'0.08em', padding:'3px 10px',
+                        background: sort===key ? 'var(--fg-primary)' : 'transparent',
+                        color: sort===key ? '#000' : 'var(--fg-dim)',
+                        border: `1px solid ${sort===key ? 'var(--fg-primary)' : 'rgba(255,255,255,0.15)'}`,
+                        cursor:'pointer', transition:'all 0.1s'}}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {playlists.length === 0
+        ? (
+          <div className="panel section">
+            <div className="panel-body" style={{textAlign:'center', padding:'48px 0', color:'var(--fg-dim)', fontSize:18}}>
+              <div style={{fontSize:32, marginBottom:16, opacity:0.4}}>◈</div>
+              <div>No hay playlists todavía.</div>
+            </div>
+          </div>
+        )
+        : (
+          <div className="section">
+            <div className="album-grid">
+              {sorted.map((pl, i) => (
+                <PlaylistCard key={pl.id} playlist={pl} allFiles={allFiles}
+                              onOpen={onOpenPlaylist || (() => {})} index={i} />
+              ))}
+            </div>
+          </div>
+        )
+      }
     </div>
   );
 }
@@ -5405,6 +5517,7 @@ function App() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
+  const [playlists, setPlaylists] = useState(loadPlaylists);   // playlist[]
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
@@ -6436,7 +6549,10 @@ function App() {
                     startTrack(f, ctx);
                   }} />
               )}
-              {route.page === 'PLAYLIST' && <PlaylistPage />}
+              {route.page === 'PLAYLIST' && (
+                <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
+                              onOpenPlaylist={(id) => {/* detail view — próximamente */}} />
+              )}
               {route.page === 'STATS' && (
                 <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
               )}
