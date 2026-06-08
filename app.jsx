@@ -5192,6 +5192,22 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, 
   );
 }
 
+// ─── HASH ROUTING ──────────────────────────────────────────────
+function routeToHash(r) {
+  if (r.page === 'CAT')    return '#cat/'    + encodeURIComponent(r.cat    || '');
+  if (r.page === 'DETAIL') return '#detail/' + encodeURIComponent(r.fileId || '');
+  return '#' + r.page.toLowerCase();
+}
+function hashToRoute(hash) {
+  const h = (hash || '').replace(/^#/, '');
+  if (!h || h === 'inicio') return { page: 'INICIO' };
+  if (h.startsWith('cat/'))    return { page: 'CAT',    cat:    decodeURIComponent(h.slice(4)) };
+  if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
+  const page = h.toUpperCase();
+  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','BANDAS','INSTALACION','ACERCA'];
+  return valid.includes(page) ? { page } : { page: 'INICIO' };
+}
+
 // ─── MAIN APP ──────────────────────────────────────────────────
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
@@ -5201,7 +5217,18 @@ function App() {
     try { localStorage.setItem(PERF_KEY, JSON.stringify(next)); } catch {}
     return next;
   });
-  const [route, setRoute] = useState({ page: 'INICIO' });
+  const [route, setRoute] = useState(() => hashToRoute(window.location.hash));
+  const navigateTo = React.useCallback((newRoute) => {
+    window.history.pushState(newRoute, '', routeToHash(newRoute));
+    setRoute(newRoute);
+  }, []);
+  useEffect(() => {
+    // Stamp the initial entry so back works from page 1
+    window.history.replaceState(route, '', routeToHash(route));
+    const onPop = (e) => setRoute(e.state || hashToRoute(window.location.hash));
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [files, setFiles] = useState(loadVault);
   const [customCats, setCustomCats] = useState(() => {
     const cats = loadCats();
@@ -5577,12 +5604,12 @@ function App() {
       addToLog({ kind: 'UP', name: entry.name, size: entry.fileSize });
       setTimeout(() => {
         setUploadProgress(null);
-        setRoute({ page: 'CAT', cat: entry.category });
+        navigateTo({ page: 'CAT', cat: entry.category });
       }, 900);
     };
     reader.onerror = () => {
       setUploadProgress((p) => p ? { ...p, done: true, error: true } : null);
-      setTimeout(() => { setUploadProgress(null); setRoute({ page: 'SUBIR' }); }, 1500);
+      setTimeout(() => { setUploadProgress(null); navigateTo({ page: 'SUBIR' }); }, 1500);
     };
     reader.readAsDataURL(file);
   };
@@ -5596,7 +5623,7 @@ function App() {
     setFiles((prev) => prev.filter((x) => x.id !== f.id));
     addToLog({ kind: 'DEL', name: f.name, size: f.fileSize });
     if (currentTrackId === f.id) stopMusic();
-    if (route.page === 'DETAIL') setRoute({ page: 'CAT', cat: f.category || f.artist });
+    if (route.page === 'DETAIL') navigateTo({ page: 'CAT', cat: f.category || f.artist });
   };
   const handleUpdate = (f) => {
     setFiles((prev) => prev.map((x) => x.id === f.id ? f : x));
@@ -5608,10 +5635,10 @@ function App() {
   const submitCreateCat = ({ name, icon }) => {
     setCustomCats((p) => [...p, { name, icon }]);
     setShowCreateModal(false);
-    setRoute({ page: 'CAT', cat: name });
+    navigateTo({ page: 'CAT', cat: name });
   };
 
-  const openFile = (id) => setRoute({ page: 'DETAIL', fileId: id });
+  const openFile = (id) => navigateTo({ page: 'DETAIL', fileId: id });
 
   // ───── MULTI-SELECT ─────
   const toggleSel = (id) => {
@@ -6214,8 +6241,8 @@ function App() {
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;
   const hasNextDetail = detailNavIdx >= 0 && detailNavIdx < detailNavQueue.length - 1;
-  const goDetailPrev  = () => { if (hasPrevDetail) setRoute({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx - 1].id }); };
-  const goDetailNext  = () => { if (hasNextDetail) setRoute({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx + 1].id }); };
+  const goDetailPrev  = () => { if (hasPrevDetail) navigateTo({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx - 1].id }); };
+  const goDetailNext  = () => { if (hasNextDetail) navigateTo({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx + 1].id }); };
 
   return (
     <div className={`crt-stage ${phosphorClass}`}>
@@ -6228,7 +6255,7 @@ function App() {
             <div className="col-left">
               <LibraryTree
                 files={files} localFiles={localFiles} allCats={allCats}
-                onNav={setRoute} onOpenFile={openFile}
+                onNav={navigateTo} onOpenFile={openFile}
                 onPlayArtist={artist => playScope({ type:'artist', artist }, false)}
                 onPlayAlbum={(artist, album) => playScope({ type:'album', artist, album }, false)}
                 onPlayFile={f => {
@@ -6245,12 +6272,12 @@ function App() {
 
             {/* Center column */}
             <div className="col-main">
-              <Banner onNav={setRoute} />
-              <Nav current={route} onNav={setRoute} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
+              <Banner onNav={navigateTo} />
+              <Nav current={route} onNav={navigateTo} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
               <Marquee allCats={allCats} active={perf.marquee} />
               <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
-                <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
+                <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={navigateTo}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
@@ -6258,7 +6285,7 @@ function App() {
               )}
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
-                              allCats={allCats} onNav={setRoute}
+                              allCats={allCats} onNav={navigateTo}
                               onOpenFile={openFile}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
                               onPlayFile={(f) => {
@@ -6270,7 +6297,7 @@ function App() {
               )}
               {route.page === 'BANDAS' && (
                 <BandasPage artists={allArtists} files={files} localFiles={localFiles}
-                            onNav={setRoute} onOpenFile={openFile}
+                            onNav={navigateTo} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                             artistMeta={artistMeta} />
@@ -6278,7 +6305,7 @@ function App() {
               {route.page === 'MESGUSTA' && (
                 <MeGustaPage
                   files={files} localFiles={localFiles} likedIds={likedIds}
-                  onOpenFile={openFile} onNav={setRoute}
+                  onOpenFile={openFile} onNav={navigateTo}
                   onPlayAll={() => {
                     const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
                     if (likedAudio.length === 0) return;
@@ -6309,7 +6336,7 @@ function App() {
               )}
               {route.page === 'SUBIR' && (
                 <UploadPage allCats={allCats} vault={files}
-                            onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
+                            onUpload={startUpload} onNav={navigateTo} onCreateCat={handleCreateCat}
                             prefillCat={route.prefillCat} />
               )}
               {route.page === 'INSTALACION' && <InstalacionPage />}
@@ -6318,7 +6345,7 @@ function App() {
               {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
               {route.page === 'CAT' && (
                 <CategoryPage cat={route.cat} prefillAlbum={route.album} files={[...files, ...localFiles]}
-                              onOpenFile={openFile} onNav={setRoute}
+                              onOpenFile={openFile} onNav={navigateTo}
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
                               artistMeta={artistMeta} onUpdateArtistMeta={updateArtistMeta}
@@ -6337,7 +6364,7 @@ function App() {
               {route.page === 'DETAIL' && (
                 currentFile
                   ? <DetailPage file={currentFile}
-                                onBack={() => setRoute({ page: 'CAT', cat: currentFile.category || currentFile.artist, album: currentFile.album || undefined })}
+                                onBack={() => navigateTo({ page: 'CAT', cat: currentFile.category || currentFile.artist, album: currentFile.album || undefined })}
                                 onDownload={handleDownload} onDelete={handleDelete}
                                 allCats={allCats} onUpdate={handleUpdate}
                                 onPlayAudio={playTrack}
@@ -6356,9 +6383,9 @@ function App() {
                                 onPrev={goDetailPrev} onNext={goDetailNext}
                                 hasPrev={hasPrevDetail} hasNext={hasNextDetail}
                                 allFiles={[...files, ...localFiles].filter(isAudioFile)}
-                                onOpenFile={openFile} onNav={setRoute} />
+                                onOpenFile={openFile} onNav={navigateTo} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
-                      Archivo no encontrado. <button className="mini-btn" onClick={()=>setRoute({page:'INICIO'})}>VOLVER</button>
+                      Archivo no encontrado. <button className="mini-btn" onClick={()=>navigateTo({page:'INICIO'})}>VOLVER</button>
                     </div></div>
               )}
               </div>
