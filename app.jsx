@@ -26,7 +26,7 @@ const BMRK_KEY     = 'metalsys_bookmarks_v1';
 const CLIPS_KEY    = 'metalsys_clips_v1';
 const ARTIST_META_KEY = 'metalsys_artist_meta_v1';
 const PERF_KEY  = 'metalsys_perf_v1';
-const PERF_DEFAULTS = { scanlines:true, bloom:true, chroma:true, flicker:true, rollbar:true, jitter:true, vuMeter:true, marquee:true, perfGlobal:false };
+const PERF_DEFAULTS = { scanlines:true, bloom:true, chroma:true, flicker:true, rollbar:true, jitter:true, vuMeter:true, marquee:true, audioPulse:true, perfGlobal:false };
 function loadPerf() {
   try { return { ...PERF_DEFAULTS, ...JSON.parse(localStorage.getItem(PERF_KEY) || '{}') }; }
   catch { return { ...PERF_DEFAULTS }; }
@@ -3776,8 +3776,9 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPe
               <PerfToggle label="Flicker"          value={perf.flicker}   onChange={v => setPerf('flicker',  v)} />
               <PerfToggle label="Rollbar"          value={perf.rollbar}   onChange={v => setPerf('rollbar',  v)} />
               <PerfToggle label="Jitter"           value={perf.jitter}    onChange={v => setPerf('jitter',   v)} />
-              <PerfToggle label="VU Meter"         value={perf.vuMeter}   onChange={v => setPerf('vuMeter',  v)} />
-              <PerfToggle label="Ticker"           value={perf.marquee}   onChange={v => setPerf('marquee',  v)} />
+              <PerfToggle label="VU Meter"         value={perf.vuMeter}    onChange={v => setPerf('vuMeter',   v)} />
+              <PerfToggle label="Ticker"           value={perf.marquee}    onChange={v => setPerf('marquee',   v)} />
+              <PerfToggle label="Pulso de audio"   value={perf.audioPulse} onChange={v => setPerf('audioPulse', v)} />
               <div className="perf-global-sep" />
               <div className="perf-row perf-global-row" onClick={() => setPerf('perfGlobal', !perf.perfGlobal)}>
                 <div>
@@ -4165,7 +4166,7 @@ function InstalacionCard({ title, icon, badge, badgeColor, items, footer }) {
         {footer && (
           <div style={{
             borderTop:'1px dashed rgba(214,31,31,0.2)', paddingTop:10,
-            fontSize:14, color:'rgba(214,31,31,0.5)', fontStyle:'italic',
+            fontSize:15, color:'rgba(214,31,31,0.72)', fontStyle:'italic',
           }}>{footer}</div>
         )}
       </div>
@@ -5414,7 +5415,7 @@ function App() {
   // CRT flicker sync with audio
   useEffect(() => {
     const pulse = document.querySelector('.crt-audio-pulse');
-    if (!isPlaying || !analyserRef.current) {
+    if (!isPlaying || !analyserRef.current || !perf.audioPulse) {
       if (audioSyncRef.current) cancelAnimationFrame(audioSyncRef.current);
       if (pulse) pulse.style.opacity = '0';
       return;
@@ -5445,7 +5446,7 @@ function App() {
     };
     audioSyncRef.current = requestAnimationFrame(tick);
     return () => { if (audioSyncRef.current) cancelAnimationFrame(audioSyncRef.current); };
-  }, [isPlaying]);
+  }, [isPlaying, perf.audioPulse]);
 
   // Audio element wiring
   useEffect(() => {
