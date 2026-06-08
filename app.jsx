@@ -756,11 +756,15 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
 
 function Marquee({ allCats = [] }) {
   const text = allCats.length > 0
-    ? allCats.join("   ◆◆◆   ")
-    : MARQUEE_LINES.join("   ◆◆◆   ");
+    ? allCats.join("          ◆          ")
+    : MARQUEE_LINES.join("          ◆          ");
+  const seg = text + "          ◆          ";
   return (
     <div className="marquee">
-      <span className="marquee-track">{text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {text}</span>
+      <div className="marquee-track">
+        <span>{seg}</span>
+        <span>{seg}</span>
+      </div>
     </div>
   );
 }
