@@ -672,6 +672,7 @@ function NavGlyph({ kind }) {
     case 'DOWNLOAD': return <svg {...p}><path d="M12 4 V17 M6 13 L12 17 L18 13" {...s}/><path d="M4 21 H20" {...s}/></svg>;
     case 'INFO': return <svg {...p}><circle cx="12" cy="12" r="9" {...s}/><circle cx="12" cy="8" r="1" {...f}/><line x1="12" y1="11" x2="12" y2="17" {...s}/></svg>;
     case 'INSTALAR': return <svg {...p}><rect x="3" y="13" width="18" height="7" rx="1" {...s}/><path d="M12 3 V13 M7 9 L12 13 L17 9" {...s}/></svg>;
+    case 'LISTA': return <svg {...p}><line x1="8" y1="6" x2="20" y2="6" {...s}/><line x1="8" y1="12" x2="20" y2="12" {...s}/><line x1="8" y1="18" x2="20" y2="18" {...s}/><circle cx="4" cy="6" r="1.5" {...f}/><circle cx="4" cy="12" r="1.5" {...f}/><circle cx="4" cy="18" r="1.5" {...f}/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
   }
 }
@@ -752,6 +753,7 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
         <button className={current.page === 'TODO'        ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
         <button className={current.page === 'LOCAL'       ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA'    ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
+        <button className={current.page === 'PLAYLIST'    ? 'active' : ''} onClick={() => onNav({ page: 'PLAYLIST' })}><NavGlyph kind="LISTA" />PLAYLIST</button>
         <button className={current.page === 'BANDAS'      ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
         <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
@@ -979,27 +981,20 @@ function TrackList({ files, onOpen, onPlay }) {
   );
   return (
     <div>
-      {files.map((f) => {
-        const trackNum = f.track ? f.track.split('/')[0] : null;
-        const discNum  = f.disc ? parseInt(f.disc) || 1 : null;
-        const trackLabel = trackNum ? ((discNum && discNum > 1) ? `${discNum}·${trackNum}` : trackNum) : null;
-        return (
-          <div key={f.id} className="track-list-row" onClick={() => onOpen(f.id)}>
-            {trackLabel && (
-              <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{trackLabel}</span>
-            )}
-            {f.thumbnail
-              ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
-              : noteIcon}
-            <div style={{flex:1, minWidth:0}}>
-              <div className="tl-name">{f.name}</div>
-              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-              {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
-            </div>
-            <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
+      {files.map((f, i) => (
+        <div key={f.id} className="track-list-row" onClick={() => onOpen(f.id)}>
+          <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
+          {f.thumbnail
+            ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+            : noteIcon}
+          <div style={{flex:1, minWidth:0}}>
+            <div className="tl-name">{f.name}</div>
+            <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+            {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
           </div>
-        );
-      })}
+          <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
+        </div>
+      ))}
     </div>
   );
 }
@@ -4085,6 +4080,20 @@ function LikeButton({ fileId, likedIds, onToggle }) {
   );
 }
 
+// ─── PLAYLIST PAGE ──────────────────────────────────────────
+function PlaylistPage() {
+  return (
+    <div className="panel">
+      <div className="panel-hd">PLAYLIST <span className="dots">/// MIS LISTAS</span></div>
+      <div className="panel-body" style={{textAlign:'center', padding:'48px 0', color:'var(--fg-dim)', fontSize:18}}>
+        <div style={{fontSize:32, marginBottom:16, opacity:0.4}}>◈</div>
+        <div>Función en construcción.</div>
+        <div style={{fontSize:14, marginTop:8}}>Próximamente podrás crear y gestionar tus playlists aquí.</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
 function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile }) {
   const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
@@ -4111,27 +4120,21 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
       {liked.length === 0
         ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-            {liked.map((f) => {
-              const trackNum = f.track ? f.track.split('/')[0] : null;
-              const discNum  = f.disc ? parseInt(f.disc) || 1 : null;
-              const trackLabel = trackNum ? ((discNum && discNum > 1) ? `${discNum}·${trackNum}` : trackNum) : null;
-              return (
-                <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}>
-                  {trackLabel && (
-                    <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{trackLabel}</span>
-                  )}
-                  {f.thumbnail
-                    ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
-                    : noteIcon}
-                  <div style={{flex:1, minWidth:0}}>
-                    <div className="tl-name">{f.name}</div>
-                    <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}{f.album && f.album !== (f.artist||f.category) ? ` · ${f.album}` : ''}</div>
-                  </div>
-                  <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile ? onPlayFile(f) : onOpenFile(f.id); }} title="Reproducir">▶</button>
-                  <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
+            {liked.map((f, i) => (
+              <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}>
+                <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
+                {f.thumbnail
+                  ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+                  : noteIcon}
+                <div style={{flex:1, minWidth:0}}>
+                  <div className="tl-name">{f.name}</div>
+                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+                  {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
                 </div>
-              );
-            })}
+                <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile ? onPlayFile(f) : onOpenFile(f.id); }} title="Reproducir">▶</button>
+                <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
+              </div>
+            ))}
           </div></div></div>
       }
     </div>
@@ -4683,7 +4686,7 @@ function SpotDLPage() {
 // ─── STATS PAGE ─────────────────────────────────────────────
 const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
 
-function buildTimeline(filter, playLog) {
+function buildTimeline(filter, playLog, earliestTs = null) {
   const now = new Date();
   let buckets = [], keyFn, labelFn;
   if (filter === 'hora') {
@@ -4731,12 +4734,11 @@ function buildTimeline(filter, playLog) {
     keyFn = ts => new Date(ts).toISOString().slice(0,7);
     labelFn = k => k.slice(5);
   } else {
-    if (playLog.length === 0) return { buckets:[], labels:[], playsByBucketArtist:{} };
-    const firstTs = Math.min(...playLog.map(e=>e.ts));
-    const fd = new Date(firstTs);
-    // Empezar un mes antes del primer play para que haya siempre ≥2 puntos
-    let y=fd.getFullYear(), m=fd.getMonth()-1;
-    if (m<0){m=11;y--;}
+    if (playLog.length === 0 && !earliestTs) return { buckets:[], labels:[], playsByBucketArtist:{} };
+    const refs = playLog.length > 0 ? [Math.min(...playLog.map(e=>e.ts))] : [];
+    if (earliestTs) refs.push(earliestTs);
+    const fd = new Date(Math.min(...refs));
+    let y=fd.getFullYear(), m=fd.getMonth();
     const ey=now.getFullYear(), em=now.getMonth();
     while (y<ey||(y===ey&&m<=em)) {
       buckets.push(`${y}-${String(m+1).padStart(2,'0')}`);
@@ -4816,10 +4818,15 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const sortedUpDates = Object.keys(uploadsByDate).sort();
   const maxUploads = Math.max(1,...Object.values(uploadsByDate));
 
+  // Normalizar artist del playLog: mapear ID3 artist → category para las entradas antiguas
+  const id3ToCat = {};
+  audioFiles.forEach(f => { if (f.artist && f.category) id3ToCat[f.artist] = f.category; });
+  const normPlayLog = playLog.map(e => ({ ...e, artist: id3ToCat[e.artist] || e.artist }));
+
   // Play log — day map for streak (always day-granular)
   const todayUTC = new Date().toISOString().slice(0,10);
   const playsByDay = {};
-  playLog.forEach(entry => {
+  normPlayLog.forEach(entry => {
     const d = new Date(entry.ts).toISOString().slice(0,10);
     if (!playsByDay[d]) playsByDay[d]={};
     const a = entry.artist||'OTRO';
@@ -4827,7 +4834,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   });
 
   // Play log timeline — dynamic filter
-  const { buckets, labels, playsByBucketArtist } = buildTimeline(timeFilter, playLog);
+  const { buckets, labels, playsByBucketArtist } = buildTimeline(timeFilter, normPlayLog, firstUpload);
   const bucketTotals = buckets.map(b=>Object.values(playsByBucketArtist[b]||{}).reduce((a,v)=>a+v,0));
   const maxBucketVal = Math.max(1,...bucketTotals);
   const windowArtistPlays = {};
@@ -4994,12 +5001,20 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                           stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
                   ))}
                   {playArtists.map((artist,ai) => {
+                    const color = artistColorMap[artist]||STAT_COLORS[ai%STAT_COLORS.length];
+                    if (buckets.length <= 1) {
+                      const v = (playsByBucketArtist[buckets[0]]||{})[artist]||0;
+                      return v > 0 ? <circle key={artist} cx={px(0)} cy={py(v)} r={6} fill={color} opacity="0.85"/> : null;
+                    }
                     const pts = buckets.map((b,i)=>`${px(i)},${py((playsByBucketArtist[b]||{})[artist]||0)}`).join(' ');
-                    return <polyline key={artist} points={pts} fill="none"
-                                     stroke={artistColorMap[artist]||STAT_COLORS[ai%STAT_COLORS.length]}
+                    return <polyline key={artist} points={pts} fill="none" stroke={color}
                                      strokeWidth="1.5" strokeLinejoin="round" opacity="0.85"/>;
                   })}
                   {(() => {
+                    if (buckets.length <= 1) {
+                      return <circle cx={px(0)} cy={py(bucketTotals[0]||0)} r={8} fill="none"
+                                     stroke="rgba(255,255,255,0.35)" strokeWidth="1.5"/>;
+                    }
                     const pts = buckets.map((b,i)=>`${px(i)},${py(bucketTotals[i])}`).join(' ');
                     return <polyline points={pts} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="3,3"/>;
                   })()}
@@ -5010,16 +5025,16 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                 </svg>
               </div>
               {playArtists.length > 0 && (
-                <div style={{display:'flex',flexWrap:'wrap',gap:'6px 16px',marginTop:10}}>
+                <div className="play-legend">
                   {playArtists.map((a,i)=>(
-                    <span key={a} style={{fontSize:14,fontFamily:'var(--pixel)',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:5}}>
-                      <span style={{display:'inline-block',width:20,height:3,background:artistColorMap[a]||STAT_COLORS[i%STAT_COLORS.length],borderRadius:2}}/>
-                      {a}
+                    <span key={a} className="play-legend-item">
+                      <span style={{display:'inline-block',flexShrink:0,width:20,height:3,background:artistColorMap[a]||STAT_COLORS[i%STAT_COLORS.length],borderRadius:2}}/>
+                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{a}</span>
                     </span>
                   ))}
-                  <span style={{fontSize:14,fontFamily:'var(--pixel)',letterSpacing:'0.06em',display:'flex',alignItems:'center',gap:5}}>
-                    <span style={{display:'inline-block',width:20,height:2,background:'rgba(255,255,255,0.35)',borderRadius:2,borderTop:'1px dashed rgba(255,255,255,0.35)'}}/>
-                    TOTAL
+                  <span className="play-legend-item">
+                    <span style={{display:'inline-block',flexShrink:0,width:20,height:2,background:'rgba(255,255,255,0.35)',borderRadius:2,borderTop:'1px dashed rgba(255,255,255,0.35)'}}/>
+                    <span>TOTAL</span>
                   </span>
                 </div>
               )}
@@ -5297,7 +5312,7 @@ function hashToRoute(hash) {
   }
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
   const page = h.toUpperCase();
-  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','BANDAS','INSTALACION','ACERCA'];
+  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
   return valid.includes(page) ? { page } : { page: 'INICIO' };
 }
 
@@ -5383,7 +5398,12 @@ function App() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
   const syncReadyRef = useRef(false); // blocks scheduleSync until initial cloud load completes
-  const isMobile = window.innerWidth <= 700;
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 700);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 700);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
@@ -5837,7 +5857,7 @@ function App() {
     setPlayCounts(prev => { const n = { ...prev, [id]: (prev[id] || 0) + 1 }; saveCounts(n); return n; });
     const file = [...files, ...localFiles].find(f => f.id === id);
     setPlayLog(prev => {
-      const n = [{ id, artist: file?.artist || file?.category || '', ts: Date.now() }, ...prev].slice(0, 2000);
+      const n = [{ id, artist: file?.category || file?.artist || '', ts: Date.now() }, ...prev].slice(0, 2000);
       savePLog(n);
       return n;
     });
@@ -6416,6 +6436,7 @@ function App() {
                     startTrack(f, ctx);
                   }} />
               )}
+              {route.page === 'PLAYLIST' && <PlaylistPage />}
               {route.page === 'STATS' && (
                 <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
               )}

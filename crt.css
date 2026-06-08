@@ -3644,6 +3644,14 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .stat-fact .sf-val { color: var(--fg-accent); font-size: 22px; }
 .stats-facts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin: 10px 0; }
 
+/* ─── Timeline legend ─── */
+.play-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+.play-legend-item { font-family: var(--pixel); font-size: 14px; letter-spacing: 0.06em; display: flex; align-items: center; gap: 5px; min-width: 0; }
+@media (max-width: 600px) {
+  .play-legend { flex-direction: column; gap: 5px; }
+  .play-legend-item { width: 100%; }
+}
+
 /* ─── Stats highlights (favoritos) ─── */
 .stats-highlights {
   display: grid;
