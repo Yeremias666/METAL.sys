@@ -4243,7 +4243,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                 {playlist.createdAt ? ` · ${new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}` : ''}
               </p>
               {songs.length > 0 && (
-                <button className="big-btn" style={{marginTop:12}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
+                <button className="big-btn" style={{marginTop:12, whiteSpace:'nowrap'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
               )}
             </div>
           </div>
@@ -5483,7 +5483,7 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
   return (
     <div ref={ref} className="mp-menu-dropdown">
       <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
-      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{verticalAlign:'middle'}}>✂</span> CREAR CLIP</button>
+      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{display:'inline-block', transform:'translateY(2px)'}}>✂</span> CREAR CLIP</button>
       <div className="mp-menu-item--sub">
         <button onClick={() => setShowPlaylistSub(p => !p)}>
           ◈ AÑADIR A PLAYLIST <span style={{opacity:0.55, fontSize:10, marginLeft:4}}>▸</span>
