@@ -4734,7 +4734,9 @@ function buildTimeline(filter, playLog) {
     if (playLog.length === 0) return { buckets:[], labels:[], playsByBucketArtist:{} };
     const firstTs = Math.min(...playLog.map(e=>e.ts));
     const fd = new Date(firstTs);
-    let y=fd.getFullYear(), m=fd.getMonth();
+    // Empezar un mes antes del primer play para que haya siempre ≥2 puntos
+    let y=fd.getFullYear(), m=fd.getMonth()-1;
+    if (m<0){m=11;y--;}
     const ey=now.getFullYear(), em=now.getMonth();
     while (y<ey||(y===ey&&m<=em)) {
       buckets.push(`${y}-${String(m+1).padStart(2,'0')}`);
