@@ -3738,7 +3738,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   padding: 9px 14px;
   cursor: pointer;
   transition: background 0.1s;
+  white-space: nowrap;
 }
+.mp-menu-dropdown { min-width: 220px; }
 .mp-menu-dropdown button:last-child { border-bottom: none; }
 .mp-menu-dropdown button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
 @media (max-width: 700px) {

@@ -4114,7 +4114,7 @@ function PlaylistAutoGrid({ playlist, allFiles }) {
   );
 }
 
-function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
+function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
   const cardRef = useRef(null);
   const SLIDE_OUT = 'translateY(-50%)';
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
@@ -4158,6 +4158,9 @@ function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
       <div className="album-card-thumb">
         <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
         {coverEl}
+        {onPlay && songCount > 0 && (
+          <button className="ac-play-btn" onClick={e => { e.stopPropagation(); onPlay(playlist.id); }}>▶</button>
+        )}
       </div>
       <div className="album-card-body">
         <div className="album-card-title">{playlist.name}</div>
@@ -4167,8 +4170,97 @@ function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
   );
 }
 
+// ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
+function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong }) {
+  if (!playlist) return (
+    <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40,color:'var(--fg-dim)'}}>
+      Playlist no encontrada. <button className="mini-btn" onClick={onBack}>VOLVER</button>
+    </div></div>
+  );
+
+  const songs = (playlist.songIds || [])
+    .map(id => allFiles.find(f => f.id === id))
+    .filter(Boolean);
+
+  const totalDur = songs.reduce((a, f) => a + (f.duration || 0), 0);
+  const noteIcon = (
+    <div style={{width:36,height:36,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(214,31,31,0.08)',borderRadius:2}}>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          <button className="mini-btn" onClick={onBack} style={{marginRight:10}}>◀ VOLVER</button>
+          ◈ {playlist.name.toUpperCase()}
+        </div>
+        <div className="panel-body">
+          <div style={{display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap'}}>
+            <div style={{width:100, height:100, flexShrink:0, overflow:'hidden', border:'1px solid rgba(214,31,31,0.3)'}}>
+              <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />
+            </div>
+            <div style={{flex:1, minWidth:0}}>
+              {playlist.description && (
+                <p style={{color:'var(--fg-dim)', fontSize:14, marginBottom:8, fontFamily:'var(--mono)'}}>{playlist.description}</p>
+              )}
+              <p style={{color:'var(--fg-dim)', fontSize:13, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
+                {songs.length} canción{songs.length === 1 ? '' : 'es'}
+                {totalDur > 0 ? ` · ${fmtTimeSec(totalDur)}` : ''}
+                {playlist.createdAt ? ` · ${new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}` : ''}
+              </p>
+              {songs.length > 0 && (
+                <button className="big-btn" style={{marginTop:12}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+      {songs.length === 0
+        ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:18}}>
+            <div style={{fontSize:28,marginBottom:12,opacity:0.4}}>◈</div>
+            <div>Esta playlist está vacía.</div>
+            <div style={{fontSize:13,marginTop:8}}>Añade canciones desde el reproductor → ··· → Añadir a Playlist</div>
+          </div></div>
+        : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
+            {songs.map((f, i) => {
+              const isNowPlaying = f.id === currentPlayingId;
+              return (
+                <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}
+                     style={isNowPlaying ? {background:'rgba(214,31,31,0.12)'} : {}}>
+                  <span style={{color: isNowPlaying ? 'var(--fg-primary)' : 'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>
+                    {isNowPlaying && isPlaying ? '▶' : i+1}
+                  </span>
+                  {f.thumbnail
+                    ? <img src={f.thumbnail} alt="" style={{width:36,height:36,objectFit:'cover',flexShrink:0,borderRadius:2,imageRendering:'pixelated'}} />
+                    : noteIcon}
+                  <div style={{flex:1, minWidth:0}}>
+                    <div className="tl-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</div>
+                    <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-secondary)',letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+                  </div>
+                  {f.duration > 0 && (
+                    <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--fg-dim)',flexShrink:0}}>{fmtTimeSec(f.duration)}</span>
+                  )}
+                  <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }} title="Reproducir">▶</button>
+                  {onRemoveSong && (
+                    <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
+                            title="Quitar de playlist"
+                            style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
+                            onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
+                            onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
+                  )}
+                </div>
+              );
+            })}
+          </div></div></div>
+      }
+    </div>
+  );
+}
+
 // ─── PLAYLIST PAGE ──────────────────────────────────────────
-function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist }) {
+function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist }) {
   const [sort, setSort] = useState('alpha');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
 
@@ -4221,7 +4313,9 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
             <div className="album-grid">
               {sorted.map((pl, i) => (
                 <PlaylistCard key={pl.id} playlist={pl} allFiles={allFiles}
-                              onOpen={onOpenPlaylist || (() => {})} index={i} />
+                              onOpen={onOpenPlaylist || (() => {})}
+                              onPlay={onPlayPlaylist}
+                              index={i} />
               ))}
             </div>
           </div>
@@ -6053,6 +6147,11 @@ function App() {
     if (context.type === 'local') return localFiles;
     const all = files.filter(isAudioFile);
     const combined = [...all, ...localFiles.filter(isAudioFile)];
+    if (context.type === 'playlist' && context.playlistId) {
+      const pl = playlists.find(p => p.id === context.playlistId);
+      if (!pl) return [];
+      return (pl.songIds || []).map(id => combined.find(f => f.id === id)).filter(Boolean);
+    }
     if (context.type === 'artist' && context.artist) {
       return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByDiscTrack);
     }
@@ -6060,7 +6159,7 @@ function App() {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return [...combined].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-  }, [files, localFiles]);
+  }, [files, localFiles, playlists]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
@@ -6365,6 +6464,12 @@ function App() {
       pl.id === playlistId && !pl.songIds.includes(currentTrackId)
         ? { ...pl, songIds: [...pl.songIds, currentTrackId] }
         : pl
+    ));
+  };
+
+  const removeSongFromPlaylist = (playlistId, songId) => {
+    setPlaylists(prev => prev.map(pl =>
+      pl.id === playlistId ? { ...pl, songIds: pl.songIds.filter(id => id !== songId) } : pl
     ));
   };
 
@@ -6689,9 +6794,28 @@ function App() {
                     startTrack(f, ctx);
                   }} />
               )}
-              {route.page === 'PLAYLIST' && (
+              {route.page === 'PLAYLIST' && !route.playlistId && (
                 <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
-                              onOpenPlaylist={(id) => {/* detail view — próximamente */}} />
+                              onOpenPlaylist={(id) => navigateTo({ page: 'PLAYLIST', playlistId: id })}
+                              onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)} />
+              )}
+              {route.page === 'PLAYLIST' && route.playlistId && (
+                <PlaylistDetailPage
+                  playlist={playlists.find(p => p.id === route.playlistId)}
+                  allFiles={[...files, ...localFiles]}
+                  onBack={() => navigateTo({ page: 'PLAYLIST' })}
+                  onPlayAll={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
+                  onPlayFile={(f, plId) => {
+                    const ctx = { type: 'playlist', playlistId: plId };
+                    setManualQueue(null);
+                    setPlayContext(ctx);
+                    startTrack(f, ctx);
+                  }}
+                  onOpenFile={openFile}
+                  currentPlayingId={currentTrackId}
+                  isPlaying={isPlaying}
+                  onRemoveSong={removeSongFromPlaylist}
+                />
               )}
               {route.page === 'STATS' && (
                 <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
