@@ -4066,8 +4066,19 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .track-list-row:hover .track-list-play { opacity: 1; }
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
+.track-list-row .like-btn {
+  width: 28px; height: 28px;
+  font-size: 14px;
+  padding: 0;
+  align-self: auto;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, text-shadow 0.15s;
+}
+.track-list-row:hover .like-btn { opacity: 1; }
 @media (max-width: 700px) {
   .track-list-play { opacity: 1; }
+  .track-list-row .like-btn { opacity: 1; }
   .tl-name { font-family: var(--mono); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 .tl-name { font-family: var(--mono); font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4121,6 +4132,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* Lists / rows */
 .is-touch .track-list-row:hover { background: transparent; }
 .is-touch .track-list-play:hover { background: transparent; color: var(--fg-primary); box-shadow: none; }
+.is-touch .track-list-row .like-btn { opacity: 1; }
+.is-touch .track-list-row .like-btn:hover { border-color: inherit; color: inherit; }
 .is-touch .search-suggestion:hover { background: transparent; }
 .is-touch .lib-artist-row:hover { background: transparent; }
 .is-touch .lib-name:hover { color: inherit; text-decoration: none; }

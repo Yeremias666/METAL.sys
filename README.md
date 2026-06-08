@@ -1,113 +1,6 @@
 # METAL.SYS
 
-Reproductor web personal con estética retro de CRT. Funciona 100% en el navegador — sin servidor, sin login, sin backend. Los archivos se almacenan en `localStorage` como data URLs.
-
-## ¿Qué es?
-
-Una bóveda privada de música (y otros archivos) con interfaz tipo consola underground de los 80. Pensado para colecciones personales de MP3 con metadatos correctos. El diseño imita monitores fósforo/CRT con efectos de scanlines, viñeta, aberración cromática, bloom y flicker.
-
----
-
-## Funcionalidades completas
-
-### Subida de archivos
-- Drag & drop o explorador de archivos
-- Límite por archivo: **8 MB** (`SIZE_CAP`)
-- Límite total de la bóveda: **25 MB** (`VAULT_CAP`)
-- Barra de progreso en tiempo real con velocidad, tiempo transcurrido y ETA
-- Para MP3: lectura automática de etiquetas ID3v2 (título, artista, álbum, año, género, pista, portada)
-- La portada extraída del MP3 se muestra como miniatura y se guarda en la entrada
-
-### Biblioteca y navegación
-- Página de inicio (`INICIO`) con cuadrícula de artistas, canciones recientes y estadísticas
-- Página `TODO` con todos los artistas y botón "Reproducir Todo"
-- Página `♥ GUSTA` con todas las canciones marcadas con me gusta + reproducir todo
-- Página `STATS` con timeline de subidas, top artistas, 8 métricas del vault
-- Página `LOCAL` para importar música desde una carpeta del sistema (Chrome/Edge)
-- Página de artista (`CAT`) con cuadrícula de álbumes/discos
-- Vista interior de disco con lista de canciones (grid o lista)
-- **Árbol de biblioteca** en sidebar izquierdo: artistas > discos > canciones colapsables
-- Navegación dinámica en `<Nav>` — un botón por artista
-
-### Búsqueda y filtros
-- Buscador en la página de artista con sugerencias en vivo (máx. 5)
-- Resultados completos filtrados por álbum y canciones
-- Normalización de búsqueda: ignora tildes y mayúsculas
-
-### Reproductor de música
-- Barra persistente en la parte inferior (`MusicPlayer`) activa cuando hay pista en curso
-- Controles: ▶/❚❚, ◀◀ anterior, ▶▶ siguiente, volumen, ♡ me gusta, ··· opciones
-- **Shuffle**: aleatoriza la cola según el contexto activo (artista / disco / todo)
-- **Repeat**: tres modos — `off` (sin repetición), `all` (repite lista), `one` (repite pista actual)
-- **Waveform**: forma de onda de la canción superpuesta en la barra de progreso
-- Visualizador VU con 60 barras usando Web Audio API (`AnalyserNode`, log-frequency mapping)
-- Barra de progreso clickable para hacer seek
-- **Cola de reproducción** en sidebar derecho: tiempo real, drag-to-reorder
-- **Destello CRT sincronizado** con el volumen del audio en reproducción
-
-### Botones de reproducción contextual
-- Botón ▶ en cada tarjeta de artista → reproduce ese artista
-- Botón ▶ en cada tarjeta de álbum → reproduce ese disco
-- Botón ▶ en el árbol de biblioteca (sidebar) → reproduce artista o disco
-- Botón "▶ REPRODUCIR TODO" en `TodoPage` → reproduce toda la biblioteca
-- Botón "▶ REPRODUCIR ME GUSTA" en `MeGustaPage` → reproduce solo canciones con me gusta
-
-### Me Gusta
-- Botón ♡/♥ en el reproductor y en el detalle de cada canción
-- Página dedicada `♥ GUSTA` con todas las canciones favoritas
-- Persistencia en `localStorage`
-
-### Marcadores y Clips
-- **Menú ···** en el reproductor con opciones avanzadas
-- **Marcadores**: crea checkpoints con nombre y tiempo (M:SS); accésibles desde la pestaña Marcadores en el detalle
-- **Clips**: crea fragmentos de audio con inicio y fin; se reproducen en bucle; pestaña Clips en el detalle
-
-### Estadísticas
-- Timeline de subidas por día (gráfico de barras)
-- Top artistas por número de reproducciones
-- Top 10 canciones en sidebar derecho
-- 8 métricas: canciones, artistas, reproducciones, me gusta, subidas, descargas, borradas, tamaño medio
-
-### Detalle de archivo (`DetailPage`)
-- Pestañas según tipo: AUDIO, IMAGEN, VÍDEO, PDF, MD, TEXTO, ÁRBOL (ZIP), DESCRIPCIÓN, DETALLES
-- Reproductor de audio estilo radio con VU (12 barras) y portada
-- Visor de imagen nativo, reproductor de vídeo HTML5, iframe para PDF
-- Renderizado de Markdown con `marked.js`
-- Previsualización de texto plano (hasta 200 KB)
-- Árbol interactivo para archivos ZIP (`jszip`)
-- Edición inline de nombre, descripción y categoría
-- Botones: descargar, eliminar
-
-### Selección múltiple
-- Checkbox en cada canción (grid y lista)
-- Barra flotante `MultiSelectBar` cuando hay elementos seleccionados
-- Descargar selección como `.zip` (estructura por categoría)
-- Eliminar selección en bloque
-
-### Estadísticas (`StatsPanel`)
-- Tiles: total de archivos, espacio usado, espacio libre, descargas
-- Barra total segmentada por artista con colores
-- Gráfico de barras por artista
-
-### Widgets de sidebar
-- `NowStreaming` — último archivo subido (estilo cassette TDK)
-- `DownloadCounter` — contador de descargas con dígitos estilo odómetro
-- `RecentActivity` — log de últimas 5 acciones (subidas, descargas, borrados)
-- `Terminal` — árbol de la biblioteca estilo `ls --tree`
-
-### Efectos CRT y Tweaks
-- Fósforo configurable: `metal` (rojo sangre, default), `synthwave`, `green`, `amber`, `mono`
-- Scanlines, viñeta, aberración cromática, curvatura de pantalla, bloom, flicker, rollbar, jitter
-- Panel flotante `TweaksPanel` (esquina inferior derecha) para ajustar todos los efectos en tiempo real
-- Los valores de tweaks se persisten en el bloque `/*EDITMODE-BEGIN*/…/*EDITMODE-END*/` de `app.jsx`
-
-### Categorías personalizadas
-- Modal `CreateCategoryModal` con nombre + selector de icono (70+ glyphs SVG en 15 grupos)
-- Las categorías se persisten en `localStorage` bajo `metalsys_cats_v2`
-
-### Thumbnails procesadas
-- Las imágenes se procesan con canvas: escala a 128px, paleta monocroma fósforo roja (4 paradas), posterización a 6 niveles, oscurecimiento de scanlines cada 2 filas
-- Resultado: PNG data URL con estética CRT
+Reproductor web personal con estética retro CRT. Combina un vault local en `localStorage` con una biblioteca en la nube (Cloudflare R2) accesible desde cualquier dispositivo. Sin npm, sin bundler, sin node_modules.
 
 ---
 
@@ -120,9 +13,24 @@ Una bóveda privada de música (y otros archivos) con interfaz tipo consola unde
 | Bundler | Ninguno — archivos `.jsx` cargados directamente |
 | ZIP | JSZip 3.10.1 (CDN) |
 | Markdown | marked 12.0.0 (CDN) |
-| Persistencia | `localStorage` (data URLs base64) |
+| Persistencia local | `localStorage` (vault, likes, marcadores, clips) + IndexedDB (handles de carpeta local + caché de portadas) |
+| Persistencia en nube | Cloudflare R2 (archivos de audio) + Cloudflare KV (datos de usuario) |
 | Audio API | Web Audio API nativa del navegador |
-| Backend | Ninguno |
+| Backend | Cloudflare Pages Functions (`functions/api/`) |
+
+---
+
+## Arquitectura de datos
+
+El reproductor maneja dos fuentes de archivos simultáneamente:
+
+### Vault local (`localStorage`)
+Archivos subidos directamente en el navegador. Se guardan como data URLs base64.
+- Límite por archivo: **8 MB** (`SIZE_CAP`)
+- Límite total: **25 MB** (`VAULT_CAP`)
+
+### Biblioteca R2 (Cloudflare)
+Al arrancar, la app llama a `/api/files` y carga la lista de MP3 del bucket R2. Los archivos R2 nunca se descargan completos — el reproductor obtiene una URL presignada temporal de `/api/audio` y hace streaming directo desde R2. Las portadas se descargan una vez y se cachean en IndexedDB.
 
 ---
 
@@ -131,72 +39,166 @@ Una bóveda privada de música (y otros archivos) con interfaz tipo consola unde
 ```
 METAL.sys/
 ├── index.html              ← Entrada principal, carga dependencias CDN
-├── app.jsx                 ← Toda la lógica y UI (155 KB aprox.)
-├── crt.css                 ← Estilos y efectos CRT (84 KB aprox.)
-├── tweaks-panel.jsx        ← Panel de ajustes visual (componentes TweaksPanel)
-├── favicon.svg             ← Icono de la pestaña
-├── README.md               ← Este archivo
-├── Documentación/
-│   ├── CONTEXT.md          ← ⭐ Archivo de contexto para nueva sesión con Claude
-│   ├── CHANGELOG.md        ← Historial completo de cambios
-│   ├── ARCHITECTURE.md     ← Arquitectura técnica detallada
-│   ├── FUNCTIONS.md        ← Todas las funciones documentadas
-│   ├── FEATURES.md         ← Índice de funcionalidades
-│   ├── PLAYBACK.md         ← Sistema de reproducción y cola
-│   ├── UPLOAD.md           ← Flujo de subida de archivos
-│   ├── DEVELOPMENT.md      ← Guía de desarrollo local
-│   └── COMMANDS.md         ← Registro de comandos y cambios por sesión
-└── test/
-    ├── 02 - The Love Song.mp3
-    ├── 04 - So payaso - Versión 2004.mp3
-    └── 10 - The Nobodies.mp3
+├── app.jsx                 ← Toda la lógica y UI (~306 KB, ~4700 líneas)
+├── crt.css                 ← Estilos y efectos CRT (~131 KB)
+├── tweaks-panel.jsx        ← Panel de ajustes visual
+├── favicon.svg / .ico
+├── README.md
+├── functions/
+│   └── api/
+│       ├── audio.js        ← URL presignada AWS Sig V4 para streaming de R2
+│       ├── files.js        ← Lista MP3 de R2 con metadatos ID3 y portadas
+│       ├── reindex-meta.js ← Extrae etiquetas ID3 y las guarda en _meta/index.json
+│       ├── reindex-covers.js ← Extrae portadas y las sube como _covers/*.jpg
+│       ├── userdata.js     ← GET/PUT bookmarks, clips, likes y playCounts en KV
+│       └── auth/
+│           ├── register.js
+│           ├── login.js
+│           ├── logout.js
+│           └── profile.js
+└── Documentación/
+    ├── CONTEXT.md          ← ⭐ Contexto para nueva sesión con Claude
+    ├── CHANGELOG.md        ← Historial completo de cambios
+    ├── ARCHITECTURE.md
+    ├── FUNCTIONS.md
+    ├── FEATURES.md
+    ├── PLAYBACK.md
+    ├── UPLOAD.md
+    ├── DEVELOPMENT.md
+    └── COMMANDS.md
 ```
 
 ---
 
-## Cómo ejecutar
+## Cómo ejecutar localmente
 
 ```bash
 # Opción 1 — Python 3
-cd "c:/Users/ygmullor/Documents/METAL.sys"
 python -m http.server 8000
-# Abrir http://localhost:8000/
 
 # Opción 2 — Node.js
 npx http-server -c-1 . -p 8000
 ```
 
-> Abrir directamente `index.html` vía `file://` puede fallar por restricciones CORS del navegador al cargar los `.jsx`.
+Abrir `http://localhost:8000/`. Abrir directamente `index.html` vía `file://` falla por CORS al cargar los `.jsx`. Babel Standalone transpila JSX en el navegador; los errores de sintaxis aparecen en la consola del navegador, no en la terminal.
+
+---
+
+## Funcionalidades
+
+### Biblioteca y navegación
+- Página **INICIO** con cuadrícula de artistas, archivos recientes y estadísticas del vault
+- Página **BANDAS** con todos los artistas y botón "Reproducir Todo"
+- Página **TODO** con todas las canciones (vault + local) ordenadas alfabéticamente
+- Página **♥ GUSTA** con canciones marcadas con me gusta + reproducir todo
+- Página **STATS** con timeline de subidas, top artistas y 8 métricas del vault
+- Página **LOCAL** para importar música desde una carpeta del sistema (Chrome/Edge)
+- Página de artista con cuadrícula de álbumes y efecto vinilo en hover
+- Vista interior de disco con lista de canciones (grid o tabla)
+- **Árbol de biblioteca** colapsable en sidebar izquierdo: artistas > discos > canciones
+- **Editar artista**: modal para subir imagen y descripción del artista, persistida en localStorage
+
+### Subida de archivos
+- Drag & drop o explorador de archivos
+- Parser ID3v2 nativo (sin librerías): título, artista, álbum, año, género, pista, portada
+- Soporta ID3v2.2, v2.3 y v2.4, encoding UTF-8 / UTF-16 / Latin1
+- Barra de progreso en tiempo real con velocidad, tiempo transcurrido y ETA
+- Thumbnails procesadas: canvas 128px, paleta fósforo roja, posterización, scanlines
+
+### Reproductor de música
+- Barra persistente en la parte inferior (`MusicPlayer`) activa cuando hay pista en curso
+- **VU meter**: 60 barras con Web Audio API, mapping logarítmico de frecuencias
+- **Waveform**: forma de onda calculada con `OfflineAudioContext` (300 puntos RMS), superpuesta en la barra de progreso
+- Barra de progreso con **click** y **drag** para seek
+- **Shuffle**: aleatoriza la cola según el contexto activo, empieza en la pista actual
+- **Repeat**: tres modos — off, all (repite lista), one (repite pista actual)
+- **Cola de reproducción** en sidebar derecho: tiempo real, drag-to-reorder
+- **Destello CRT** sincronizado con el RMS del audio en reproducción
+- Streaming directo desde Cloudflare R2 via URL presignada (archivos de nube)
+
+### Marcadores y Clips
+- **Marcadores**: checkpoint con nombre y tiempo (M:SS.mmm), accesibles desde tab en DetailPage
+- **Clips**: fragmento con inicio y fin; se reproducen en bucle; tab en DetailPage
+- Ambos persistidos en `localStorage`
+
+### Búsqueda y filtros
+- Buscador en la página de artista con sugerencias en vivo (máx. 5)
+- Normalización: ignora tildes y mayúsculas
+
+### Selección múltiple
+- Checkbox por canción en grid y tabla
+- Barra flotante `MultiSelectBar` con total de bytes seleccionados
+- Descarga selección como `.zip` (estructura por categoría)
+- Borrado en bloque
+
+### Detalle de archivo (`DetailPage`)
+- Pestañas adaptativas según tipo: AUDIO, IMAGEN, VÍDEO, PDF, MD, TEXTO, ÁRBOL (ZIP), DESCRIPCIÓN, DETALLES, MARCADORES, CLIPS
+- Edición inline de nombre, descripción y categoría
+- Reproductor de audio con VU de 12 barras y portada
+- Árbol interactivo para ZIP (jszip), Markdown con marked.js, previsualización de texto hasta 200 KB
+
+### Efectos CRT y Tweaks
+- **5 paletas fósforo**: `metal` (rojo sangre, default), `synthwave` (rosa), `green`, `amber`, `mono`
+- Scanlines, viñeta, aberración cromática, curvatura, bloom, flicker, rollbar, jitter
+- Panel flotante `TweaksPanel` para ajustar todos los efectos en tiempo real
+- Valores persistidos en el bloque `/*EDITMODE-BEGIN*/…/*EDITMODE-END*/` de `app.jsx`
+
+### Widgets de sidebar
+- `PlayQueueWithNowPlaying` — cassette de la canción en curso + cola de reproducción con drag-to-reorder
+- `TopSongs` — top 10 canciones más escuchadas con contador
+- `PlaysCounter` — suma total de reproducciones (odómetro)
+- `RecentActivity` — log estilo `tail -f` con timestamps y eventos (PLAY, PAUSE, NEXT, UP, DL, DEL...)
+
+### Backend — Cloudflare Pages Functions
+- `GET /api/files` — lista todos los MP3 de R2 con metadatos desde `_meta/index.json` y portadas presignadas (caché CDN 5 min)
+- `GET /api/audio?path=...` — URL presignada AWS Sig V4 para streaming de un MP3 desde R2 (TTL 1 h)
+- `GET /api/reindex-meta` — extrae etiquetas ID3 de los MP3 en R2 y las guarda en `_meta/index.json`; 8 archivos por llamada
+- `GET /api/reindex-covers` — extrae portadas de los MP3 y las sube como `_covers/Artista/Album.jpg`; 8 álbumes por llamada
+- `GET|PUT /api/userdata` — sincroniza bookmarks, clips, likes y playCounts en Cloudflare KV por usuario autenticado
+- `POST /api/auth/register|login|logout` + `GET|PUT /api/auth/profile` — autenticación con PBKDF2 SHA-256, 100k iteraciones, sesión 30 días en KV
+
+El panel de **BIBLIOTECA R2 /// MANTENIMIENTO** en la página de Inicio permite ejecutar el reindexado de metadatos y portadas directamente desde la UI.
+
+---
+
+## Variables de entorno (Cloudflare Pages)
+
+| Variable | Uso |
+|---|---|
+| `R2_ACCESS_KEY_ID` | Clave de acceso S3-compatible para R2 |
+| `R2_SECRET_ACCESS_KEY` | Clave secreta para R2 |
+| `KV` | Binding al namespace de Cloudflare KV (usuarios y sesiones) |
+
+---
+
+## Claves de localStorage
+
+| Clave | Contenido |
+|---|---|
+| `metalsys_vault_v2` | `file[]` — vault completo (data URLs base64) |
+| `metalsys_cats_v2` | `{ name, icon }[]` — categorías personalizadas |
+| `metalsys_likes_v1` | `string[]` — IDs de canciones con me gusta |
+| `metalsys_playcounts_v1` | `{ [fileId]: number }` — reproducciones por canción |
+| `metalsys_bookmarks_v1` | `{ [fileId]: { id, name, time }[] }` |
+| `metalsys_clips_v1` | `{ [fileId]: { id, name, start, end }[] }` |
+| `metalsys_artist_meta_v1` | `{ [artistName]: { image: dataURL, description: string } }` |
+| `metalsys_log_v2` | actividad (máx. 200 entradas) |
+| `metalsys_plog_v1` | log de reproducción (máx. 2000 entradas) |
+
+---
+
+## Restricciones técnicas — no cambiar
+
+- **Sin npm, sin bundler, sin node_modules.** React 18 + Babel Standalone se cargan via CDN en `index.html`. Añadir un paso de build rompería el proyecto.
+- **JSX transpilado en el navegador** via `<script type="text/babel">`. Los errores de sintaxis aparecen en la consola del navegador.
+- El estado global vive en `App()` y se pasa hacia abajo como props. No hay contexto ni store.
 
 ---
 
 ## Política de documentación
 
-**Obligatorio** después de cada cambio:
+Obligatorio después de cada cambio:
 1. Añadir entrada en `Documentación/CHANGELOG.md` con fecha y descripción
-2. Actualizar `Documentación/FUNCTIONS.md` si se añade/modifica alguna función
+2. Actualizar `Documentación/FUNCTIONS.md` si se añade o modifica alguna función
 3. Actualizar `Documentación/FEATURES.md` si se añade una funcionalidad nueva
-4. Actualizar `Documentación/COMMANDS.md` con las herramientas/comandos usados en la sesión
-5. Actualizar `Documentación/CONTEXT.md` si cambia el estado global del proyecto
-
----
-
-## Límites y constantes clave
-
-| Constante | Valor | Descripción |
-|---|---|---|
-| `SIZE_CAP` | 8 MB | Tamaño máximo por archivo |
-| `VAULT_CAP` | 25 MB | Capacidad total de la bóveda |
-| `STORAGE_KEY` | `metalsys_vault_v2` | Clave localStorage para archivos |
-| `CATS_KEY` | `metalsys_cats_v2` | Clave localStorage para categorías |
-| `LOG_KEY` | `metalsys_log_v2` | Clave localStorage para log de actividad |
-
----
-
-## Mejoras futuras sugeridas
-
-- Descargas masivas en ZIP desde la página de artista
-- Cola de reproducción visible y editable (drag & drop)
-- Historial de reproducción persistente en `localStorage`
-- Soporte offline completo con Service Worker
-- Importar/exportar la bóveda completa como un único ZIP
+4. Actualizar `Documentación/CONTEXT.md` si cambia el estado global del proyecto

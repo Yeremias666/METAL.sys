@@ -663,6 +663,8 @@ function NavGlyph({ kind }) {
     case 'PERSONA': return <svg {...p}><circle cx="12" cy="8" r="4" {...f}/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z" {...f}/></svg>;
     case 'CARPETA': return <svg {...p}><path d="M2 6 H9 L11 4 H20 V18 H2 Z" {...s}/><line x1="2" y1="10" x2="20" y2="10" {...s}/></svg>;
     case 'NOTA': return <svg {...p}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)" {...f}/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)" {...f}/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>;
+    case 'DOWNLOAD': return <svg {...p}><path d="M12 4 V17 M6 13 L12 17 L18 13" {...s}/><path d="M4 21 H20" {...s}/></svg>;
+    case 'INFO': return <svg {...p}><circle cx="12" cy="12" r="9" {...s}/><circle cx="12" cy="8" r="1" {...f}/><line x1="12" y1="11" x2="12" y2="17" {...s}/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
   }
 }
@@ -712,6 +714,7 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
+  const dropRef   = useRef(null);
 
   const searchResults = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -732,28 +735,6 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [searchOpen]);
-  const [hiddenCats, setHiddenCats] = useState([]);
-  const navLeftRef = useRef(null);
-  const dropRef    = useRef(null);
-  const visibleRef = useRef(new Set());
-
-  useEffect(() => {
-    const navLeft = navLeftRef.current;
-    if (!navLeft) return;
-    visibleRef.current = new Set();
-    const observer = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        const cat = entry.target.dataset.navCat;
-        if (!cat) return;
-        if (entry.isIntersecting) visibleRef.current.add(cat);
-        else visibleRef.current.delete(cat);
-      });
-      const vis = visibleRef.current;
-      setHiddenCats(allCats.filter(c => !vis.has(c)));
-    }, { root: navLeft, threshold: 1.0 });
-    navLeft.querySelectorAll('[data-nav-cat]').forEach(el => observer.observe(el));
-    return () => { observer.disconnect(); visibleRef.current = new Set(); };
-  }, [allCats]);
 
   useEffect(() => {
     if (!dropOpen) return;
@@ -762,51 +743,41 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
     return () => document.removeEventListener('pointerdown', handler);
   }, [dropOpen]);
 
-  const dropActive = hiddenCats.some(c => current.page === 'CAT' && current.cat === c);
+  const dropActive = allCats.some(c => current.page === 'CAT' && current.cat === c);
 
   return (
     <nav className="nav">
-      {/* Botones de sistema: siempre visibles, nunca ocultados por overflow */}
       <div className="nav-system">
         <span className="prompt glow">C:\&gt;</span>
         <button className={current.page === 'INICIO'   ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
         <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
         <button className={current.page === 'SUBIR'    ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
+        <button className={current.page === 'SPOTDL'   ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
         <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
         <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
         <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
+        {allCats.length > 0 && (
+          <div ref={dropRef} className="nav-more" style={{position:'relative'}}>
+            <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
+                    onClick={() => setDropOpen(p => !p)}>
+              ▼ {allCats.length}
+            </button>
+            {dropOpen && (
+              <div className="nav-dropdown">
+                {allCats.map(artist => (
+                  <button key={artist}
+                          className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                          onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
+                    <NavGlyph kind="MÚSICA" />{artist}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        <button className={current.page === 'ACERCA' ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA</button>
       </div>
-      {/* Botones de artistas: solo los que caben, el resto en dropdown */}
-      <div className="nav-left" ref={navLeftRef}>
-        {allCats.map(artist => (
-          <button key={artist}
-                  data-nav-cat={artist}
-                  className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                  onClick={() => onNav({ page: 'CAT', cat: artist })}>
-            <NavGlyph kind="MÚSICA" />{artist}
-          </button>
-        ))}
-      </div>
-      {hiddenCats.length > 0 && (
-        <div ref={dropRef} className="nav-more">
-          <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
-                  onClick={() => setDropOpen(p => !p)}>
-            ▼ +{hiddenCats.length}
-          </button>
-          {dropOpen && (
-            <div className="nav-dropdown">
-              {hiddenCats.map(artist => (
-                <button key={artist}
-                        className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                        onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
-                  <NavGlyph kind="MÚSICA" />{artist}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
     </nav>
   );
 }
@@ -4142,6 +4113,450 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
   );
 }
 
+// ─── ACERCA DE PAGE ─────────────────────────────────────────
+
+function AcercaPage() {
+  const sections = [
+    {
+      id: '01', title: 'BIBLIOTECA LOCAL', icon: '◈',
+      items: [
+        'Subida por drag & drop o explorador de archivos',
+        'Lectura automática de etiquetas ID3v2 (título, artista, álbum, año, género, pista, portada) — parser nativo sin librerías',
+        'Thumbnails procesadas con canvas: escala a 128px, paleta fósforo roja, posterización y scanlines',
+        'Límite de 8 MB por archivo y 25 MB de bóveda total (localStorage)',
+        'Importar carpeta local completa con File System Access API (Chrome/Edge) — sin copiar archivos',
+        'Edición inline de nombre, descripción y categoría desde el detalle del archivo',
+        'Descarga individual y eliminación de archivos',
+      ],
+    },
+    {
+      id: '02', title: 'BIBLIOTECA EN LA NUBE (CLOUDFLARE R2)', icon: '◈',
+      items: [
+        'Al arrancar, carga automáticamente los MP3 del bucket R2 vía /api/files',
+        'Streaming directo desde R2 mediante URLs presignadas AWS Signature V4 (TTL 1 hora)',
+        'Portadas extraídas de los MP3 y cacheadas en R2 como _covers/Artista/Album.jpg',
+        'Índice de metadatos ID3 en _meta/index.json — se actualiza con el panel de mantenimiento',
+        'Caché de portadas en IndexedDB del navegador: primera carga descarga, las siguientes son instantáneas',
+        'Panel BIBLIOTECA R2 /// MANTENIMIENTO en la página de Inicio con botones de reindexado',
+      ],
+    },
+    {
+      id: '03', title: 'NAVEGACIÓN Y PÁGINAS', icon: '◈',
+      items: [
+        'INICIO — cuadrícula de artistas con portada, archivos recientes y estadísticas del vault',
+        'STATS — timeline de subidas, top artistas por reproducciones, top géneros, métricas globales',
+        'SUBIR — formulario de subida con drag & drop y lectura automática de etiquetas',
+        'SPOTDL — guía completa para descargar música de Spotify y sincronizar con R2',
+        'TODO — todas las canciones del vault y carpeta local ordenadas alfabéticamente',
+        'LOCAL — conectar carpeta del sistema de archivos para reproducir sin límite de tamaño',
+        'ME GUSTA — canciones marcadas con ♥, reproducibles en bloque',
+        'BANDAS — todos los artistas con portada y botón de reproducción directa',
+        'ACERCA — esta página',
+        'Página de artista (CAT) — cuadrícula de álbumes con efecto vinilo en hover',
+        'Vista de disco — canciones del álbum en grid o tabla, ordenadas por disco y pista',
+        'Detalle de archivo (DETAIL) — pestañas adaptativas según el tipo de archivo',
+      ],
+    },
+    {
+      id: '04', title: 'REPRODUCTOR DE MÚSICA', icon: '◈',
+      items: [
+        'Barra MusicPlayer persistente en la parte inferior mientras hay pista en curso',
+        'VU meter con 60 barras simétricas — Web Audio API con mapping logarítmico de frecuencias',
+        'Waveform en la barra de progreso: 300 puntos RMS calculados con OfflineAudioContext',
+        'Barra de progreso con click y drag para seek a cualquier posición',
+        'Shuffle contextual: aleatoriza la cola empezando en la pista actual, según artista / disco / todo',
+        'Repeat en tres modos: off, all (repite lista) y one (repite pista actual)',
+        'Cola de reproducción en sidebar derecho con drag-to-reorder en tiempo real',
+        'Botón ♡/♥ en el reproductor para marcar como favorita',
+        'Menú ··· con opciones para crear marcadores y clips',
+        'Destello CRT radial sincronizado con el RMS del audio en cada frame',
+        'Botones ▶ en tarjetas de artista, álbum y árbol de biblioteca para reproducción directa',
+      ],
+    },
+    {
+      id: '05', title: 'MARCADORES Y CLIPS', icon: '◈',
+      items: [
+        'Marcadores: checkpoints con nombre y tiempo (M:SS.mmm) en cualquier punto de la canción',
+        'Click en un marcador para saltar directamente a ese momento',
+        'Clips: fragmentos con inicio y fin que se reproducen en bucle',
+        'Marcadores y clips accesibles desde las pestañas del detalle de archivo',
+        'Ambos persistidos en localStorage por canción',
+      ],
+    },
+    {
+      id: '06', title: 'ÁRBOL DE BIBLIOTECA Y SIDEBAR', icon: '◈',
+      items: [
+        'Árbol colapsable en sidebar izquierdo: artistas → discos → canciones',
+        'Botones ▶ en cada nivel del árbol para reproducir artista o disco directamente',
+        'PlayQueueWithNowPlaying: cassette de la pista en curso + cola con drag-to-reorder',
+        'Top 10 canciones más escuchadas con contador de reproducciones',
+        'PlaysCounter: suma total de reproducciones estilo odómetro',
+        'RecentActivity: log estilo tail -f con timestamps (PLAY, PAUSE, NEXT, UP, DL, DEL…)',
+        'Sidebars ocultos automáticamente en pantallas pequeñas',
+      ],
+    },
+    {
+      id: '07', title: 'DETALLE DE ARCHIVO', icon: '◈',
+      items: [
+        'Pestaña AUDIO: reproductor estilo radio con VU de 12 barras y portada',
+        'Pestaña IMAGEN: visor a tamaño completo',
+        'Pestaña VÍDEO: reproductor HTML5 nativo',
+        'Pestaña PDF: iframe con fallback de descarga',
+        'Pestaña MD: Markdown renderizado con marked.js (GFM completo)',
+        'Pestaña TEXTO: previsualización de hasta 200 KB',
+        'Pestaña ÁRBOL: árbol interactivo para ZIP con jszip, nivel 1 abierto por defecto',
+        'Pestaña MARCADORES y CLIPS: gestión inline',
+        'Pestaña DETALLES: metadatos técnicos del archivo',
+      ],
+    },
+    {
+      id: '08', title: 'SELECCIÓN MÚLTIPLE', icon: '◈',
+      items: [
+        'Checkbox por canción en grid y tabla',
+        'Barra flotante MultiSelectBar con total de bytes seleccionados',
+        'Descarga de la selección como .zip con estructura por categoría',
+        'Borrado en bloque con confirmación',
+      ],
+    },
+    {
+      id: '09', title: 'BÚSQUEDA', icon: '◈',
+      items: [
+        'Búsqueda global en la nav con sugerencias en vivo (artistas, álbumes y canciones)',
+        'Buscador en la página de artista con sugerencias en vivo (máx. 5)',
+        'Normalización: ignora tildes, mayúsculas y caracteres especiales',
+        'Resultados filtrados por álbum y canciones dentro del artista',
+      ],
+    },
+    {
+      id: '10', title: 'EFECTOS CRT Y TWEAKS', icon: '◈',
+      items: [
+        '5 paletas fósforo: metal (rojo sangre), synthwave (rosa neón), green, amber, mono',
+        'Scanlines, viñeta radial, aberración cromática, curvatura de pantalla',
+        'Bloom/glow en textos primarios, flicker, rollbar, jitter horizontal',
+        'Panel flotante TweaksPanel (esquina inferior derecha) para ajuste en tiempo real',
+        'Valores persistidos en el bloque EDITMODE de app.jsx',
+        'Pantalla de arranque estilo boot de Linux con líneas de kernel',
+      ],
+    },
+    {
+      id: '11', title: 'CUENTA Y SINCRONIZACIÓN', icon: '◈',
+      items: [
+        'Registro e inicio de sesión con usuario, email y contraseña',
+        'Contraseñas hasheadas con PBKDF2 SHA-256 (100.000 iteraciones) en Cloudflare KV',
+        'Sesión persistente con token Bearer de 30 días',
+        'Sincronización de marcadores, clips, me gusta y contador de reproducciones en la nube',
+        'Perfil con avatar y opción de cambio de contraseña',
+      ],
+    },
+    {
+      id: '12', title: 'STACK TÉCNICO', icon: '◈',
+      items: [
+        'React 18.3.1 cargado desde CDN — sin npm, sin bundler, sin node_modules',
+        'Babel Standalone 7.29.0 transpila JSX en el navegador en tiempo real',
+        'JSZip 3.10.1 para descarga ZIP y previsualización de archivos comprimidos',
+        'marked 12.0.0 para renderizado de Markdown',
+        'Web Audio API nativa para VU meter, waveform y destello CRT',
+        'File System Access API para importar carpetas locales (Chrome/Edge)',
+        'Cloudflare Pages Functions como backend (Workers runtime)',
+        'Cloudflare R2 como almacenamiento de audio (S3-compatible)',
+        'Cloudflare KV para datos de usuario y sesiones',
+        'localStorage + IndexedDB como persistencia local',
+      ],
+    },
+  ];
+
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <div className="panel">
+        <div className="panel-hd">ACERCA DE <span className="dots">/// METAL.SYS</span></div>
+        <div className="panel-body">
+          <p>Reproductor web personal con estética retro CRT. Bóveda privada de música con interfaz tipo consola underground de los 80.</p>
+          <p style={{color:'var(--fg-dim)', fontSize:13, marginTop:6}}>
+            Diseñado y construido por <span style={{color:'var(--fg-primary)'}}>Yeremias</span> · Est. 2026 · Sin frameworks pesados, sin backend clásico, sin compromisos estéticos.
+          </p>
+        </div>
+      </div>
+      {sections.map(sec => (
+        <div key={sec.id} className="panel">
+          <div className="panel-hd" style={{fontSize:13}}>
+            {sec.id} <span className="dots">///</span> {sec.title}
+          </div>
+          <div className="panel-body">
+            <ul style={{margin:0, paddingLeft:18, display:'flex', flexDirection:'column', gap:5}}>
+              {sec.items.map((item, i) => (
+                <li key={i} style={{fontSize:15, lineHeight:1.6, color:'var(--fg-text)'}}>
+                  <span style={{color:'var(--fg-primary)', marginRight:6}}>◆</span>{item}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── SPOTDL PAGE ────────────────────────────────────────────
+
+function SpotDLCmd({ children }) {
+  const [copied, setCopied] = React.useState(false);
+  const text = typeof children === 'string' ? children : children.join('');
+  const copy = () => {
+    navigator.clipboard.writeText(text.trim()).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+  return (
+    <div style={{position:'relative', margin:'10px 0'}}>
+      <pre style={{
+        background:'rgba(0,0,0,0.55)', border:'1px solid rgba(214,31,31,0.35)',
+        borderRadius:3, padding:'10px 48px 10px 14px', fontFamily:'var(--mono)',
+        fontSize:15, color:'#c6ffc6', lineHeight:1.55, overflowX:'auto', margin:0,
+        whiteSpace:'pre-wrap', wordBreak:'break-all',
+      }}>{text.trim()}</pre>
+      <button onClick={copy} style={{
+        position:'absolute', top:6, right:6, background:'rgba(214,31,31,0.15)',
+        border:'1px solid rgba(214,31,31,0.35)', color:'var(--fg-dim)',
+        fontFamily:'var(--pixel)', fontSize:9, padding:'3px 7px',
+        cursor:'pointer', borderRadius:2, letterSpacing:'0.05em',
+        transition:'color 0.15s, border-color 0.15s',
+      }}>{copied ? 'OK ✓' : 'COPIAR'}</button>
+    </div>
+  );
+}
+
+function SpotDLNote({ children }) {
+  return (
+    <div style={{
+      background:'rgba(214,31,31,0.08)', border:'1px solid rgba(214,31,31,0.25)',
+      borderLeft:'3px solid var(--fg-primary)', borderRadius:2,
+      padding:'8px 12px', margin:'10px 0', fontSize:14, color:'var(--fg-secondary)',
+    }}>{children}</div>
+  );
+}
+
+function SpotDLSection({ title, children }) {
+  return (
+    <div className="panel section" style={{marginBottom:0}}>
+      <div className="panel-hd" style={{fontSize:13}}>{title}</div>
+      <div className="panel-body" style={{fontSize:15, lineHeight:1.7}}>{children}</div>
+    </div>
+  );
+}
+
+function SpotDLTable({ headers, rows }) {
+  return (
+    <div style={{overflowX:'auto', margin:'10px 0'}}>
+      <table style={{borderCollapse:'collapse', width:'100%', fontFamily:'var(--mono)', fontSize:14}}>
+        <thead>
+          <tr>{headers.map(h => (
+            <th key={h} style={{border:'1px solid rgba(214,31,31,0.3)', padding:'6px 12px',
+              background:'rgba(214,31,31,0.1)', color:'var(--fg-accent)', textAlign:'left', letterSpacing:'0.05em'}}>{h}</th>
+          ))}</tr>
+        </thead>
+        <tbody>{rows.map((row, i) => (
+          <tr key={i}>{row.map((cell, j) => (
+            <td key={j} style={{border:'1px solid rgba(214,31,31,0.15)', padding:'5px 12px',
+              background: i%2===0 ? 'transparent' : 'rgba(214,31,31,0.03)',
+              color: j===0 ? '#c6ffc6' : 'var(--fg-text)'}}>{cell}</td>
+          ))}</tr>
+        ))}</tbody>
+      </table>
+    </div>
+  );
+}
+
+function SpotDLPage() {
+  return (
+    <div style={{display:'flex', flexDirection:'column', gap:12}}>
+      <div className="panel">
+        <div className="panel-hd">SPOTDL <span className="dots">/// GUÍA DE DESCARGA DESDE SPOTIFY</span></div>
+        <div className="panel-body">
+          <p style={{marginBottom:8}}>
+            Descarga canciones y playlists de Spotify como MP3 a tu equipo y súbelas al vault.
+            Esta guía cubre la instalación completa desde cero en Windows.
+          </p>
+          <p style={{color:'var(--fg-dim)', fontSize:13}}>
+            spotDL busca el audio en YouTube Music usando los metadatos de Spotify y lo descarga con ffmpeg.
+            Las etiquetas ID3 (artista, álbum, portada…) se aplican automáticamente.
+          </p>
+        </div>
+      </div>
+
+      {/* ── 1. REQUISITOS ── */}
+      <SpotDLSection title="01 /// REQUISITOS PREVIOS">
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', marginBottom:12}}>PASO 1 — PYTHON</p>
+        <p>Descarga e instala desde <span style={{color:'var(--fg-accent)'}}>python.org/downloads</span>.</p>
+        <SpotDLNote>⚠ Marca <strong>"Add Python to PATH"</strong> durante la instalación o no funcionará ningún comando.</SpotDLNote>
+        <SpotDLCmd>python --version</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'16px 0 8px'}}>PASO 2 — FFMPEG</p>
+        <ol style={{paddingLeft:22, margin:'8px 0', display:'flex', flexDirection:'column', gap:6}}>
+          <li>Descarga desde <span style={{color:'var(--fg-accent)'}}>gyan.dev/ffmpeg/builds</span> → <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>ffmpeg-release-essentials.zip</code></li>
+          <li>Extrae en <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\ffmpeg</code></li>
+          <li>
+            Añade <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\ffmpeg\bin</code> al PATH del sistema:
+            <ul style={{paddingLeft:20, marginTop:4, color:'var(--fg-dim)', fontSize:14}}>
+              <li>Win + R → <code style={{fontFamily:'var(--mono)'}}>sysdm.cpl</code> → Opciones avanzadas → Variables de entorno</li>
+              <li>Variables del sistema → <code style={{fontFamily:'var(--mono)'}}>Path</code> → Editar → Nuevo → pega la ruta</li>
+            </ul>
+          </li>
+          <li>Cierra y abre un CMD nuevo para aplicar los cambios</li>
+        </ol>
+        <SpotDLCmd>ffmpeg -version</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'16px 0 8px'}}>PASO 3 — SPOTDL</p>
+        <SpotDLCmd>pip install spotdl</SpotDLCmd>
+        <SpotDLNote>
+          Si el comando <code style={{fontFamily:'var(--mono)', color:'#c6ffc6'}}>spotdl</code> no se reconoce después de instalarlo, añade la carpeta Scripts de Python al PATH:<br/>
+          <code style={{fontFamily:'var(--mono)', color:'#c6ffc6', fontSize:13}}>C:\Users\TuUsuario\AppData\Roaming\Python\Python3XX\Scripts</code>
+        </SpotDLNote>
+        <SpotDLCmd>spotdl --version</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'16px 0 8px'}}>PASO 4 — DENO (para algunos vídeos de YouTube)</p>
+        <SpotDLCmd>spotdl --download-deno</SpotDLCmd>
+      </SpotDLSection>
+
+      {/* ── 2. CREDENCIALES SPOTIFY ── */}
+      <SpotDLSection title="02 /// CREDENCIALES DE SPOTIFY">
+        <ol style={{paddingLeft:22, display:'flex', flexDirection:'column', gap:6}}>
+          <li>Ve a <span style={{color:'var(--fg-accent)'}}>developer.spotify.com/dashboard</span></li>
+          <li>Crear app → nombre libre, Redirect URI: <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>http://127.0.0.1:8888</code>, marcar Web API</li>
+          <li>En Settings copia el <strong>Client ID</strong> y el <strong>Client Secret</strong></li>
+        </ol>
+        <SpotDLNote>spotDL te pedirá estas credenciales la primera vez que ejecutes un comando. Las guarda automáticamente para las siguientes sesiones.</SpotDLNote>
+      </SpotDLSection>
+
+      {/* ── 3. COOKIES YOUTUBE ── */}
+      <SpotDLSection title="03 /// COOKIES DE YOUTUBE (EVITAR BLOQUEOS)">
+        <ol style={{paddingLeft:22, display:'flex', flexDirection:'column', gap:6}}>
+          <li>Instala la extensión <strong>"Get cookies.txt LOCALLY"</strong> en Chrome o Edge</li>
+          <li>Ve a <span style={{color:'var(--fg-accent)'}}>youtube.com</span> con tu sesión iniciada</li>
+          <li>Haz clic en la extensión → exporta las cookies → guarda como <code style={{background:'rgba(0,0,0,0.4)', padding:'1px 6px', borderRadius:2, fontFamily:'var(--mono)', color:'#c6ffc6'}}>C:\Users\TuUsuario\cookies.txt</code></li>
+        </ol>
+        <SpotDLNote>Si empiezas a ver errores de YouTube (<code style={{fontFamily:'var(--mono)'}}>AudioProviderError</code>), renueva las cookies exportándolas de nuevo.</SpotDLNote>
+      </SpotDLSection>
+
+      {/* ── 4. COMANDOS PRINCIPALES ── */}
+      <SpotDLSection title="04 /// COMANDOS PRINCIPALES">
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', marginBottom:8}}>DESCARGAR UNA CANCIÓN</p>
+        <SpotDLCmd>{`spotdl download "URL_SPOTIFY" --ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe --output "C:\\Users\\TuUsuario\\Música\\{artist}\\{album}\\{track-number} - {title}" --format mp3 --bitrate 320k --cookie-file C:\\Users\\TuUsuario\\cookies.txt`}</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>DESCARGAR UNA PLAYLIST ENTERA</p>
+        <SpotDLCmd>{`spotdl "URL_PLAYLIST" --ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe --output "C:\\Users\\TuUsuario\\Música\\{artist}\\{album}\\{track-number} - {title}" --format mp3 --bitrate 320k --threads 4 --cookie-file C:\\Users\\TuUsuario\\cookies.txt --save-errors C:\\Users\\TuUsuario\\errores.txt`}</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>VERIFICAR Y SINCRONIZAR (AÑADIR CANCIONES NUEVAS)</p>
+        <p style={{color:'var(--fg-dim)', fontSize:14, marginBottom:6}}>El mismo comando de playlist — spotDL detecta automáticamente los archivos ya descargados y los salta.</p>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>REINTENTAR CANCIONES QUE FALLARON</p>
+        <SpotDLCmd>{`spotdl download "URL1" "URL2" "URL3" --ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe --output "C:\\Users\\TuUsuario\\Música\\{artist}\\{album}\\{track-number} - {title}" --format mp3 --bitrate 320k --cookie-file C:\\Users\\TuUsuario\\cookies.txt --dont-filter-results`}</SpotDLCmd>
+        <SpotDLNote><code style={{fontFamily:'var(--mono)', color:'#c6ffc6'}}>--dont-filter-results</code> ayuda con canciones que tienen feat. o títulos especiales que spotDL no encuentra con búsqueda estricta.</SpotDLNote>
+      </SpotDLSection>
+
+      {/* ── 5. VARIABLES --output ── */}
+      <SpotDLSection title="05 /// VARIABLES DE LA PLANTILLA --output">
+        <SpotDLTable
+          headers={['Variable', 'Ejemplo']}
+          rows={[
+            ['{artist}',       'Metallica'],
+            ['{album}',        'Master of Puppets'],
+            ['{title}',        'Battery'],
+            ['{track-number}', '01'],
+            ['{album-artist}', 'Metallica'],
+            ['{genre}',        'Heavy Metal'],
+            ['{year}',         '1986'],
+          ]}
+        />
+        <SpotDLNote>
+          La plantilla <code style={{fontFamily:'var(--mono)', color:'#c6ffc6'}}>{'{artist}/{album}/{track-number} - {title}'}</code> genera exactamente la estructura que METAL.sys espera para agrupar por artista y álbum.
+        </SpotDLNote>
+      </SpotDLSection>
+
+      {/* ── 6. OPCIONES ÚTILES ── */}
+      <SpotDLSection title="06 /// OPCIONES ÚTILES">
+        <SpotDLTable
+          headers={['Opción', 'Descripción']}
+          rows={[
+            ['--threads 4',                    'Descarga 4 canciones en paralelo'],
+            ['--bitrate 320k',                 'Máxima calidad de audio'],
+            ['--format mp3',                   'Formato de salida'],
+            ['--dont-filter-results',          'Búsqueda menos estricta en YouTube'],
+            ['--save-errors errores.txt',      'Guarda las canciones fallidas en un archivo'],
+            ['--cookie-file cookies.txt',      'Usa cookies para evitar bloqueos de YouTube'],
+            ['--ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe', 'Ruta a ffmpeg si no está en el PATH'],
+          ]}
+        />
+      </SpotDLSection>
+
+      {/* ── 7. YT-DLP ── */}
+      <SpotDLSection title="07 /// YT-DLP (CANCIONES NO ENCONTRADAS EN YOUTUBE MUSIC)">
+        <p style={{color:'var(--fg-dim)', fontSize:14, marginBottom:10}}>yt-dlp viene incluido con spotDL. Úsalo directamente cuando spotDL no encuentre una canción.</p>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', marginBottom:8}}>INSTALAR (si necesitas la versión standalone)</p>
+        <SpotDLCmd>pip install yt-dlp</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>DESCARGAR UNA O VARIAS URLs DE YOUTUBE</p>
+        <SpotDLCmd>{`yt-dlp "URL1" "URL2" -x --audio-format mp3 --audio-quality 320k --ffmpeg-location C:\\ffmpeg\\bin --js-runtimes deno:C:\\Users\\TuUsuario\\.spotdl\\deno.exe -o "C:\\Users\\TuUsuario\\Música\\%(uploader)s\\%(title)s.%(ext)s"`}</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>DESCARGAR CON COOKIES (VÍDEOS CON RESTRICCIÓN DE EDAD)</p>
+        <SpotDLCmd>{`yt-dlp "URL" -x --audio-format mp3 --audio-quality 320k --ffmpeg-location C:\\ffmpeg\\bin --cookies C:\\Users\\TuUsuario\\cookies_yt.txt -o "C:\\ruta\\%(title)s.%(ext)s"`}</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>DESCARGAR ÁLBUM COMPLETO DE BANDCAMP</p>
+        <SpotDLCmd>{`yt-dlp "https://artista.bandcamp.com/album/nombre-album" -x --audio-format mp3 --audio-quality 320k --ffmpeg-location C:\\ffmpeg\\bin -o "C:\\Users\\TuUsuario\\Música\\%(artist)s\\%(album)s\\%(track_number)s - %(artist)s - %(title)s.%(ext)s"`}</SpotDLCmd>
+      </SpotDLSection>
+
+      {/* ── 8. RCLONE + R2 ── */}
+      <SpotDLSection title="08 /// SINCRONIZAR CON CLOUDFLARE R2 VÍA RCLONE">
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', marginBottom:8}}>INSTALAR RCLONE</p>
+        <SpotDLCmd>winget install Rclone.Rclone</SpotDLCmd>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>CONFIGURAR R2</p>
+        <SpotDLCmd>rclone config</SpotDLCmd>
+        <div style={{background:'rgba(0,0,0,0.45)', border:'1px solid rgba(214,31,31,0.25)', borderRadius:3, padding:'10px 14px', fontFamily:'var(--mono)', fontSize:14, color:'var(--fg-dim)', margin:'8px 0', lineHeight:1.8}}>
+          <div><span style={{color:'var(--fg-primary)'}}>n</span> → nuevo remote</div>
+          <div>Nombre: <span style={{color:'#c6ffc6'}}>r2</span></div>
+          <div>Tipo: <span style={{color:'#c6ffc6'}}>s3</span></div>
+          <div>Provider: <span style={{color:'#c6ffc6'}}>Cloudflare</span></div>
+          <div>env_auth: <span style={{color:'#c6ffc6'}}>false</span></div>
+          <div>Access Key ID: <span style={{color:'#c6ffc6'}}>tu key de R2</span></div>
+          <div>Secret Access Key: <span style={{color:'#c6ffc6'}}>tu secret de R2</span></div>
+          <div>Region: <span style={{color:'var(--fg-dim)'}}>(dejar vacío → Enter)</span></div>
+          <div>Endpoint: <span style={{color:'#c6ffc6'}}>https://ACCOUNT_ID.r2.cloudflarestorage.com</span></div>
+          <div><span style={{color:'var(--fg-primary)'}}>y</span> para confirmar · <span style={{color:'var(--fg-primary)'}}>q</span> para salir</div>
+        </div>
+
+        <p style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-accent)', margin:'14px 0 8px'}}>SUBIR MÚSICA A R2</p>
+        <SpotDLCmd>{`rclone sync "C:\\Users\\TuUsuario\\Música" r2:nombre-bucket --progress --transfers 4`}</SpotDLCmd>
+        <SpotDLNote>
+          <code style={{fontFamily:'var(--mono)', color:'#c6ffc6'}}>rclone sync</code> sube solo los archivos nuevos o modificados. Después de subir, usa el botón <strong>REINDEXAR METADATOS</strong> en la página de Inicio para actualizar el índice ID3.
+        </SpotDLNote>
+      </SpotDLSection>
+
+      {/* ── 9. BAT ── */}
+      <SpotDLSection title="09 /// ARCHIVO .BAT PARA SINCRONIZAR FÁCILMENTE">
+        <p style={{color:'var(--fg-dim)', fontSize:14, marginBottom:8}}>Crea un archivo <code style={{fontFamily:'var(--mono)', color:'#c6ffc6'}}>descargar_musica.bat</code> en el escritorio y haz doble clic cuando quieras sincronizar tu playlist.</p>
+        <SpotDLCmd>{`spotdl "URL_DE_TU_PLAYLIST" --ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe --output "C:\\Users\\TuUsuario\\Música\\{artist}\\{album}\\{track-number} - {title}" --format mp3 --bitrate 320k --threads 4 --cookie-file C:\\Users\\TuUsuario\\cookies.txt --save-errors C:\\Users\\TuUsuario\\errores.txt`}</SpotDLCmd>
+      </SpotDLSection>
+
+      {/* ── 10. ERRORES ── */}
+      <SpotDLSection title="10 /// SOLUCIÓN DE PROBLEMAS">
+        <SpotDLTable
+          headers={['Error', 'Solución']}
+          rows={[
+            ['"spotdl" no se reconoce',        'Añadir la carpeta Scripts de Python al PATH'],
+            ['FFmpegError: FFmpeg is not installed', 'Usar --ffmpeg C:\\ffmpeg\\bin\\ffmpeg.exe'],
+            ['AudioProviderError: YT-DLP download error', 'Activar VPN o renovar las cookies de YouTube'],
+            ['LookupError: No results found',  'Usar --dont-filter-results o buscar la URL manualmente en YouTube'],
+            ['Vídeo con restricción de edad',  'Exportar cookies con sesión de YouTube iniciada'],
+            ['Could not copy Chrome cookie database', 'Cerrar Chrome antes de ejecutar el comando'],
+          ]}
+        />
+      </SpotDLSection>
+    </div>
+  );
+}
+
 // ─── STATS PAGE ─────────────────────────────────────────────
 const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
 
@@ -5714,6 +6129,8 @@ function App() {
                             onUpload={startUpload} onNav={setRoute} onCreateCat={handleCreateCat}
                             prefillCat={route.prefillCat} />
               )}
+              {route.page === 'ACERCA'  && <AcercaPage />}
+              {route.page === 'SPOTDL' && <SpotDLPage />}
               {route.page === 'UPLOAD_PROGRESS' && <UploadProgressPage progress={uploadProgress} />}
               {route.page === 'CAT' && (
                 <CategoryPage cat={route.cat} prefillAlbum={route.album} files={[...files, ...localFiles]}
