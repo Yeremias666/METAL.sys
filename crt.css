@@ -650,18 +650,7 @@ input:not([type=range]), textarea {
 .col-left {
   padding: 16px 14px 32px 16px;
   min-width: 0;
-  position: sticky;
-  top: 0;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--fg-primary) transparent;
-  align-self: start;
 }
-.col-left::-webkit-scrollbar { width: 4px; }
-.col-left::-webkit-scrollbar-track { background: transparent; }
-.col-left::-webkit-scrollbar-thumb { background: var(--fg-primary); border-radius: 0; }
 
 .col-main {
   min-width: 0;
