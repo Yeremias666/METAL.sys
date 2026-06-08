@@ -4249,11 +4249,13 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                   {new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}
                 </p>
               )}
-              {songs.length > 0 && (
-                <button className="big-btn" style={{marginTop:12, width:'fit-content'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
-              )}
             </div>
           </div>
+          {songs.length > 0 && (
+            <div style={{marginTop:14}}>
+              <button className="big-btn" style={{whiteSpace:'nowrap'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
+            </div>
+          )}
         </div>
       </div>
       {songs.length === 0
