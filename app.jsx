@@ -6002,28 +6002,38 @@ function App() {
   };
 
   // ── Media Session API ────────────────────────────────────────
-  useEffect(() => {
-    if (!('mediaSession' in navigator)) return;
-    if (!currentTrack) { navigator.mediaSession.metadata = null; return; }
-    const artwork = [];
-    const src = currentTrack.coverArt || currentTrack.coverUrl || currentTrack.thumbnail;
-    if (src) artwork.push({ src, sizes: '512x512', type: src.startsWith('data:image/png') ? 'image/png' : 'image/jpeg' });
+  const _applyMSMetadata = (track) => {
+    if (!track) { navigator.mediaSession.metadata = null; return; }
+    // Prefer real HTTP URL — data URLs can be too large for mobile OS and get silently rejected
+    const src = track.coverUrl || track.thumbnail;
+    const artwork = src ? [{
+      src,
+      sizes: src.startsWith('http') ? '512x512' : '128x128',
+      type:  src.startsWith('data:image/png') ? 'image/png' : 'image/jpeg',
+    }] : [];
     navigator.mediaSession.metadata = new MediaMetadata({
-      title:  currentTrack.name   || 'Sin título',
-      artist: currentTrack.artist || currentTrack.category || '',
-      album:  currentTrack.album  || '',
+      title:  track.name   || 'Sin título',
+      artist: track.artist || track.category || '',
+      album:  track.album  || '',
       artwork,
     });
-    navigator.mediaSession.setActionHandler('play',          () => { audioRef.current?.play().catch(()=>{}); });
-    navigator.mediaSession.setActionHandler('pause',         () => { audioRef.current?.pause(); });
+    navigator.mediaSession.setActionHandler('play',          () => audioRef.current?.play().catch(()=>{}));
+    navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
     navigator.mediaSession.setActionHandler('nexttrack',     () => playNext());
     navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
+  };
+
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
+    _applyMSMetadata(currentTrack);
   }, [currentTrackId, currentTrack]);
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    // Re-apply metadata when audio starts — mobile OS picks up the session at this moment
+    if (isPlaying && currentTrack) _applyMSMetadata(currentTrack);
   }, [isPlaying]);
 
   useEffect(() => {
