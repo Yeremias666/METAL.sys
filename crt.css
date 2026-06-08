@@ -1428,18 +1428,6 @@ input:not([type=range]), textarea {
 @keyframes vinyl-spin {
   to { transform: rotate(360deg); }
 }
-/* ─── Album Detail Page layout ───────────────────────────── */
-.album-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 3fr 1fr;
-  gap: 14px;
-  margin-bottom: 14px;
-  align-items: start;
-}
-.album-detail-sidebar {
-  position: sticky;
-  top: 14px;
-}
 /* ─── Album detail thumb (portada grande + vinilo saliendo) ── */
 .album-detail-thumb {
   position: relative;
@@ -1472,8 +1460,6 @@ input:not([type=range]), textarea {
 /* Movil: ocultar vinilo, solo portada */
 .is-touch .album-detail-thumb .album-card-vinyl { display: none; }
 @media (max-width: 700px) {
-  .album-detail-grid { grid-template-columns: 1fr; }
-  .album-detail-sidebar { display: none; }
   .album-detail-thumb { width: 220px; height: 220px; }
 }
 .album-card-body {

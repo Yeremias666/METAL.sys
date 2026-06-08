@@ -1917,75 +1917,33 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
       <div className="section">
         {currentAlbum ? (
-          <div>
-            <div className="album-detail-grid">
-              {/* Sidebar izquierda — Artista */}
-              <div className="panel album-detail-sidebar">
-                <div className="panel-hd">ARTISTA</div>
-                <div className="panel-body" style={{textAlign:'center', padding:'18px 10px'}}>
-                  {artistImage
-                    ? <img src={artistImage} alt={cat} style={{width:76,height:76,objectFit:'cover',borderRadius:'50%',border:'2px solid var(--fg-primary)',marginBottom:8}} />
-                    : <div style={{width:76,height:76,borderRadius:'50%',border:'2px solid rgba(214,31,31,0.3)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 8px'}}><IconGlyph iconId="usuario" size={34} /></div>}
-                  <div style={{fontFamily:'var(--pixel)',fontSize:10,letterSpacing:'0.12em',color:'var(--fg-text)',wordBreak:'break-word'}}>{cat.toUpperCase()}</div>
-                  {meta.description && <div style={{color:'var(--fg-dim)',fontSize:11,marginTop:8,fontFamily:'var(--mono)',lineHeight:1.5,textAlign:'left'}}>{meta.description.slice(0,120)}{meta.description.length>120?'..':''}</div>}
-                </div>
-              </div>
-
-              {/* Centro — vinilo + datos */}
-              <div>
-                <div className="panel" style={{marginBottom:12}}>
-                  <div className="panel-body" style={{display:'flex',justifyContent:'center',padding:'28px 14px'}}>
-                    <div className="album-detail-thumb"
-                         onMouseEnter={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%) translateX(54%)';} }}
-                         onMouseLeave={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%)';} }}>
-                      <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
-                      {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
-                        ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
-                               alt={currentAlbum.name} className="album-detail-cover-img" />
-                        : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
-                    </div>
-                  </div>
-                </div>
-                <div className="panel" style={{marginBottom:12}}>
-                  <div className="panel-hd">
-                    <span style={{display:'flex',alignItems:'center',gap:8,overflow:'hidden',flex:1,minWidth:0}}>
-                      <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>&#9654;</button>
-                      <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{currentAlbum.name}</span>
-                    </span>
-                    <span className="dots" style={{flexShrink:0}}>/// {currentSongs.length} CANCIONES</span>
-                  </div>
-                  {currentAlbum.year && (
-                    <div className="panel-body" style={{padding:'6px 14px',textAlign:'center'}}>
-                      <span style={{fontFamily:'var(--pixel)',fontSize:11,letterSpacing:'0.1em',color:'var(--fg-dim)'}}>{currentAlbum.year}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sidebar derecha — Stats */}
-              <div className="panel album-detail-sidebar">
-                <div className="panel-hd">INFO</div>
-                <div className="panel-body" style={{padding:'12px 10px'}}>
-                  <div className="spec"><span>CANCIONES</span><b>{currentSongs.length}</b></div>
-                  {currentAlbum.year && <div className="spec"><span>AÑO</span><b style={{color:'var(--fg-accent)'}}>{currentAlbum.year}</b></div>}
-                  {(() => { const d=currentSongs.reduce((a,f)=>a+(f.duration||0),0); return d>0?<div className="spec"><span>DUR.</span><b>{fmtTimeSec(d)}</b></div>:null; })()}
-                  {currentSongs[0]?.genre && <div className="spec"><span>GENERO</span><b style={{color:'var(--fg-secondary)'}}>{currentSongs[0].genre}</b></div>}
-                  {(() => { const s=currentSongs.reduce((a,f)=>a+(f.fileSize||0),0); return s>0?<div className="spec"><span>PESO</span><b>{fmtBytes(s)}</b></div>:null; })()}
-                </div>
+          <div className="panel">
+            <div className="panel-hd">
+              <span style={{display:'flex', alignItems:'center', gap:8, overflow:'hidden', flex:1, minWidth:0}}>
+                <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>&#9654;</button>
+                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{currentAlbum.name}</span>
+              </span>
+              <span className="dots" style={{flexShrink:0}}>/// {currentSongs.length} CANCIONES</span>
+            </div>
+            <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px'}}>
+              <div className="album-detail-thumb"
+                   onMouseEnter={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%) translateX(54%)';} }}
+                   onMouseLeave={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%)';} }}>
+                <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
+                {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
+                  ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
+                         alt={currentAlbum.name} className="album-detail-cover-img" />
+                  : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
               </div>
             </div>
-
-            {/* Lista de canciones */}
-            <div className="panel">
-              <div className="panel-body" style={{padding:0}}>
-                {currentSongs.length === 0 ? (
-                  <div style={{padding:'40px 0',textAlign:'center',color:'var(--fg-dim)',fontSize:22}}>
-                    SIN CANCIONES
-                  </div>
-                ) : (
-                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
-                )}
-              </div>
+            <div className="panel-body" style={{padding:0}}>
+              {currentSongs.length === 0 ? (
+                <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
+                  SIN CANCIONES
+                </div>
+              ) : (
+                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
+              )}
             </div>
           </div>
         ) : showResults ? (
