@@ -5,6 +5,19 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-08 — Timeline de reproducciones dinámico con filtros
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- Añadida función `buildTimeline(filter, playLog)` que genera buckets dinámicos según el filtro seleccionado: `hora` (24h por hora), `dia` (7 días), `semana` (8 semanas por lunes), `mes` (30 días, default), `año` (12 meses), `todo` (historial completo mes a mes sin límite).
+- El timeline en StatsPage ya no está limitado a 30 días fijos. Ahora tiene estado `timeFilter` (default `'mes'`) y botones de filtro 24H / 7D / 8W / 30D / 12M / TODO.
+- El gráfico de líneas se adapta: ejes X con labels apropiados según granularidad, paso de etiquetas dinámico, artistas calculados dentro de la ventana activa.
+- Cálculo de racha (`streak`) mantenido independiente del filtro con mapa de días propio.
+
+---
+
 ## 2026-06-05 — Reindexado de metadatos ID3 y portadas desde R2
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  

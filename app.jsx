@@ -4683,7 +4683,80 @@ function SpotDLPage() {
 // ─── STATS PAGE ─────────────────────────────────────────────
 const STAT_COLORS = ['#d61f1f','#ff8800','#c4ff00','#00f0ff','#ff2bd6','#a855f7','#3b82f6','#39ff14','#ffb347','#f97316'];
 
+function buildTimeline(filter, playLog) {
+  const now = new Date();
+  let buckets = [], keyFn, labelFn;
+  if (filter === 'hora') {
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(now); d.setMinutes(0,0,0); d.setHours(d.getHours()-i);
+      buckets.push(d.toISOString().slice(0,13));
+    }
+    keyFn = ts => new Date(ts).toISOString().slice(0,13);
+    labelFn = k => k.slice(11)+':00';
+  } else if (filter === 'dia') {
+    const todayUTC = now.toISOString().slice(0,10);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(todayUTC+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()-i);
+      buckets.push(d.toISOString().slice(0,10));
+    }
+    keyFn = ts => new Date(ts).toISOString().slice(0,10);
+    labelFn = k => k.slice(5);
+  } else if (filter === 'semana') {
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(now); d.setUTCHours(12,0,0,0);
+      const dow = d.getUTCDay(); const diff = dow===0?-6:1-dow;
+      d.setUTCDate(d.getUTCDate()+diff-i*7);
+      buckets.push(d.toISOString().slice(0,10));
+    }
+    keyFn = ts => {
+      const d = new Date(ts); d.setUTCHours(12,0,0,0);
+      const dow = d.getUTCDay(); const diff = dow===0?-6:1-dow;
+      d.setUTCDate(d.getUTCDate()+diff);
+      return d.toISOString().slice(0,10);
+    };
+    labelFn = k => k.slice(5);
+  } else if (filter === 'mes') {
+    const todayUTC = now.toISOString().slice(0,10);
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(todayUTC+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()-i);
+      buckets.push(d.toISOString().slice(0,10));
+    }
+    keyFn = ts => new Date(ts).toISOString().slice(0,10);
+    labelFn = k => k.slice(5);
+  } else if (filter === 'año') {
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+      buckets.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+    }
+    keyFn = ts => new Date(ts).toISOString().slice(0,7);
+    labelFn = k => k.slice(5);
+  } else {
+    if (playLog.length === 0) return { buckets:[], labels:[], playsByBucketArtist:{} };
+    const firstTs = Math.min(...playLog.map(e=>e.ts));
+    const fd = new Date(firstTs);
+    let y=fd.getFullYear(), m=fd.getMonth();
+    const ey=now.getFullYear(), em=now.getMonth();
+    while (y<ey||(y===ey&&m<=em)) {
+      buckets.push(`${y}-${String(m+1).padStart(2,'0')}`);
+      m++; if (m>11){m=0;y++;}
+    }
+    keyFn = ts => new Date(ts).toISOString().slice(0,7);
+    labelFn = k => k;
+  }
+  const bucketsSet = new Set(buckets);
+  const playsByBucketArtist = {};
+  buckets.forEach(b=>{playsByBucketArtist[b]={};});
+  playLog.forEach(entry=>{
+    const key = keyFn(entry.ts);
+    if (!bucketsSet.has(key)) return;
+    const a = entry.artist||'OTRO';
+    playsByBucketArtist[key][a]=(playsByBucketArtist[key][a]||0)+1;
+  });
+  return { buckets, labels: buckets.map(labelFn), playsByBucketArtist };
+}
+
 function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog = [], artistMeta = {} }) {
+  const [timeFilter, setTimeFilter] = React.useState('mes');
   const allFiles = [...files, ...localFiles];
   const audioFiles = allFiles.filter(isAudioFile);
   const totalPlays = Object.values(playCounts).reduce((a,v)=>a+v,0);
@@ -4714,12 +4787,12 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   // Fav album
   const albumPlays = {};
   audioFiles.forEach(f => {
-    const key = `${f.artist||f.category}||${f.album||'SINGLE'}`;
+    const key = `${f.category||f.artist}||${f.album||'SINGLE'}`;
     albumPlays[key] = (albumPlays[key]||0) + (playCounts[f.id]||0);
   });
   const [topAlbumKey='||', topAlbumPlays=0] = Object.entries(albumPlays).sort((a,b)=>b[1]-a[1])[0] || [];
   const [favAlbumArtist='', favAlbumName=''] = topAlbumKey.split('||');
-  const favAlbumCover = audioFiles.find(f=>(f.artist||f.category)===favAlbumArtist&&(f.album||'SINGLE')===favAlbumName&&(f.thumbnail||f.coverArt));
+  const favAlbumCover = audioFiles.find(f=>(f.category||f.artist)===favAlbumArtist&&(f.album||'SINGLE')===favAlbumName&&(f.thumbnail||f.coverArt));
 
   // Genres
   const genrePlays = {};
@@ -4741,24 +4814,25 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const sortedUpDates = Object.keys(uploadsByDate).sort();
   const maxUploads = Math.max(1,...Object.values(uploadsByDate));
 
-  // Play log timeline (last 30 days) — usar UTC puro para evitar desfases de zona horaria
+  // Play log — day map for streak (always day-granular)
   const todayUTC = new Date().toISOString().slice(0,10);
-  const days30 = Array.from({length:30},(_,i)=>{
-    const d = new Date(todayUTC + 'T12:00:00Z');
-    d.setUTCDate(d.getUTCDate() - (29-i));
-    return d.toISOString().slice(0,10);
-  });
-  const playsByDayArtist = {};
+  const playsByDay = {};
   playLog.forEach(entry => {
     const d = new Date(entry.ts).toISOString().slice(0,10);
-    if (!days30.includes(d)) return;
-    if (!playsByDayArtist[d]) playsByDayArtist[d]={};
+    if (!playsByDay[d]) playsByDay[d]={};
     const a = entry.artist||'OTRO';
-    playsByDayArtist[d][a]=(playsByDayArtist[d][a]||0)+1;
+    playsByDay[d][a]=(playsByDay[d][a]||0)+1;
   });
-  const playDayTotals = days30.map(d=>Object.values(playsByDayArtist[d]||{}).reduce((a,v)=>a+v,0));
-  const maxPlaysDay = Math.max(1,...playDayTotals);
-  const playArtists = [...new Set(playLog.map(e=>e.artist).filter(Boolean))].slice(0,8);
+
+  // Play log timeline — dynamic filter
+  const { buckets, labels, playsByBucketArtist } = buildTimeline(timeFilter, playLog);
+  const bucketTotals = buckets.map(b=>Object.values(playsByBucketArtist[b]||{}).reduce((a,v)=>a+v,0));
+  const maxBucketVal = Math.max(1,...bucketTotals);
+  const windowArtistPlays = {};
+  buckets.forEach(b=>{
+    Object.entries(playsByBucketArtist[b]||{}).forEach(([a,v])=>{ windowArtistPlays[a]=(windowArtistPlays[a]||0)+v; });
+  });
+  const playArtists = Object.entries(windowArtistPlays).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([a])=>a);
 
   // Liked ratio
   const likedPlays = audioFiles.filter(f=>likedIds.has(f.id)).reduce((a,f)=>a+(playCounts[f.id]||0),0);
@@ -4770,13 +4844,14 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
     const sd = new Date(todayUTC + 'T12:00:00Z');
     sd.setUTCDate(sd.getUTCDate() - i);
     const k = sd.toISOString().slice(0, 10);
-    if (playsByDayArtist[k]) streak++;
+    if (playsByDay[k]) streak++;
     else break;
   }
 
   const CHART_W=500, CHART_H=80;
-  const px=(i)=> Math.round((i/(days30.length-1))*CHART_W);
-  const py=(v)=> Math.round(CHART_H - (v/maxPlaysDay)*CHART_H);
+  const px=(i)=> buckets.length<=1 ? CHART_W/2 : Math.round((i/(buckets.length-1))*CHART_W);
+  const py=(v)=> Math.round(CHART_H - (v/maxBucketVal)*CHART_H);
+  const labelStep = buckets.length<=8 ? 1 : buckets.length<=30 ? 5 : buckets.length<=52 ? 4 : 6;
 
   return (
     <div className="stats-page">
@@ -4873,7 +4948,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                   : <div className="sh-icon"><IconGlyph iconId="nota" size={36}/></div>}
                 <div className="sh-label">CANCIÓN FAVORITA</div>
                 <div className="sh-name">{mostPlayed && mostPlayedCount>0 ? mostPlayed.name : '— SIN DATOS —'}</div>
-                {mostPlayed && mostPlayedCount>0 && <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.artist||mostPlayed.category||''}</div>}
+                {mostPlayed && mostPlayedCount>0 && <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.category||mostPlayed.artist||''}</div>}
               </div>
               {/* Disco favorito */}
               <div className="stat-highlight">
@@ -4889,41 +4964,49 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         </div>
       )}
 
-      {/* ── Timeline reproducciones (30 días) ── */}
+      {/* ── Timeline reproducciones ── */}
       <div className="panel section">
-        <div className="panel-hd">REPRODUCCIONES DIARIAS <span className="dots">/// ÚLTIMOS 30 DÍAS</span></div>
+        <div className="panel-hd">REPRODUCCIONES <span className="dots">/// TIMELINE</span></div>
         <div className="panel-body">
+          {/* Filter buttons */}
+          <div style={{display:'flex',gap:6,marginBottom:12,flexWrap:'wrap'}}>
+            {[['hora','24H'],['dia','7D'],['semana','8W'],['mes','30D'],['año','12M'],['todo','TODO']].map(([f,lbl])=>(
+              <button key={f} onClick={()=>setTimeFilter(f)}
+                style={{fontFamily:'var(--pixel)',fontSize:11,letterSpacing:'0.08em',padding:'3px 10px',
+                        background:timeFilter===f?'var(--fg-primary)':'transparent',
+                        color:timeFilter===f?'#000':'var(--fg-dim)',
+                        border:`1px solid ${timeFilter===f?'var(--fg-primary)':'rgba(255,255,255,0.15)'}`,
+                        cursor:'pointer',transition:'all 0.1s'}}>
+                {lbl}
+              </button>
+            ))}
+          </div>
           {playLog.length === 0 ? (
             <div style={{color:'var(--fg-dim)',fontSize:18,padding:'18px 0'}}>◇ Sin datos aún — los datos se acumulan a partir de ahora al escuchar canciones.</div>
           ) : (
             <>
               <div style={{overflowX:'auto'}}>
                 <svg viewBox={`0 0 ${CHART_W} ${CHART_H+24}`} style={{width:'100%',minWidth:320,display:'block',fontFamily:'var(--mono)'}}>
-                  {/* grid lines */}
                   {[0,0.25,0.5,0.75,1].map(t=>(
-                    <line key={t} x1={0} x2={CHART_W} y1={py(maxPlaysDay*t)} y2={py(maxPlaysDay*t)}
+                    <line key={t} x1={0} x2={CHART_W} y1={py(maxBucketVal*t)} y2={py(maxBucketVal*t)}
                           stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
                   ))}
-                  {/* line per artist */}
                   {playArtists.map((artist,ai) => {
-                    const pts = days30.map((d,i)=>`${px(i)},${py((playsByDayArtist[d]||{})[artist]||0)}`).join(' ');
+                    const pts = buckets.map((b,i)=>`${px(i)},${py((playsByBucketArtist[b]||{})[artist]||0)}`).join(' ');
                     return <polyline key={artist} points={pts} fill="none"
                                      stroke={artistColorMap[artist]||STAT_COLORS[ai%STAT_COLORS.length]}
                                      strokeWidth="1.5" strokeLinejoin="round" opacity="0.85"/>;
                   })}
-                  {/* total line */}
                   {(() => {
-                    const pts = days30.map((d,i)=>`${px(i)},${py(playDayTotals[i])}`).join(' ');
+                    const pts = buckets.map((b,i)=>`${px(i)},${py(bucketTotals[i])}`).join(' ');
                     return <polyline points={pts} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="3,3"/>;
                   })()}
-                  {/* x-axis labels (every 5 days) */}
-                  {days30.map((d,i)=>i%5===0&&(
-                    <text key={d} x={px(i)} y={CHART_H+18} textAnchor="middle" fontSize="9"
-                          fill="rgba(255,255,255,0.35)">{d.slice(5)}</text>
+                  {buckets.map((b,i)=>i%labelStep===0&&(
+                    <text key={b} x={px(i)} y={CHART_H+18} textAnchor="middle" fontSize="9"
+                          fill="rgba(255,255,255,0.35)">{labels[i]}</text>
                   ))}
                 </svg>
               </div>
-              {/* Leyenda */}
               {playArtists.length > 0 && (
                 <div style={{display:'flex',flexWrap:'wrap',gap:'6px 16px',marginTop:10}}>
                   {playArtists.map((a,i)=>(
