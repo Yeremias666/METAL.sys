@@ -2755,7 +2755,7 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId }) {
   if (!track) return null;
   const BAR_COUNT = 90;
   const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
@@ -2844,6 +2844,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
               playlists={playlists}
               onAddToPlaylist={onAddToPlaylist}
               onOpenCreatePlaylist={onOpenCreatePlaylist}
+              currentTrackId={currentTrackId}
             />
           )}
         </div>
@@ -4142,6 +4143,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
   }, []);
 
   const coverEl = <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />;
+  const songCount = (playlist.songIds || []).filter(id => allFiles.some(f => f.id === id)).length;
 
   const createdStr = playlist.createdAt
     ? new Date(playlist.createdAt).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' })
@@ -4159,7 +4161,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, index = 0 }) {
       </div>
       <div className="album-card-body">
         <div className="album-card-title">{playlist.name}</div>
-        <div className="album-card-sub">{songs.length} canción{songs.length === 1 ? '' : 'es'}{createdStr ? ` · ${createdStr}` : ''}</div>
+        <div className="album-card-sub">{songCount} canción{songCount === 1 ? '' : 'es'}{createdStr ? ` · ${createdStr}` : ''}</div>
       </div>
     </div>
   );
@@ -5272,7 +5274,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
 }
 
 // ─── PLAYER MENU DROPDOWN ───────────────────────────────────
-function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, currentTrackId }) {
   const ref = useRef(null);
   const [showPlaylistSub, setShowPlaylistSub] = useState(false);
   useEffect(() => {
@@ -5290,9 +5292,16 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
         </button>
         {showPlaylistSub && (
           <div className="mp-menu-submenu">
-            {playlists.map(pl => (
-              <button key={pl.id} onClick={() => { onAddToPlaylist(pl.id); onClose(); }}>{pl.name}</button>
-            ))}
+            {playlists.map(pl => {
+              const hasTrack = currentTrackId && (pl.songIds || []).includes(currentTrackId);
+              return (
+                <button key={pl.id}
+                        onClick={() => { if (!hasTrack) onAddToPlaylist(pl.id); onClose(); }}
+                        style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                  {hasTrack ? '✓ ' : ''}{pl.name}
+                </button>
+              );
+            })}
             <button className="mp-menu-submenu-create" onClick={() => { onOpenCreatePlaylist(); onClose(); }}>＋ NUEVA PLAYLIST</button>
           </div>
         )}
@@ -6804,6 +6813,7 @@ function App() {
                    playlists={playlists}
                    onAddToPlaylist={(plId) => { setShowPlayerMenu(false); addToPlaylist(plId); }}
                    onOpenCreatePlaylist={() => { setShowPlayerMenu(false); setShowCreatePlaylistModal(true); }}
+                   currentTrackId={currentTrackId}
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
                    likedIds={likedIds} onToggleLike={toggleLike}
                    vuEnabled={perf.vuMeter} />
