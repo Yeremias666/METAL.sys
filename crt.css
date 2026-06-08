@@ -12,7 +12,7 @@
   --fg-secondary: #b8b6ad;   /* bone / chrome */
   --fg-accent: #ff3b3b;      /* hot crimson */
   --fg-success: #c4ff00;     /* toxic green */
-  --fg-dim: #5a3a3a;
+  --fg-dim: #7a3535;
   --fg-text: #e8e2d4;
 
   /* Effect intensities (driven by Tweaks) */
@@ -461,76 +461,19 @@ input:not([type=range]), textarea {
 
 /* Nav */
 .nav {
-  display: flex;
-  gap: 4px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scrollbar-width: none;
   margin-bottom: 18px;
-  flex-wrap: nowrap;
-  align-items: center;
   font-size: clamp(13px, 1.4vw, 22px);
 }
+.nav::-webkit-scrollbar { display: none; }
 .nav-system {
-  flex-shrink: 0;
   display: flex;
   flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
-}
-.nav-left {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  flex-wrap: nowrap;
-  gap: 4px;
-  align-items: center;
-}
-.nav-more {
-  flex-shrink: 0;
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  align-self: stretch;
-}
-.nav-more-btn {
-  font-family: var(--mono);
-  font-size: inherit;
-  background: transparent;
-  color: var(--fg-accent);
-  border: 1px solid var(--fg-dim);
-  padding: 0.2em 0.6em;
-  cursor: pointer;
-  letter-spacing: 0.06em;
-  transition: all 0.08s;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.nav-more-btn:hover,
-.nav-more-btn.active {
-  background: var(--fg-primary);
-  color: var(--bg-deep);
-  border-color: var(--fg-primary);
-  box-shadow: 0 0 12px var(--fg-primary);
-}
-.nav-dropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 240px;
-  max-height: 420px;
-  overflow-y: auto;
-  background: var(--bg-deep);
-  border: 1px solid var(--fg-primary);
-  z-index: 500;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  box-shadow: 0 0 24px rgba(214,31,31,0.35);
-}
-.nav-dropdown button {
-  width: 100%;
-  text-align: left;
-  white-space: nowrap;
+  min-width: max-content;
 }
 
 /* Nav search */
@@ -629,7 +572,7 @@ input:not([type=range]), textarea {
 .marquee-track {
   display: inline-block;
   padding-left: 100%;
-  animation: marquee 28s linear infinite;
+  animation: marquee 90s linear infinite;
 }
 @keyframes marquee {
   0%   { transform: translateX(0); }
@@ -678,7 +621,7 @@ input:not([type=range]), textarea {
   .mp-controls button { width: 32px; height: 32px; font-size: 12px; }
   .mp-controls .mp-play { width: 40px; height: 40px; font-size: 14px; }
   .statusbar { font-size: 11px; padding: 3px 8px; }
-  .nav { flex-wrap: wrap; gap: 3px; padding: 4px 8px; }
+  .nav { padding: 4px 8px; }
   .album-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
   .cat-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }

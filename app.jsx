@@ -699,8 +699,8 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
 
 function Banner({ onNav }) {
   return (
-    <div className="banner" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>
-      <pre className="ascii-logo chroma">{ASCII_LOGO}</pre>
+    <div className="banner">
+      <pre className="ascii-logo chroma" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>{ASCII_LOGO}</pre>
       <div>
         <div className="banner-title glow">METAL.SYS</div>
         <div className="banner-sub">// Reproductor web by <span style={{color:'var(--fg-primary)'}}>Yeremias</span> \m/</div>
@@ -711,11 +711,9 @@ function Banner({ onNav }) {
 }
 
 function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile }) {
-  const [dropOpen, setDropOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
-  const dropRef   = useRef(null);
 
   const searchResults = React.useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -737,58 +735,39 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
     return () => document.removeEventListener('mousedown', handler);
   }, [searchOpen]);
 
-  useEffect(() => {
-    if (!dropOpen) return;
-    const handler = (e) => { if (!dropRef.current?.contains(e.target)) setDropOpen(false); };
-    document.addEventListener('pointerdown', handler);
-    return () => document.removeEventListener('pointerdown', handler);
-  }, [dropOpen]);
-
-  const dropActive = allCats.some(c => current.page === 'CAT' && current.cat === c);
-
   return (
     <nav className="nav">
       <div className="nav-system">
         <span className="prompt glow">C:\&gt;</span>
-        <button className={current.page === 'INICIO'   ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
-        <button className={current.page === 'STATS'    ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
-        <button className={current.page === 'SUBIR'    ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
-        <button className={current.page === 'SPOTDL'   ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
-        <button className={current.page === 'TODO'     ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
-        <button className={current.page === 'LOCAL'    ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
-        <button className={current.page === 'MESGUSTA' ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
-        <button className={current.page === 'BANDAS'   ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
-        {allCats.length > 0 && (
-          <div ref={dropRef} className="nav-more" style={{position:'relative'}}>
-            <button className={`nav-more-btn${dropActive ? ' active' : ''}`}
-                    onClick={() => setDropOpen(p => !p)}>
-              ▼ {allCats.length}
-            </button>
-            {dropOpen && (
-              <div className="nav-dropdown">
-                {allCats.map(artist => (
-                  <button key={artist}
-                          className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
-                          onClick={() => { onNav({ page: 'CAT', cat: artist }); setDropOpen(false); }}>
-                    <NavGlyph kind="MÚSICA" />{artist}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <button className={current.page === 'INICIO'      ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
+        <button className={current.page === 'STATS'       ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
+        <button className={current.page === 'SUBIR'       ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
+        <button className={current.page === 'SPOTDL'      ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
+        <button className={current.page === 'TODO'        ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
+        <button className={current.page === 'LOCAL'       ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
+        <button className={current.page === 'MESGUSTA'    ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
+        <button className={current.page === 'BANDAS'      ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
+        {allCats.map(artist => (
+          <button key={artist}
+                  className={current.page === 'CAT' && current.cat === artist ? 'active' : ''}
+                  onClick={() => onNav({ page: 'CAT', cat: artist })}>
+            <NavGlyph kind="MÚSICA" />{artist}
+          </button>
+        ))}
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
-        <button className={current.page === 'ACERCA' ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
+        <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
       </div>
     </nav>
   );
 }
 
-function Marquee() {
-  const text = MARQUEE_LINES.join("   ◆◆◆   ");
+function Marquee({ allCats = [] }) {
+  const text = allCats.length > 0
+    ? allCats.join("   ◆◆◆   ")
+    : MARQUEE_LINES.join("   ◆◆◆   ");
   return (
     <div className="marquee">
-      <span className="marquee-track">{text} &nbsp;&nbsp;&nbsp; {text}</span>
+      <span className="marquee-track">{text} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {text}</span>
     </div>
   );
 }
@@ -3346,6 +3325,7 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
     const arr = [...queue]; const [moved] = arr.splice(dragIdx, 1); arr.splice(i, 0, moved);
     onReorder(arr); setDragIdx(null); setOverIdx(null);
   };
+  const handleJump = (f, i) => onJump(f, i);
   return (
     <div className="play-queue">
       <div className="widget-hd">◆ COLA DE REPRODUCCIÓN <span style={{color:'var(--fg-dim)',fontSize:'8px'}}>· {queue.length}</span></div>
@@ -3386,7 +3366,7 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
             onDragOver={e => handleDragOver(e, i)}
             onDrop={e => handleDrop(e, i)}
             onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-            onClick={() => onJump(f)}>
+            onClick={() => handleJump(f, i)}>
             {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{i+1}</span>}
             <div className="pq-info">
               <div className="pq-name">{f.name}</div>
@@ -4143,7 +4123,7 @@ function InstalacionCard({ title, icon, badge, badgeColor, items, footer }) {
         {footer && (
           <div style={{
             borderTop:'1px dashed rgba(214,31,31,0.2)', paddingTop:10,
-            fontSize:13, color:'var(--fg-dim)', fontStyle:'italic',
+            fontSize:14, color:'rgba(214,31,31,0.5)', fontStyle:'italic',
           }}>{footer}</div>
         )}
       </div>
@@ -4153,8 +4133,15 @@ function InstalacionCard({ title, icon, badge, badgeColor, items, footer }) {
 
 function InstalacionPage() {
   const androidIcon = (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{color:'#78c257', flexShrink:0}}>
-      <path d="M17.523 15.341a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zm-10.046 0a.5.5 0 1 1-1 0 .5.5 0 0 1 1 0zM1.5 8.5h21v9a2 2 0 0 1-2 2h-17a2 2 0 0 1-2-2v-9zm3.2-5.6 1.8 3.1h11l1.8-3.1"/>
+    <svg width="18" height="18" viewBox="0 0 24 24" style={{flexShrink:0}} fill="none">
+      <line x1="8" y1="5.5" x2="5.5" y2="2" stroke="#78c257" strokeWidth="1.5" strokeLinecap="round"/>
+      <line x1="16" y1="5.5" x2="18.5" y2="2" stroke="#78c257" strokeWidth="1.5" strokeLinecap="round"/>
+      <path d="M4 13 A8 7 0 0 1 20 13 L20 16 Q20 17.5 12 17.5 Q4 17.5 4 16 Z" fill="#78c257"/>
+      <circle cx="9" cy="12" r="1.2" fill="#060606"/>
+      <circle cx="15" cy="12" r="1.2" fill="#060606"/>
+      <rect x="4" y="18" width="16" height="4.5" rx="1.5" fill="#78c257"/>
+      <rect x="1" y="18" width="2.8" height="4" rx="1.4" fill="#78c257"/>
+      <rect x="20.2" y="18" width="2.8" height="4" rx="1.4" fill="#78c257"/>
     </svg>
   );
   const windowsIcon = (
@@ -6204,7 +6191,7 @@ function App() {
             <div className="col-main">
               <Banner onNav={setRoute} />
               <Nav current={route} onNav={setRoute} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
-              <Marquee />
+              <Marquee allCats={allCats} />
               <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={setRoute}
@@ -6329,7 +6316,7 @@ function App() {
               <PlayQueueWithNowPlaying
                 queue={effectiveQueue} currentId={currentTrackId}
                 currentTrack={currentTrack} isPlaying={isPlaying}
-                onJump={file => startTrack(file)}
+                onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} />
               <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
