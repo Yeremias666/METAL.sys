@@ -719,9 +719,9 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
 function Banner({ onNav }) {
   return (
     <div className="banner">
-      <pre className="ascii-logo chroma" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>{ASCII_LOGO}</pre>
+      <pre className="ascii-logo chroma">{ASCII_LOGO}</pre>
       <div>
-        <div className="banner-title glow">METAL.SYS</div>
+        <div className="banner-title glow" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>METAL.SYS</div>
         <div className="banner-sub">// Reproductor web by <span style={{color:'var(--fg-primary)'}}>Yeremias</span> \m/</div>
         <div className="banner-sub" style={{fontSize:16, color:'var(--fg-dim)'}}>EST. 27/06/2026 ◆ METAL · HEAVY METAL · TRASH METAL · NU METAL · INDUSTRIAL METAL · ROCK TRANSGRESIVO · ROCK URBANO · ROCK</div>
       </div>
@@ -790,7 +790,7 @@ function Marquee({ allCats = [], active = true }) {
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
   const localTotal = localFiles.reduce((a, f) => a + (f.fileSize || 0), 0);
   const localSongCount = localFiles.filter(isAudioFile).length;
@@ -880,6 +880,16 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* REPRODUCIR TODO */}
+      <div className="section">
+        <div className="panel">
+          <div className="panel-hd">REPRODUCIR TODO <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px'}}>
+            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
           </div>
         </div>
       </div>
@@ -990,33 +1000,77 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, localFiles 
   );
 }
 
-function TrackList({ files, onOpen, onPlay }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
     </div>
   );
+  const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenPlaylistFor(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
   return (
     <div>
-      {files.map((f, i) => (
-        <div key={f.id} className="track-list-row" onClick={() => onOpen(f.id)}>
-          <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
-          {f.thumbnail
-            ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
-            : noteIcon}
-          <div style={{flex:1, minWidth:0}}>
-            <div className="tl-name">{f.name}</div>
-            <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-            {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
+      {files.map((f, i) => {
+        const isLiked = likedIds && likedIds.has && likedIds.has(f.id);
+        const showPlaylistMenu = openPlaylistFor === f.id;
+        return (
+          <div key={f.id} className="track-list-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
+            <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
+            {f.thumbnail
+              ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+              : noteIcon}
+            <div style={{flex:1, minWidth:0}}>
+              <div className="tl-name">{f.name}</div>
+              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
+              {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
+            </div>
+            {onToggleLike && (
+              <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+            )}
+            {onAddToPlaylist && (
+              <div style={{position:'relative', display:'flex', alignItems:'center'}}>
+                <button className="playlist-btn" style={{width:28, height:28, padding:0, marginLeft:6}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                {showPlaylistMenu && (
+                  <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                    {playlists.length === 0 ? (
+                      <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                    ) : (
+                      playlists.map(pl => {
+                        const hasTrack = (pl.songIds || []).includes(f.id);
+                        return (
+                          <button key={pl.id}
+                                  onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }}
+                                  style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                            {hasTrack ? '✓ ' : ''}{pl.name}
+                          </button>
+                        );
+                      })
+                    )}
+                    <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
           </div>
-          <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
 
-function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [] }) {
+function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
   const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
@@ -1101,7 +1155,10 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
         {sorted.length === 0
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
-          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile} />
+          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
+                       likedIds={likedIds} onToggleLike={onToggleLike}
+                       playlists={playlists} onAddToPlaylist={onAddToPlaylist}
+                       onOpenCreatePlaylist={onOpenCreatePlaylist} />
         }
       </div></div></div>
     </div>
@@ -5903,6 +5960,7 @@ function App() {
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
+  const [playlistSongToAdd, setPlaylistSongToAdd] = useState(null);
   const [showBookmarkModal, setShowBookmarkModal] = useState(false);
   const [showClipModal, setShowClipModal]         = useState(false);
   const [activeClip, setActiveClip] = useState(null);            // {start,end} — loops this range
@@ -6633,13 +6691,18 @@ function App() {
   };
   const stopClip = () => setActiveClip(null);
 
-  const addToPlaylist = (playlistId) => {
-    if (!currentTrackId) return;
+  const addSongToPlaylist = (fileId, playlistId) => {
+    if (!fileId) return;
     setPlaylists(prev => prev.map(pl =>
-      pl.id === playlistId && !pl.songIds.includes(currentTrackId)
-        ? { ...pl, songIds: [...pl.songIds, currentTrackId] }
+      pl.id === playlistId && !pl.songIds.includes(fileId)
+        ? { ...pl, songIds: [...pl.songIds, fileId] }
         : pl
     ));
+  };
+
+  const addToPlaylist = (playlistId) => {
+    if (!currentTrackId) return;
+    addSongToPlaylist(currentTrackId, playlistId);
   };
 
   const removeSongFromPlaylist = (playlistId, songId) => {
@@ -6649,16 +6712,18 @@ function App() {
   };
 
   const createPlaylist = ({ name, description, coverArt }) => {
+    const songToAdd = playlistSongToAdd || currentTrackId;
     const pl = {
       id: 'PL' + Date.now(),
       name,
       description: description || '',
       coverArt: coverArt || null,
-      songIds: currentTrackId ? [currentTrackId] : [],
+      songIds: songToAdd ? [songToAdd] : [],
       createdAt: Date.now(),
       lastPlayedAt: null,
     };
     setPlaylists(prev => [...prev, pl]);
+    setPlaylistSongToAdd(null);
     setShowCreatePlaylistModal(false);
   };
 
@@ -6925,6 +6990,7 @@ function App() {
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={navigateTo}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                          onPlayAll={() => playScope({ type: 'all' }, false)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
                           artistMeta={artistMeta} playlists={playlists} />
@@ -6933,6 +6999,9 @@ function App() {
                 <AllSongsPage files={files} localFiles={localFiles}
                               allCats={allCats} onNav={navigateTo}
                               onOpenFile={openFile} playlists={playlists}
+                              likedIds={likedIds} onToggleLike={toggleLike}
+                              onAddToPlaylist={addSongToPlaylist}
+                              onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
                               onPlayFile={(f) => {
                                 const allSorted = [...files, ...localFiles].filter(isAudioFile)
@@ -7146,7 +7215,7 @@ function App() {
       {showCreatePlaylistModal && (
         <CreatePlaylistModal
           onSave={createPlaylist}
-          onClose={() => setShowCreatePlaylistModal(false)}
+          onClose={() => { setShowCreatePlaylistModal(false); setPlaylistSongToAdd(null); }}
         />
       )}
 
