@@ -2046,7 +2046,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
-                REPRODUCIENDO AHORA
+                <span style={{color:'var(--fg-dim)'}}>/{cat}/</span><span style={{color:'var(--fg-primary)'}}>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// DISCO</span>
             </div>
@@ -3204,7 +3204,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
     <div className="detail-page">
       <div className="panel">
         <div className="panel-hd">
-          REPRODUCIENDO AHORA <span className="dots">/// {file.category}</span>
+          <span style={{color:'var(--fg-dim)'}}>/{file.artist || file.category}/{file.album || 'SINGLE'}/</span><span style={{color:'var(--fg-primary)'}}>{file.name}</span>
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:14, marginBottom: 14, flexWrap:'wrap'}}>
@@ -3761,8 +3761,6 @@ function Terminal({ files, localFiles = [], allCats }) {
       <span className="t-num">{allFiles.length}</span>{' '}<span className="t-label">canción{allFiles.length===1?'':'es'}</span>
       <span className="t-sep"> · </span>
       <span className="t-num">{fmtBytes(total)}</span>{' '}<span className="t-label">usados</span>
-      <span className="t-sep"> · </span>
-      <span className="t-num">{fmtBytes(Math.max(0, VAULT_CAP - total))}</span>{' '}<span className="t-label">libres</span>
     </div>
   );
   lines.push(
