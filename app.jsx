@@ -4567,7 +4567,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
 }
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
-function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile }) {
+function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
   const noteIcon = (
@@ -4592,21 +4592,14 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
       {liked.length === 0
         ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-            {liked.map((f, i) => (
-              <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}>
-                <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
-                {f.thumbnail
-                  ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
-                  : noteIcon}
-                <div style={{flex:1, minWidth:0}}>
-                  <div className="tl-name">{f.name}</div>
-                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-                  {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
-                </div>
-                <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile ? onPlayFile(f) : onOpenFile(f.id); }} title="Reproducir">▶</button>
-                <button className="like-btn liked" style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title="Quitar de Me Gusta">♥</button>
-              </div>
-            ))}
+            <TrackList files={liked}
+                       onOpen={onOpenFile}
+                       onPlay={onPlayFile}
+                       likedIds={likedIds}
+                       onToggleLike={onToggleLike}
+                       playlists={playlists}
+                       onAddToPlaylist={onAddToPlaylist}
+                       onOpenCreatePlaylist={onOpenCreatePlaylist} />
           </div></div></div>
       }
     </div>
@@ -7047,7 +7040,10 @@ function App() {
                     setManualQueue(null);
                     setPlayContext(ctx);
                     startTrack(f, ctx);
-                  }} />
+                  }}
+                  playlists={playlists}
+                  onAddToPlaylist={addSongToPlaylist}
+                  onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }} />
               )}
               {route.page === 'PLAYLIST' && !route.playlistId && (
                 <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
