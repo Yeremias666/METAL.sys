@@ -1498,10 +1498,18 @@ input:not([type=range]), textarea {
   border-color: rgba(255,255,255,0.9);
   background: linear-gradient(180deg, rgba(255,255,255,0.12), var(--fg-primary));
   box-shadow: none;
+  transform: none;
 }
 .album-play-btn:hover {
   border-color: #fff;
   box-shadow: none;
+  transform: none;
+}
+
+/* Ensure like/playlist buttons also appear on hover inside album panels */
+.panel .track-list-row:hover .like-btn,
+.panel .track-list-row:hover .playlist-btn {
+  opacity: 1;
 }
 /* Movil: ocultar vinilo, solo portada */
 .is-touch .album-detail-thumb .album-card-vinyl { display: none; }
