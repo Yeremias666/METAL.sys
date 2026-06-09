@@ -4213,7 +4213,7 @@ function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onP
   );
 }
 
-// ─── PLAY QUEUE (right sidebar) ────────────────────────────
+// ─── PLAY QUEUE (right sidebar) ───────────────────────────
 function PlayQueue({ queue, currentId, onJump, onReorder }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
