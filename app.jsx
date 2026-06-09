@@ -1073,26 +1073,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
 function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
-  const [sorted, setSorted] = useState([]);
-  const displayFiles = sorted.length === allFiles.length ? sorted : allFiles;
-
-  useEffect(() => {
-    setSorted([]);
-    if (allFiles.length === 0) return;
-
-    const sortFiles = () => {
-      setSorted([...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })));
-    };
-
-    if ('requestIdleCallback' in window) {
-      const id = requestIdleCallback(sortFiles, { timeout: 250 });
-      return () => cancelIdleCallback(id);
-    }
-
-    const timeout = setTimeout(sortFiles, 0);
-    return () => clearTimeout(timeout);
-  }, [allFiles]);
-
+  const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
   const gq = normStr(query.trim());
   const suggestions = useMemo(() => {
     if (!gq) return [];
@@ -1116,7 +1097,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">TODO <span className="dots">/// {displayFiles.length} CANCIÓN{displayFiles.length===1?'':'ES'}</span></div>
+        <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
         <div className="panel-body">
           <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
         </div>
@@ -1172,9 +1153,9 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {displayFiles.length === 0
+        {sorted.length === 0
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
-          : <TrackList files={displayFiles} onOpen={onOpenFile} onPlay={onPlayFile}
+          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
                        likedIds={likedIds} onToggleLike={onToggleLike}
                        playlists={playlists} onAddToPlaylist={onAddToPlaylist}
                        onOpenCreatePlaylist={onOpenCreatePlaylist} />
