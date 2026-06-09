@@ -1527,6 +1527,7 @@ function FolderImportSection({ vault, onUpload }) {
         // Read ID3 tags
         let tags = {};
         try { const ab = await file.slice(0, 1024*1024).arrayBuffer(); tags = await _parseID3Buffer(ab); } catch {}
+        const primaryArtist = tags.albumArtist || tags.artist || 'LOCAL';
         await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => {
@@ -1534,8 +1535,8 @@ function FolderImportSection({ vault, onUpload }) {
               _rawFile: file,
               name:     tags.title  || file.name.replace(/\.[^.]+$/, ''),
               description: [tags.album, tags.year, tags.genre].filter(Boolean).join(' · '),
-              category: tags.artist || 'LOCAL',
-              artist:   tags.artist || 'LOCAL',
+              category: primaryArtist,
+              artist:   primaryArtist,
               album:    tags.album  || '',
               track:    tags.track  || '',
               disc:     tags.disc   || '',
