@@ -685,6 +685,7 @@ function NavGlyph({ kind }) {
     case 'INFO': return <svg {...p}><circle cx="12" cy="12" r="9" {...s}/><circle cx="12" cy="8" r="1" {...f}/><line x1="12" y1="11" x2="12" y2="17" {...s}/></svg>;
     case 'INSTALAR': return <svg {...p}><rect x="3" y="13" width="18" height="7" rx="1" {...s}/><path d="M12 3 V13 M7 9 L12 13 L17 9" {...s}/></svg>;
     case 'LISTA': return <svg {...p}><line x1="8" y1="6" x2="20" y2="6" {...s}/><line x1="8" y1="12" x2="20" y2="12" {...s}/><line x1="8" y1="18" x2="20" y2="18" {...s}/><circle cx="4" cy="6" r="1.5" {...f}/><circle cx="4" cy="12" r="1.5" {...f}/><circle cx="4" cy="18" r="1.5" {...f}/></svg>;
+    case 'NOTICIAS': return <svg {...p}><rect x="3" y="4" width="18" height="16" rx="1" {...s}/><line x1="7" y1="9" x2="17" y2="9" {...s}/><line x1="7" y1="13" x2="17" y2="13" {...s}/><line x1="7" y1="17" x2="13" y2="17" {...s}/></svg>;
     default: return <svg {...p}><circle cx="12" cy="12" r="4" {...f}/></svg>;
   }
 }
@@ -760,6 +761,7 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
         <span className="prompt glow">C:\&gt;</span>
         <button className={current.page === 'INICIO'      ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
         <button className={current.page === 'STATS'       ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
+        <button className={current.page === 'NOTICIAS'    ? 'active' : ''} onClick={() => onNav({ page: 'NOTICIAS' })}><NavGlyph kind="NOTICIAS" />NOTICIAS</button>
         <button className={current.page === 'SUBIR'       ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
         <button className={current.page === 'TODO'        ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
         <button className={current.page === 'LOCAL'       ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
@@ -5952,8 +5954,223 @@ function hashToRoute(hash) {
   }
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
   const page = h.toUpperCase();
-  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
+  const valid = ['STATS','NOTICIAS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
   return valid.includes(page) ? { page } : { page: 'INICIO' };
+}
+
+// ─── NEWS PAGE ─────────────────────────────────────────────────
+const NEWS_SOURCES = [
+  { id: 'blabbermouth',   name: 'Blabbermouth',  url: 'https://www.blabbermouth.net/feed/',      lang: 'en' },
+  { id: 'metalinjection', name: 'Metal Injection',url: 'https://metalinjection.net/feed',         lang: 'en' },
+  { id: 'loudwire',       name: 'Loudwire',       url: 'https://loudwire.com/feed/',              lang: 'en' },
+  { id: 'dirtyrock',      name: 'Dirty Rock',     url: 'https://dirtyrock.es/feed/',              lang: 'es' },
+  { id: 'mariskal',       name: 'Mariskal Rock',  url: 'https://www.mariskalrock.com/feed/',      lang: 'es' },
+];
+const NEWS_CACHE_KEY = 'metalsys_news_v1';
+const NEWS_TRANS_KEY = 'metalsys_news_trans_v1';
+const NEWS_CACHE_TTL = 30 * 60 * 1000;
+
+function stripHtml(html) {
+  return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')
+    .replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<')
+    .replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").trim();
+}
+
+async function gtTranslate(text) {
+  if (!text) return text;
+  const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=${encodeURIComponent(text)}`);
+  const d = await r.json();
+  return d[0].map(c => c[0]).join('');
+}
+
+async function fetchNewsSource(src) {
+  const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=20`);
+  const d = await r.json();
+  if (d.status !== 'ok') throw new Error(d.message || 'feed error');
+  return d.items.map(item => ({
+    id: item.guid || item.link,
+    source: src.id,
+    sourceName: src.name,
+    lang: src.lang,
+    title: item.title || '',
+    description: stripHtml(item.description || '').slice(0, 350),
+    content: item.content || item.description || '',
+    link: item.link,
+    thumbnail: item.thumbnail || '',
+    pubDate: item.pubDate,
+    titleEs: null,
+    descEs: null,
+  }));
+}
+
+function NewsPage() {
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [srcErrors, setSrcErrors]   = useState({});
+  const [filter, setFilter]         = useState('ALL');
+  const [reader, setReader]         = useState(null);
+  const [readerContent, setReaderContent] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const transCache = useRef({});
+
+  useEffect(() => { loadAll(); }, []);
+
+  const loadAll = async () => {
+    try {
+      const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || 'null');
+      if (cached && Date.now() - cached.ts < NEWS_CACHE_TTL) {
+        let trans = {};
+        try { trans = JSON.parse(localStorage.getItem(NEWS_TRANS_KEY) || '{}'); } catch(e) {}
+        transCache.current = trans;
+        const merged = cached.items.map(i => trans[i.id] ? { ...i, titleEs: trans[i.id].t, descEs: trans[i.id].d } : i);
+        setItems(merged);
+        setLoading(false);
+        translateMissing(merged);
+        return;
+      }
+    } catch(e) {}
+
+    setLoading(true);
+    const errs = {};
+    const all = [];
+    await Promise.all(NEWS_SOURCES.map(async src => {
+      try { all.push(...await fetchNewsSource(src)); }
+      catch(e) { errs[src.id] = true; }
+    }));
+    all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+    const top = all.slice(0, 60);
+    try { localStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items: top })); } catch(e) {}
+    setSrcErrors(errs);
+    setItems(top);
+    setLoading(false);
+    translateMissing(top);
+  };
+
+  const translateMissing = async (list) => {
+    let trans = {};
+    try { trans = JSON.parse(localStorage.getItem(NEWS_TRANS_KEY) || '{}'); } catch(e) {}
+    transCache.current = trans;
+    const todo = list.filter(i => i.lang === 'en' && !trans[i.id]);
+    if (!todo.length) return;
+    setTranslating(true);
+    for (const item of todo) {
+      try {
+        const [t, d] = await Promise.all([
+          gtTranslate(item.title),
+          gtTranslate(item.description.slice(0, 250)),
+        ]);
+        trans[item.id] = { t, d };
+        transCache.current = { ...trans };
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, titleEs: t, descEs: d } : i));
+        await new Promise(r => setTimeout(r, 120));
+      } catch(e) {}
+    }
+    try { localStorage.setItem(NEWS_TRANS_KEY, JSON.stringify(trans)); } catch(e) {}
+    setTranslating(false);
+  };
+
+  const openReader = async (item) => {
+    setReader(item);
+    setReaderContent(null);
+    const rawContent = item.content || item.description || '';
+    const hasFullContent = rawContent.length > (item.description || '').length + 100;
+    const body = hasFullContent ? stripHtml(rawContent) : stripHtml(rawContent);
+    if (item.lang === 'es') {
+      setReaderContent(body);
+    } else {
+      setReaderContent('[ traduciendo... ]');
+      try {
+        const translated = await gtTranslate(body.slice(0, 3000));
+        setReaderContent(translated);
+      } catch(e) { setReaderContent(body); }
+    }
+  };
+
+  const fmtDate = (d) => {
+    const dt = new Date(d);
+    return `${dt.getDate().toString().padStart(2,'0')}/${(dt.getMonth()+1).toString().padStart(2,'0')}/${dt.getFullYear()}`;
+  };
+
+  const visible = filter === 'ALL' ? items : items.filter(i => i.source === filter);
+
+  if (reader) {
+    return (
+      <div>
+        <div className="panel">
+          <div className="panel-hd">
+            <button className="mini-btn alt" onClick={() => { setReader(null); setReaderContent(null); }} style={{marginRight:10}}>◀ VOLVER</button>
+            <span style={{color:'var(--fg-dim)', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.06em'}}>{reader.sourceName.toUpperCase()} · {fmtDate(reader.pubDate)}</span>
+          </div>
+          <div className="panel-body news-reader">
+            {reader.thumbnail && <img src={reader.thumbnail} alt="" className="news-reader-img" />}
+            <h2 className="news-reader-title">{reader.titleEs || reader.title}</h2>
+            <div className="news-reader-body">
+              {readerContent === '[ traduciendo... ]'
+                ? <span style={{fontFamily:'var(--pixel)', color:'var(--fg-dim)', fontSize:12}}>[ traduciendo... ]</span>
+                : (readerContent || '—')}
+            </div>
+            <a href={reader.link} target="_blank" rel="noopener noreferrer" className="big-btn ghost"
+               style={{display:'inline-block', marginTop:20, textDecoration:'none'}}>
+              ↗ ARTÍCULO ORIGINAL
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd">
+          NOTICIAS <span className="dots">/// {items.length} ARTÍCULOS</span>
+          {translating && <span style={{fontSize:10, fontFamily:'var(--pixel)', color:'var(--fg-dim)', marginLeft:14}}>[ traduciendo... ]</span>}
+        </div>
+        <div className="panel-body" style={{paddingBottom:0}}>
+          <div className="news-filters">
+            <button className={`news-fbtn${filter==='ALL'?' active':''}`} onClick={() => setFilter('ALL')}>TODO</button>
+            {NEWS_SOURCES.map(src => (
+              <button key={src.id} className={`news-fbtn${filter===src.id?' active':''}`} onClick={() => setFilter(src.id)}>
+                {src.name}{srcErrors[src.id] && <span style={{color:'var(--fg-primary)',marginLeft:4}}>✕</span>}
+              </button>
+            ))}
+            <button className="news-fbtn" onClick={() => { try{localStorage.removeItem(NEWS_CACHE_KEY);}catch(e){} loadAll(); }}
+                    style={{marginLeft:'auto'}} title="Refrescar">↺</button>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'48px 0',color:'var(--fg-dim)',fontFamily:'var(--pixel)',fontSize:12,letterSpacing:'0.1em'}}>
+          [ cargando feeds... ]
+        </div></div>
+      ) : visible.length === 0 ? (
+        <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'48px 0',color:'var(--fg-dim)',fontFamily:'var(--pixel)',fontSize:12}}>
+          Sin noticias disponibles.
+        </div></div>
+      ) : (
+        <div className="section news-grid">
+          {visible.map(item => (
+            <div key={item.id} className="news-card" onClick={() => openReader(item)}>
+              <div className="news-card-img-wrap">
+                {item.thumbnail
+                  ? <img src={item.thumbnail} alt="" className="news-card-img" />
+                  : <div className="news-card-no-img">◈</div>}
+              </div>
+              <div className="news-card-body">
+                <div className="news-card-meta">
+                  <span className="news-source-tag">{item.sourceName}</span>
+                  <span className="news-card-date">{fmtDate(item.pubDate)}</span>
+                </div>
+                <div className="news-card-title">{item.titleEs || item.title}</div>
+                <div className="news-card-desc">{item.descEs || item.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── MAIN APP ──────────────────────────────────────────────────
@@ -7189,6 +7406,7 @@ function App() {
               {route.page === 'STATS' && (
                 <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
               )}
+              {route.page === 'NOTICIAS' && <NewsPage />}
               {route.page === 'LOCAL' && (
                 <LocalPage
                   localFiles={localFiles} dirName={localDirName} scanning={localScanning}
