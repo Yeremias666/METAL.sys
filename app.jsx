@@ -2023,14 +2023,14 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         </div>
       )}
 
-      <div className="section">
+      <div className="section detail-page">
         {currentAlbum ? (
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
-                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1}}>{currentAlbum.name}</span>
+                REPRODUCIENDO AHORA
               </span>
-              <span className="dots" style={{flexShrink:0}}>/// {currentSongs.length} CANCIONES</span>
+              <span className="dots" style={{flexShrink:0}}>/// DISCO</span>
             </div>
             <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px', flexDirection:'column', alignItems:'center'}}>
               <div className="album-detail-thumb"
