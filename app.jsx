@@ -1003,17 +1003,22 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
 function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
+        <ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/>
+        <ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/>
+        <line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/>
+        <line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/>
+        <line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/>
+      </svg>
     </div>
   );
+
   const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
   const menuRef = useRef(null);
 
   useEffect(() => {
     const handleOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpenPlaylistFor(null);
-      }
+      if (menuRef.current && !menuRef.current.contains(e.target)) setOpenPlaylistFor(null);
     };
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
@@ -1030,6 +1035,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
             {f.thumbnail ? (
               <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
             ) : noteIcon}
+
             <div style={{flex:1, minWidth:0}}>
               <div className="tl-name">{f.name}</div>
               <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
@@ -1037,53 +1043,39 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
                 <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
               )}
             </div>
+
             <div className="track-list-row-actions">
-              <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
-              <div className="track-list-right-actions">
-              {onToggleLike && (
-                <button
-                  className={`like-btn${isLiked ? ' liked' : ''}`}
-                  style={{flexShrink:0}}
-                  onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }}
-                  title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>
-                  ♥
-                </button>
-              )}
-              {onAddToPlaylist && (
-                <div style={{position:'relative', display:'flex', alignItems:'center'}}>
-                  <button
-                    className="playlist-btn"
-                    style={{width:28, height:28, padding:0}}
-                    onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }}
-                    title="Añadir a playlist">
-                    ＋
-                  </button>
-                  {showPlaylistMenu && (
-                    <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
-                      {playlists.length === 0 ? (
-                        <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                      ) : (
-                        playlists.map(pl => {
-                          const hasTrack = (pl.songIds || []).includes(f.id);
-                          return (
-                            <button
-                              key={pl.id}
-                              onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }}
-                              style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
-                              {hasTrack ? '✓ ' : ''}{pl.name}
-                            </button>
-                          );
-                        })
+              <div style={{display:'flex', alignItems:'center', gap:8}}>
+                <div style={{display:'flex', alignItems:'center', gap:8}}>
+                  {onToggleLike && (
+                    <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+                  )}
+
+                  {onAddToPlaylist && (
+                    <div style={{position:'relative'}}>
+                      <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                      {showPlaylistMenu && (
+                        <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                          {playlists.length === 0 ? (
+                            <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                          ) : (
+                            playlists.map(pl => {
+                              const hasTrack = (pl.songIds || []).includes(f.id);
+                              return (
+                                <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                                  {hasTrack ? '✓ ' : ''}{pl.name}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
                       )}
-                      <button
-                        className="mp-menu-submenu-create"
-                        onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>
-                        ＋ NUEVA PLAYLIST
-                      </button>
                     </div>
                   )}
+
+                  <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         );
