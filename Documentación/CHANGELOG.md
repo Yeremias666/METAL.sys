@@ -5,6 +5,21 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-09 — Fix RSS parsing en página NOTICIAS
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- `fetchNewsSource`: cambiado de `querySelectorAll('channel > item, feed > entry')` a `getElementsByTagName('item')` / `getElementsByTagName('entry')` — más robusto con XML arbitrario.
+- Cambiado `DOMParser` de `'text/xml'` a `'application/xml'` para mejor compatibilidad.
+- Añadida detección de respuesta HTML (redirect/error) antes de parsear.
+- Añadida verificación de `parsererror` en el documento resultante.
+- Extracción de `<link>` más robusta: lee `textContent` y `getAttribute('href')`.
+- Si no hay items, lanza error para que el source aparezca en `srcErrors`.
+
+---
+
 ## 2026-06-09 — Vista de columnas en lista de canciones de disco (PC)
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  

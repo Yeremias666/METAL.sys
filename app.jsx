@@ -5987,29 +5987,46 @@ async function fetchNewsSource(src) {
   const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`;
   const r = await fetch(proxy);
   const d = await r.json();
-  if (!d.contents) throw new Error('empty response');
+  const xml = d.contents || '';
+  if (!xml || xml.trimStart().startsWith('<!DOCTYPE') || xml.trimStart().startsWith('<html')) throw new Error('not rss');
 
-  const doc = new DOMParser().parseFromString(d.contents, 'text/xml');
-  const nodes = [...doc.querySelectorAll('channel > item, feed > entry')];
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('xml parse error');
+
+  const itemNodes = doc.getElementsByTagName('item');
+  const entryNodes = doc.getElementsByTagName('entry');
+  const nodes = itemNodes.length > 0 ? [...itemNodes] : [...entryNodes];
+  if (!nodes.length) throw new Error('no items');
 
   return nodes.slice(0, 20).map(node => {
-    const t = tag => { const el = node.getElementsByTagName(tag)[0]; return el ? el.textContent.trim() : ''; };
-    const a = (tag, att) => { const el = node.getElementsByTagName(tag)[0]; return el ? (el.getAttribute(att) || '') : ''; };
+    const t = tag => {
+      const el = node.getElementsByTagName(tag)[0];
+      return el ? (el.textContent || '').trim() : '';
+    };
+    const a = (tag, att) => {
+      const els = node.getElementsByTagName(tag);
+      for (let i = 0; i < els.length; i++) {
+        const v = els[i].getAttribute(att);
+        if (v) return v;
+      }
+      return '';
+    };
 
-    const title = t('title');
-    const link  = t('link') || a('link', 'href');
-    const desc  = t('description') || t('summary');
+    const title   = t('title');
+    const linkEl  = node.getElementsByTagName('link')[0];
+    const link    = linkEl ? (linkEl.textContent.trim() || linkEl.getAttribute('href') || '') : '';
+    const desc    = t('description') || t('summary');
     const content = t('content:encoded') || t('content') || desc;
-    const pubDate = t('pubDate') || t('published') || t('updated') || t('dc:date') || '';
-    const guid  = t('guid') || link;
+    const pubDate = t('pubDate') || t('published') || t('updated') || '';
+    const guid    = t('guid') || link;
 
     let thumbnail = a('media:thumbnail', 'url') || a('media:content', 'url') || '';
     if (!thumbnail) {
       const enc = node.getElementsByTagName('enclosure')[0];
       if (enc && (enc.getAttribute('type') || '').startsWith('image')) thumbnail = enc.getAttribute('url') || '';
     }
-    if (!thumbnail && content) {
-      const m = content.match(/<img[^>]+src=["']([^"'#][^"']*\.(?:jpg|jpeg|png|webp)[^"']*)["']/i);
+    if (!thumbnail) {
+      const m = (content || desc).match(/<img[^>]+src=["']([^"']+\.(?:jpe?g|png|webp)[^"']*)["']/i);
       if (m) thumbnail = m[1];
     }
 
