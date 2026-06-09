@@ -3116,6 +3116,8 @@ function UploadProgressPage({ progress }) {
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
 function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav, playlists = [], setPlaylistSongToAdd, onAddToPlaylist }) {
   const [editing, setEditing] = useState(false);
+  const [openPlaylistMenu, setOpenPlaylistMenu] = useState(false);
+  const playlistMenuRef = useRef(null);
   const [detailSearch, setDetailSearch] = useState('');
   const [editingBmId, setEditingBmId]     = useState(null);
   const [editBmDraft, setEditBmDraft]     = useState('');
@@ -3137,6 +3139,12 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
     else if (isMarkdownFile(file)) setTab('md');
     else setTab('desc');
   }, [file.id]);
+
+  useEffect(() => {
+    const h = (e) => { if (openPlaylistMenu && playlistMenuRef.current && !playlistMenuRef.current.contains(e.target)) setOpenPlaylistMenu(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [openPlaylistMenu]);
 
   const hasText = isTextFile(file);
   const hasZip = isZipFile(file);
@@ -3475,6 +3483,24 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
 
             {/* Big action buttons */}
             <div className="player-actions" style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+              {onAddToPlaylist && (
+                <div style={{position:'relative'}} ref={playlistMenuRef}>
+                  <button className="playlist-btn" onClick={(e) => { e.stopPropagation(); setOpenPlaylistMenu(p => !p); }} title="Añadir a playlist">＋</button>
+                  {openPlaylistMenu && (
+                    <div className="mp-menu-dropdown" style={{position:'absolute', bottom:'100%', left:0, background:'var(--bg-panel)', border:'1px solid var(--fg-primary)', minWidth:120, zIndex:1000, marginBottom:4}}>
+                      <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); if (setPlaylistSongToAdd) setPlaylistSongToAdd(file.id); setOpenPlaylistMenu(false); }}>＋ NUEVA PLAYLIST</button>
+                      {playlists.map(pl => {
+                        const hasTrack = (pl.songIds || []).includes(file.id);
+                        return (
+                          <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(file.id, pl.id); setOpenPlaylistMenu(false); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default', display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', fontSize:'11px', fontFamily:'var(--pixel)'} : {display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', color:'var(--fg-text)', cursor:'pointer', fontSize:'11px', fontFamily:'var(--pixel)'}}>
+                            {hasTrack ? '✓ ' : ''}{pl.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               {likedIds && <LikeButton fileId={file.id} likedIds={likedIds} onToggle={onToggleLike} />}
               <button className="big-btn" onClick={() => onDownload(file)}>↓ DESCARGAR AHORA</button>
               <button className="big-btn ghost" onClick={() => { if (confirm(`¿Eliminar "${file.name}" de la bóveda?`)) onDelete(file); }}>✕ ELIMINAR</button>
@@ -5950,6 +5976,7 @@ function App() {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.8);
   const [playContext, setPlayContext] = useState({ type: 'all', shuffle: false });
+  const [detailOriginQueue, setDetailOriginQueue] = useState(null);
   const [repeatMode, setRepeatMode] = useState('off');
   const [id3Cache, setId3Cache] = useState({}); // {fileId: tags}
 
@@ -6323,7 +6350,30 @@ function App() {
     navigateTo({ page: 'CAT', cat: name });
   };
 
-  const openFile = (id) => navigateTo({ page: 'DETAIL', fileId: id });
+  const openFile = (id) => {
+    // Detect origin context to build a navigation queue for DETAIL prev/next behavior
+    try {
+      const allAudio = [...files, ...localFiles].filter(isAudioFile);
+      let originQueue = null;
+      if (route.page === 'PLAYLIST' && route.playlistId) {
+        const pl = playlists.find(p => p.id === route.playlistId);
+        if (pl) originQueue = (pl.songIds || []).map(x => allAudio.find(f => f.id === x)).filter(Boolean);
+      } else if (route.page === 'TODO') {
+        originQueue = [...allAudio].sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
+      } else if (route.page === 'MESGUSTA') {
+        originQueue = allAudio.filter(f => likedIds.has(f.id));
+      } else if (route.page === 'CAT') {
+        const artist = route.cat;
+        if (route.album) originQueue = allAudio.filter(f => (f.category || f.artist) === artist && (f.album || 'SINGLE') === route.album).sort(sortByDiscTrack);
+        else originQueue = allAudio.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
+      } else if (route.page === 'PLAYLIST' && !route.playlistId) {
+        // On playlist index page no specific playlist selected — leave null
+        originQueue = null;
+      }
+      setDetailOriginQueue(originQueue && originQueue.length ? originQueue : null);
+    } catch (e) { setDetailOriginQueue(null); }
+    navigateTo({ page: 'DETAIL', fileId: id });
+  };
 
   // ───── MULTI-SELECT ─────
   const toggleSel = (id) => {
@@ -6869,23 +6919,26 @@ function App() {
     }
   };
   const playNext = (wrap = true, { autoAdvance = false } = {}) => {
-    if (effectiveQueue.length === 0) return;
-    const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
-    const next = wrap ? effectiveQueue[(idx + 1) % effectiveQueue.length] : effectiveQueue[idx + 1];
+    // Prefer a detail-origin queue when viewing DETAIL (navegación desde playlists/TODO/ME GUSTA)
+    const queue = (route.page === 'DETAIL' && detailOriginQueue && detailOriginQueue.length) ? detailOriginQueue : effectiveQueue;
+    if (!queue || queue.length === 0) return;
+    const idx = queue.findIndex((f) => f.id === currentTrackId);
+    const next = (idx === -1) ? queue[0] : (wrap ? queue[(idx + 1) % queue.length] : queue[idx + 1]);
     if (next) {
       if (!autoAdvance) addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
       startTrack(next, undefined, { skipLog: true });
     }
   };
   const playPrev = () => {
-    if (effectiveQueue.length === 0) return;
+    const queue = (route.page === 'DETAIL' && detailOriginQueue && detailOriginQueue.length) ? detailOriginQueue : effectiveQueue;
+    if (!queue || queue.length === 0) return;
     // Si la canción lleva más de 3s reproducida, volver al inicio sin loguear
     if (position > 3) {
       seek(0);
       return;
     }
-    const idx = effectiveQueue.findIndex((f) => f.id === currentTrackId);
-    const prev = effectiveQueue[(idx - 1 + effectiveQueue.length) % effectiveQueue.length];
+    const idx = queue.findIndex((f) => f.id === currentTrackId);
+    const prev = (idx === -1) ? queue[queue.length - 1] : queue[(idx - 1 + queue.length) % queue.length];
     if (prev) {
       addToLog({ kind: 'PREV', name: prev.name, artist: prev.artist || prev.category || '' });
       startTrack(prev, undefined, { skipLog: true });
