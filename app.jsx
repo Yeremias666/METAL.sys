@@ -1032,7 +1032,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
   );
 }
 
-function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, albumMode = false }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
@@ -1055,71 +1055,6 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
-
-  if (albumMode) {
-    return (
-      <table className="tl-tbl">
-        <thead>
-          <tr>
-            <th></th>
-            <th></th>
-            <th>TÍTULO</th>
-            <th>DUR.</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {files.map((f, i) => {
-            const isLiked = likedIds && likedIds.has && likedIds.has(f.id);
-            const showPlaylistMenu = openPlaylistFor === f.id;
-            const trackNum = f.track ? String(f.track.split('/')[0]).padStart(2, '0') : String(i + 1).padStart(2, '0');
-            return (
-              <tr key={f.id} className="tl-tbl-row" onClick={() => onOpen(f.id)}>
-                <td className="tl-tc-num">{trackNum}</td>
-                <td className="tl-tc-thumb">
-                  {f.thumbnail
-                    ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', borderRadius:2, imageRendering:'pixelated', display:'block'}} />
-                    : noteIcon}
-                </td>
-                <td className="tl-tc-title">
-                  <div className="tl-name">{f.name}</div>
-                </td>
-                <td className="tl-tc-dur">
-                  {f.duration > 0 ? fmtTimeSec(f.duration) : '—'}
-                </td>
-                <td className="tl-tc-act">
-                  <div className="tl-tbl-btns">
-                    {onToggleLike && (
-                      <button className={`like-btn${isLiked ? ' liked' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
-                    )}
-                    {onAddToPlaylist && (
-                      <div style={{position:'relative'}}>
-                        <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
-                        {showPlaylistMenu && (
-                          <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
-                            <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                            {playlists.map(pl => {
-                              const hasTrack = (pl.songIds || []).includes(f.id);
-                              return (
-                                <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
-                                  {hasTrack ? '✓ ' : ''}{pl.name}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    );
-  }
 
   return (
     <div>
@@ -2142,7 +2077,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   SIN CANCIONES
                 </div>
               ) : (
-                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} albumMode />
+                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
               )}
             </div>
           </div>
