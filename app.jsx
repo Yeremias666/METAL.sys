@@ -5985,28 +5985,51 @@ async function gtTranslate(text) {
 
 async function fetchNewsSource(src) {
   let xml = '';
-  const proxies = [
-    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-  ];
-  for (const mkProxy of proxies) {
-    try {
-      const r = await fetch(mkProxy(src.url));
-      if (!r.ok) continue;
+
+  // proxy 1: corsproxy.io (raw)
+  try {
+    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(src.url)}`);
+    if (r.ok) {
       const txt = await r.text();
-      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE')) {
-        xml = txt; break;
+      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
+        xml = txt;
+    }
+  } catch(e) {}
+
+  // proxy 2: allorigins.win/get (JSON wrapper)
+  if (!xml) {
+    try {
+      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`);
+      if (r.ok) {
+        const d = await r.json();
+        let txt = d.contents || '';
+        // allorigins sometimes HTML-encodes the content — decode it
+        if (txt.includes('&lt;') && !txt.includes('<rss') && !txt.includes('<?xml')) {
+          const tmp = document.createElement('textarea');
+          tmp.innerHTML = txt;
+          txt = tmp.value;
+        }
+        if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
+          xml = txt;
       }
-    } catch(e) { continue; }
+    } catch(e) {}
   }
+
   if (!xml) throw new Error('all proxies failed');
 
-  const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  if (doc.querySelector('parsererror')) throw new Error('xml parse error');
+  console.log(`[news:${src.id}] xml length=${xml.length} starts="${xml.slice(0,80).replace(/\n/g,' ')}"`);
 
-  const itemNodes = doc.getElementsByTagName('item');
-  const entryNodes = doc.getElementsByTagName('entry');
-  const nodes = itemNodes.length > 0 ? [...itemNodes] : [...entryNodes];
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const errEl = doc.querySelector('parsererror');
+  if (errEl) {
+    console.error(`[news:${src.id}] parsererror:`, errEl.textContent.slice(0,200));
+    throw new Error('xml parse error');
+  }
+
+  const itemNodes = [...doc.getElementsByTagName('item')];
+  const entryNodes = [...doc.getElementsByTagName('entry')];
+  const nodes = itemNodes.length > 0 ? itemNodes : entryNodes;
+  console.log(`[news:${src.id}] items=${itemNodes.length} entries=${entryNodes.length}`);
   if (!nodes.length) throw new Error('no items');
 
   return nodes.slice(0, 20).map(node => {
@@ -6044,7 +6067,7 @@ async function fetchNewsSource(src) {
     return { id: guid, source: src.id, sourceName: src.name, lang: src.lang,
              title, description: stripHtml(desc).slice(0, 350), content, link,
              thumbnail, pubDate, titleEs: null, descEs: null };
-  }).filter(i => i.title && i.link);
+  }).filter(i => i.title);
 }
 
 function NewsPage() {
