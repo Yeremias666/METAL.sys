@@ -1056,52 +1056,95 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
 
+  if (albumMode) {
+    return (
+      <table className="tl-tbl">
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+            <th>TÍTULO</th>
+            <th>DUR.</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {files.map((f, i) => {
+            const isLiked = likedIds && likedIds.has && likedIds.has(f.id);
+            const showPlaylistMenu = openPlaylistFor === f.id;
+            const trackNum = f.track ? String(f.track.split('/')[0]).padStart(2, '0') : String(i + 1).padStart(2, '0');
+            return (
+              <tr key={f.id} className="tl-tbl-row" onClick={() => onOpen(f.id)}>
+                <td className="tl-tc-num">{trackNum}</td>
+                <td className="tl-tc-thumb">
+                  {f.thumbnail
+                    ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', borderRadius:2, imageRendering:'pixelated', display:'block'}} />
+                    : noteIcon}
+                </td>
+                <td className="tl-tc-title">
+                  <div className="tl-name">{f.name}</div>
+                </td>
+                <td className="tl-tc-dur">
+                  {f.duration > 0 ? fmtTimeSec(f.duration) : '—'}
+                </td>
+                <td className="tl-tc-act">
+                  <div className="tl-tbl-btns">
+                    {onToggleLike && (
+                      <button className={`like-btn${isLiked ? ' liked' : ''}`} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+                    )}
+                    {onAddToPlaylist && (
+                      <div style={{position:'relative'}}>
+                        <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                        {showPlaylistMenu && (
+                          <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                            <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                            {playlists.map(pl => {
+                              const hasTrack = (pl.songIds || []).includes(f.id);
+                              return (
+                                <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                                  {hasTrack ? '✓ ' : ''}{pl.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
+  }
+
   return (
-    <div className={albumMode ? 'tl-album' : ''}>
-      {albumMode && (
-        <div className="tl-album-header">
-          <span /><span />
-          <span>TÍTULO</span>
-          <span style={{textAlign:'right'}}>DUR.</span>
-          <span />
-        </div>
-      )}
+    <div>
       {files.map((f, i) => {
         const isLiked = likedIds && likedIds.has && likedIds.has(f.id);
         const showPlaylistMenu = openPlaylistFor === f.id;
-        const trackNum = albumMode && f.track ? String(f.track.split('/')[0]).padStart(2, '0') : String(i + 1).padStart(2, '0');
         return (
           <div key={f.id} className="track-list-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
-            <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{albumMode ? trackNum : i+1}</span>
+            <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
             {f.thumbnail ? (
               <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
             ) : noteIcon}
-
-            {albumMode ? (
-              <div className="tl-row-title">
-                <div className="tl-name">{f.name}</div>
-              </div>
-            ) : (
-              <div style={{flex:1, minWidth:0}}>
-                <div className="tl-name">{f.name}</div>
-                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
-                {f.album && f.album !== (f.artist || f.category) && (
-                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
-                )}
-              </div>
-            )}
-
-            {albumMode && (
-              <span className="tl-dur">{f.duration > 0 ? fmtTimeSec(f.duration) : '—'}</span>
-            )}
-
+            <div style={{flex:1, minWidth:0}}>
+              <div className="tl-name">{f.name}</div>
+              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
+              {f.album && f.album !== (f.artist || f.category) && (
+                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
+              )}
+            </div>
             <div className="track-list-row-actions">
               <div style={{display:'flex', alignItems:'center', gap:8}}>
                 <div style={{display:'flex', alignItems:'center', gap:8}}>
                   {onToggleLike && (
                     <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
                   )}
-
                   {onAddToPlaylist && (
                     <div style={{position:'relative'}}>
                       <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
@@ -1120,7 +1163,6 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
                       )}
                     </div>
                   )}
-
                   <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
                 </div>
               </div>
