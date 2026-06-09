@@ -7056,14 +7056,14 @@ function App() {
 
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
+    if (detailOriginQueue && detailOriginQueue.length) return detailOriginQueue;
     const allF = [...files, ...localFiles].filter(isAudioFile);
     const artist = currentFile.category || currentFile.artist;
-    // Always navigate within the album, falling back to the full artist
     if (currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
     return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
-  }, [currentFile, files, localFiles]);
+  }, [currentFile, detailOriginQueue, files, localFiles]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
   const hasPrevDetail = detailNavIdx > 0;
