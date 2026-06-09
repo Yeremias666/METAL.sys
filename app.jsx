@@ -3484,15 +3484,15 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
             {/* Big action buttons */}
             <div className="player-actions" style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
               {onAddToPlaylist && (
-                <div style={{position:'relative'}} ref={playlistMenuRef}>
+                <div className="detail-playlist-wrapper" ref={playlistMenuRef}>
                   <button className="playlist-btn" onClick={(e) => { e.stopPropagation(); setOpenPlaylistMenu(p => !p); }} title="Añadir a playlist">＋</button>
                   {openPlaylistMenu && (
-                    <div className="mp-menu-dropdown" style={{position:'absolute', bottom:'100%', left:0, background:'var(--bg-panel)', border:'1px solid var(--fg-primary)', minWidth:120, zIndex:1000, marginBottom:4}}>
+                    <div className="mp-menu-dropdown detail-playlist-dropdown">
                       <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); if (setPlaylistSongToAdd) setPlaylistSongToAdd(file.id); setOpenPlaylistMenu(false); }}>＋ NUEVA PLAYLIST</button>
                       {playlists.map(pl => {
                         const hasTrack = (pl.songIds || []).includes(file.id);
                         return (
-                          <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(file.id, pl.id); setOpenPlaylistMenu(false); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default', display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', fontSize:'11px', fontFamily:'var(--pixel)'} : {display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', color:'var(--fg-text)', cursor:'pointer', fontSize:'11px', fontFamily:'var(--pixel)'}}>
+                          <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(file.id, pl.id); setOpenPlaylistMenu(false); }} className={hasTrack ? 'playlist-option has-track' : 'playlist-option'}>
                             {hasTrack ? '✓ ' : ''}{pl.name}
                           </button>
                         );

@@ -4325,43 +4325,60 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   box-shadow: 0 0 8px var(--fg-primary);
 }
 
-/* Player/detail-specific sizing: match the heart button size and style */
+/* Player/detail-specific sizing: same button style as playlist button in song list, scaled to match the adjacent like button */
 .player-actions .playlist-btn {
   width: 38px;
   height: 38px;
-  font-size: 16px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
   margin-right: 6px;
-  background: rgba(214,31,31,0.15);
-  border: 1px solid var(--fg-primary);
-  color: var(--fg-primary);
-  text-shadow: 0 0 6px var(--fg-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid var(--fg-primary);
+  background: transparent;
+  color: var(--fg-primary);
+  border-radius: 2px;
+  cursor: pointer;
+  text-shadow: 0 0 6px var(--fg-primary);
 }
 .player-actions .playlist-btn:hover {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 12px var(--fg-primary);
 }
-.player-actions .mp-menu-dropdown {
-  min-width: 220px;
+.detail-playlist-wrapper { position: relative; }
+.detail-playlist-dropdown {
+  min-width: 260px;
   right: auto;
   left: 0;
-  background: rgba(10,4,8,0.96);
-  border-color: var(--fg-primary);
-  box-shadow: 0 0 18px rgba(214,31,31,0.4);
+  background: rgba(10,4,8,0.95);
+  border: 1px solid var(--fg-primary);
+  box-shadow: 0 0 24px rgba(214,31,31,0.45);
+  padding: 8px 0;
 }
-.player-actions .mp-menu-dropdown button {
-  font-size: 15px;
-  padding: 10px 14px;
-  color: var(--fg-text);
+.detail-playlist-dropdown button {
+  display: block;
+  width: 100%;
+  text-align: left;
   background: transparent;
+  border: none;
+  border-bottom: 1px dotted rgba(214,31,31,0.3);
+  color: var(--fg-text);
+  font-family: var(--mono);
+  font-size: 16px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+  white-space: nowrap;
 }
-.player-actions .mp-menu-dropdown button:hover {
+.detail-playlist-dropdown button:last-child { border-bottom: none; }
+.detail-playlist-dropdown button:hover {
   background: rgba(214,31,31,0.18);
   color: var(--fg-accent);
 }
+.detail-playlist-dropdown .has-track { color: var(--fg-primary); opacity: 0.85; cursor: default; }
 @media (max-width: 700px) {
   .track-list-play { opacity: 1; }
   .track-list-row .like-btn, .track-list-row .playlist-btn { opacity: 1; }
