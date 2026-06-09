@@ -1116,7 +1116,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
+        <div className="panel-hd">TODO <span className="dots">/// {displayFiles.length} CANCIÓN{displayFiles.length===1?'':'ES'}</span></div>
         <div className="panel-body">
           <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
         </div>
@@ -1172,9 +1172,9 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {sorted.length === 0
+        {displayFiles.length === 0
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
-          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
+          : <TrackList files={displayFiles} onOpen={onOpenFile} onPlay={onPlayFile}
                        likedIds={likedIds} onToggleLike={onToggleLike}
                        playlists={playlists} onAddToPlaylist={onAddToPlaylist}
                        onOpenCreatePlaylist={onOpenCreatePlaylist} />
