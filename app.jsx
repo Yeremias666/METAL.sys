@@ -2502,7 +2502,7 @@ function useVuBars(analyser, isPlaying, barCount) {
   return vuData;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext }) {
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext, likedIds, onToggleLike, onNavToArtist, onNavToAlbum, onAddToPlaylist }) {
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
@@ -2512,6 +2512,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
   const album  = (tags && tags.album)  || file.album  || null;
   const year   = (tags && tags.year)   || file.year   || null;
   const genre  = (tags && tags.genre)  || file.genre  || null;
+  const isLiked = likedIds && likedIds.has && likedIds.has(file.id);
 
   return (
     <div className="radio-body">
@@ -2519,7 +2520,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
       <div className="radio-top">
         <div className="radio-band-label">AM·FM·SW</div>
         <div className="radio-freq-display">
-          <span className="radio-freq-artist">{artist || '— SIN METADATOS —'}</span>
+          <span className="radio-freq-artist" onClick={() => onNavToArtist && onNavToArtist(artist)} style={{cursor: artist ? 'pointer' : 'default'}}>{artist || '— SIN METADATOS —'}</span>
           <div className="radio-freq-title">{title}</div>
         </div>
         <div className="radio-vu">
@@ -2547,7 +2548,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
       {/* Info strip — own row above knobs */}
       <div className="radio-info-strip">
         {album && (
-          <span className="radio-strip-album">◆ {album}{year ? ' · ' + year : ''}</span>
+          <span className="radio-strip-album" onClick={() => onNavToAlbum && onNavToAlbum(artist, album)} style={{cursor: 'pointer'}}>◆ {album}{year ? ' · ' + year : ''}</span>
         )}
         {genre && <span className="radio-strip-genre">{genre}</span>}
         <span className="radio-strip-meta" style={{marginLeft:'auto'}}>{file.fileType || 'audio'} · {fmtBytes(file.fileSize)}</span>
@@ -2564,6 +2565,10 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
           <span>{isPlaying ? "❚❚" : "▶"}</span>
         </button>
         <button className="radio-nav-btn" onClick={onNext} disabled={!hasNext} title="Siguiente">▶▶</button>
+        <button className="radio-nav-btn" onClick={() => onToggleLike && onToggleLike(file.id)} title={isLiked ? 'Quitar de me gusta' : 'Agregar a me gusta'}>
+          {isLiked ? '♥' : '♡'}
+        </button>
+        <button className="radio-nav-btn" onClick={() => onAddToPlaylist && onAddToPlaylist(file.id)} title="Agregar a playlist">+</button>
         <div className="radio-knobs-side right">
           <div className="radio-knob small"></div>
           <div className="radio-knob"></div>
@@ -3279,7 +3284,11 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                            isPlaying={currentPlayingId === file.id && isPlaying}
                            analyser={analyser}
                            onPrev={onPrev} onNext={onNext}
-                           hasPrev={hasPrev} hasNext={hasNext} />
+                           hasPrev={hasPrev} hasNext={hasNext}
+                           likedIds={likedIds} onToggleLike={onToggleLike}
+                           onNavToArtist={(artist) => onNav({ page: 'CAT', cat: artist })}
+                           onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist })}
+                           onAddToPlaylist={addSongToPlaylist} />
               </div>
             )}
 
