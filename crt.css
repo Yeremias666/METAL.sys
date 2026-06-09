@@ -3878,7 +3878,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: #0a0408;
   border: 1px solid var(--fg-primary);
   box-shadow: 0 0 18px rgba(214,31,31,0.4);
-  min-width: 200px;
+  min-width: 220px;
   max-height: 260px;
   overflow-y: auto;
   z-index: 201;
@@ -3893,14 +3893,14 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   border-bottom: 1px dotted rgba(214,31,31,0.3);
   color: var(--fg-text);
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 15px;
   padding: 9px 14px;
   cursor: pointer;
   transition: background 0.1s;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 240px;
+  max-width: 260px;
 }
 .mp-menu-submenu button:last-child { border-bottom: none; }
 .mp-menu-submenu button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
