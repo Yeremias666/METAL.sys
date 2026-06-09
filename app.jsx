@@ -1036,11 +1036,10 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
               {f.album && f.album !== (f.artist || f.category) && (
                 <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
               )}
-              <div className="track-list-row-actions">
-                <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
-              </div>
             </div>
-            <div className="track-list-right-actions">
+            <div className="track-list-row-actions">
+              <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
+              <div className="track-list-right-actions">
               {onToggleLike && (
                 <button
                   className={`like-btn${isLiked ? ' liked' : ''}`}
