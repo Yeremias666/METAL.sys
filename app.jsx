@@ -5983,48 +5983,52 @@ async function gtTranslate(text) {
   return d[0].map(c => c[0]).join('');
 }
 
-async function fetchNewsSource(src) {
-  let xml = '';
-
+async function _fetchWithTimeout(url, ms = 8000) {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), ms);
   try {
-    console.log(`[news:${src.id}] fetching via allorigins...`);
-    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`);
-    console.log(`[news:${src.id}] response status=${r.status} ok=${r.ok}`);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    const d = await r.json();
-    let txt = d.contents || '';
-    console.log(`[news:${src.id}] contents length=${txt.length} starts="${txt.slice(0,100).replace(/\n/g,' ')}"`);
-    // allorigins sometimes HTML-encodes — decode
-    if (txt.includes('&lt;') && !txt.includes('<rss') && !txt.includes('<?xml')) {
-      const tmp = document.createElement('textarea');
-      tmp.innerHTML = txt;
-      txt = tmp.value;
-      console.log(`[news:${src.id}] decoded HTML entities, now starts="${txt.slice(0,60)}"`);
+    return await r.text();
+  } catch(e) { clearTimeout(tid); throw e; }
+}
+
+async function fetchNewsSource(src) {
+  const u = encodeURIComponent(src.url);
+  const proxies = [
+    [`direct`,       () => _fetchWithTimeout(src.url, 5000)],
+    [`codetabs`,     () => _fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${u}`)],
+    [`allorigins/r`, () => _fetchWithTimeout(`https://api.allorigins.win/raw?url=${u}`)],
+    [`allorigins/g`, () => _fetchWithTimeout(`https://api.allorigins.win/get?url=${u}`)
+                           .then(t => { try { let c = JSON.parse(t).contents||''; if(c.includes('&lt;')&&!c.includes('<rss')&&!c.includes('<?xml')){const x=document.createElement('textarea');x.innerHTML=c;c=x.value;} return c; } catch(e2){ return t; } })],
+  ];
+
+  let xml = '';
+  for (const [name, attempt] of proxies) {
+    try {
+      const txt = await attempt();
+      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE')) {
+        xml = txt;
+        console.log(`[news:${src.id}] OK via ${name}, len=${xml.length}`);
+        break;
+      } else {
+        console.log(`[news:${src.id}] ${name} returned HTML/empty`);
+      }
+    } catch(e) {
+      console.log(`[news:${src.id}] ${name} failed: ${e.message}`);
     }
-    if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
-      xml = txt;
-    else
-      console.warn(`[news:${src.id}] looks like HTML, discarding`);
-  } catch(e) {
-    console.error(`[news:${src.id}] fetch error:`, e.message);
-    throw e;
   }
 
-  if (!xml) throw new Error('empty or HTML response');
-
-  console.log(`[news:${src.id}] xml length=${xml.length} starts="${xml.slice(0,80).replace(/\n/g,' ')}"`);
+  if (!xml) throw new Error('all proxies failed');
 
   const doc = new DOMParser().parseFromString(xml, 'text/xml');
-  const errEl = doc.querySelector('parsererror');
-  if (errEl) {
-    console.error(`[news:${src.id}] parsererror:`, errEl.textContent.slice(0,200));
-    throw new Error('xml parse error');
-  }
+  if (doc.querySelector('parsererror')) throw new Error('xml parse error');
 
   const itemNodes = [...doc.getElementsByTagName('item')];
   const entryNodes = [...doc.getElementsByTagName('entry')];
   const nodes = itemNodes.length > 0 ? itemNodes : entryNodes;
-  console.log(`[news:${src.id}] items=${itemNodes.length} entries=${entryNodes.length}`);
+  console.log(`[news:${src.id}] parsed: items=${itemNodes.length} entries=${entryNodes.length}`);
   if (!nodes.length) throw new Error('no items');
 
   return nodes.slice(0, 20).map(node => {
