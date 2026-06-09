@@ -4222,6 +4222,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   margin-left: 4px;
 }
 .track-list-row:hover .track-list-play { opacity: 1; }
+.track-list-row-actions { margin-top: 4px; }
+.track-list-row-actions .track-list-play { opacity: 0; }
+.track-list-row:hover .track-list-row-actions .track-list-play { opacity: 1; }
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
 .track-list-row .like-btn,
 .track-list-row .playlist-btn {
