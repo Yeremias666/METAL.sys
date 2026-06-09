@@ -5984,23 +5984,39 @@ async function gtTranslate(text) {
 }
 
 async function fetchNewsSource(src) {
-  const r = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(src.url)}&count=20`);
+  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`;
+  const r = await fetch(proxy);
   const d = await r.json();
-  if (d.status !== 'ok') throw new Error(d.message || 'feed error');
-  return d.items.map(item => ({
-    id: item.guid || item.link,
-    source: src.id,
-    sourceName: src.name,
-    lang: src.lang,
-    title: item.title || '',
-    description: stripHtml(item.description || '').slice(0, 350),
-    content: item.content || item.description || '',
-    link: item.link,
-    thumbnail: item.thumbnail || '',
-    pubDate: item.pubDate,
-    titleEs: null,
-    descEs: null,
-  }));
+  if (!d.contents) throw new Error('empty response');
+
+  const doc = new DOMParser().parseFromString(d.contents, 'text/xml');
+  const nodes = [...doc.querySelectorAll('channel > item, feed > entry')];
+
+  return nodes.slice(0, 20).map(node => {
+    const t = tag => { const el = node.getElementsByTagName(tag)[0]; return el ? el.textContent.trim() : ''; };
+    const a = (tag, att) => { const el = node.getElementsByTagName(tag)[0]; return el ? (el.getAttribute(att) || '') : ''; };
+
+    const title = t('title');
+    const link  = t('link') || a('link', 'href');
+    const desc  = t('description') || t('summary');
+    const content = t('content:encoded') || t('content') || desc;
+    const pubDate = t('pubDate') || t('published') || t('updated') || t('dc:date') || '';
+    const guid  = t('guid') || link;
+
+    let thumbnail = a('media:thumbnail', 'url') || a('media:content', 'url') || '';
+    if (!thumbnail) {
+      const enc = node.getElementsByTagName('enclosure')[0];
+      if (enc && (enc.getAttribute('type') || '').startsWith('image')) thumbnail = enc.getAttribute('url') || '';
+    }
+    if (!thumbnail && content) {
+      const m = content.match(/<img[^>]+src=["']([^"'#][^"']*\.(?:jpg|jpeg|png|webp)[^"']*)["']/i);
+      if (m) thumbnail = m[1];
+    }
+
+    return { id: guid, source: src.id, sourceName: src.name, lang: src.lang,
+             title, description: stripHtml(desc).slice(0, 350), content, link,
+             thumbnail, pubDate, titleEs: null, descEs: null };
+  }).filter(i => i.title && i.link);
 }
 
 function NewsPage() {
