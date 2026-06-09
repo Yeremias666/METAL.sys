@@ -5983,7 +5983,7 @@ async function gtTranslate(text) {
   return d[0].map(c => c[0]).join('');
 }
 
-async function _fetchWithTimeout(url, ms = 8000) {
+async function _fetchWithTimeout(url, ms = 20000) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -5996,21 +5996,50 @@ async function _fetchWithTimeout(url, ms = 8000) {
 
 async function fetchNewsSource(src) {
   const u = encodeURIComponent(src.url);
+
+  // Strategy 1: rss2json.com — proper API with CORS, returns parsed JSON
+  try {
+    const txt = await _fetchWithTimeout(`https://api.rss2json.com/v1/api.json?rss_url=${u}&count=20`, 20000);
+    const d = JSON.parse(txt);
+    if (d.status === 'ok' && d.items && d.items.length > 0) {
+      console.log(`[news:${src.id}] rss2json OK, ${d.items.length} items`);
+      return d.items.map(item => ({
+        id: item.guid || item.link,
+        source: src.id, sourceName: src.name, lang: src.lang,
+        title: item.title || '',
+        description: stripHtml(item.description || '').slice(0, 350),
+        content: item.content || item.description || '',
+        link: item.link || '',
+        thumbnail: item.thumbnail || '',
+        pubDate: item.pubDate || '',
+        titleEs: null, descEs: null,
+      })).filter(i => i.title);
+    }
+    console.log(`[news:${src.id}] rss2json status=${d.status} msg=${d.message||''}`);
+  } catch(e) {
+    console.log(`[news:${src.id}] rss2json failed: ${e.message}`);
+  }
+
+  // Strategy 2: XML via proxy chain (20s each)
+  let xml = '';
   const proxies = [
-    [`direct`,       () => _fetchWithTimeout(src.url, 5000)],
-    [`codetabs`,     () => _fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${u}`)],
-    [`allorigins/r`, () => _fetchWithTimeout(`https://api.allorigins.win/raw?url=${u}`)],
-    [`allorigins/g`, () => _fetchWithTimeout(`https://api.allorigins.win/get?url=${u}`)
-                           .then(t => { try { let c = JSON.parse(t).contents||''; if(c.includes('&lt;')&&!c.includes('<rss')&&!c.includes('<?xml')){const x=document.createElement('textarea');x.innerHTML=c;c=x.value;} return c; } catch(e2){ return t; } })],
+    ['allorigins/g', async () => {
+      const t = await _fetchWithTimeout(`https://api.allorigins.win/get?url=${u}`, 20000);
+      let c = JSON.parse(t).contents || '';
+      if (c.includes('&lt;') && !c.includes('<rss') && !c.includes('<?xml')) {
+        const el = document.createElement('textarea'); el.innerHTML = c; c = el.value;
+      }
+      return c;
+    }],
+    ['codetabs', () => _fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${u}`, 20000)],
   ];
 
-  let xml = '';
   for (const [name, attempt] of proxies) {
     try {
       const txt = await attempt();
       if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE')) {
         xml = txt;
-        console.log(`[news:${src.id}] OK via ${name}, len=${xml.length}`);
+        console.log(`[news:${src.id}] XML OK via ${name}, len=${xml.length}`);
         break;
       } else {
         console.log(`[news:${src.id}] ${name} returned HTML/empty`);
@@ -6028,7 +6057,7 @@ async function fetchNewsSource(src) {
   const itemNodes = [...doc.getElementsByTagName('item')];
   const entryNodes = [...doc.getElementsByTagName('entry')];
   const nodes = itemNodes.length > 0 ? itemNodes : entryNodes;
-  console.log(`[news:${src.id}] parsed: items=${itemNodes.length} entries=${entryNodes.length}`);
+  console.log(`[news:${src.id}] XML parsed: items=${itemNodes.length} entries=${entryNodes.length}`);
   if (!nodes.length) throw new Error('no items');
 
   return nodes.slice(0, 20).map(node => {
