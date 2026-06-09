@@ -4408,6 +4408,42 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .tl-name { font-family: var(--mono); font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* ── Album-mode track list: grid de columnas en PC ── */
+/* col: #(28px) | thumb(40px) | título(1fr) | dur(56px) | acciones(auto) */
+.tl-album-header {
+  display: grid;
+  grid-template-columns: 28px 40px 1fr 56px auto;
+  gap: 0 12px;
+  align-items: center;
+  padding: 4px 14px 6px;
+  border-bottom: 1px solid rgba(214,31,31,0.25);
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+}
+.tl-album .track-list-row {
+  display: grid;
+  grid-template-columns: 28px 40px 1fr 56px auto;
+  gap: 0 12px;
+  align-items: center;
+}
+.tl-album .tl-row-title { min-width: 0; }
+.tl-album .track-list-row-actions { margin-left: 0; margin-top: 0; }
+.tl-dur {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--fg-dim);
+  text-align: right;
+  flex-shrink: 0;
+}
+@media (max-width: 700px) {
+  .tl-album-header { display: none; }
+  .tl-album .track-list-row { display: flex; grid-template-columns: none; }
+  .tl-dur { display: none; }
+}
+
 /* ── Touch devices: suppress ALL sticky hover effects after tap ─ */
 /* JS adds .is-touch to <html> when ontouchstart or maxTouchPoints detected */
 

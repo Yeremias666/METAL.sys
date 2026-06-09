@@ -1032,7 +1032,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
   );
 }
 
-function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, albumMode = false }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
@@ -1057,24 +1057,43 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   }, []);
 
   return (
-    <div>
+    <div className={albumMode ? 'tl-album' : ''}>
+      {albumMode && (
+        <div className="tl-album-header">
+          <span /><span />
+          <span>TÍTULO</span>
+          <span style={{textAlign:'right'}}>DUR.</span>
+          <span />
+        </div>
+      )}
       {files.map((f, i) => {
         const isLiked = likedIds && likedIds.has && likedIds.has(f.id);
         const showPlaylistMenu = openPlaylistFor === f.id;
+        const trackNum = albumMode && f.track ? String(f.track.split('/')[0]).padStart(2, '0') : String(i + 1).padStart(2, '0');
         return (
           <div key={f.id} className="track-list-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
-            <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
+            <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{albumMode ? trackNum : i+1}</span>
             {f.thumbnail ? (
               <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
             ) : noteIcon}
 
-            <div style={{flex:1, minWidth:0}}>
-              <div className="tl-name">{f.name}</div>
-              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
-              {f.album && f.album !== (f.artist || f.category) && (
-                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
-              )}
-            </div>
+            {albumMode ? (
+              <div className="tl-row-title">
+                <div className="tl-name">{f.name}</div>
+              </div>
+            ) : (
+              <div style={{flex:1, minWidth:0}}>
+                <div className="tl-name">{f.name}</div>
+                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
+                {f.album && f.album !== (f.artist || f.category) && (
+                  <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
+                )}
+              </div>
+            )}
+
+            {albumMode && (
+              <span className="tl-dur">{f.duration > 0 ? fmtTimeSec(f.duration) : '—'}</span>
+            )}
 
             <div className="track-list-row-actions">
               <div style={{display:'flex', alignItems:'center', gap:8}}>
@@ -2081,7 +2100,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   SIN CANCIONES
                 </div>
               ) : (
-                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
+                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} albumMode />
               )}
             </div>
           </div>

@@ -5,6 +5,21 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-09 — Vista de columnas en lista de canciones de disco (PC)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Cambios
+- `TrackList` acepta nueva prop `albumMode` (bool, defecto `false`).
+- En `albumMode`: layout CSS grid de 5 columnas — `#` · thumbnail · título · duración · acciones. Sin nombre de artista ni álbum. El número de pista muestra el valor ID3 (`f.track`) en lugar del índice secuencial.
+- Fila de cabecera `tl-album-header` con etiquetas TÍTULO / DUR.
+- `CategoryPage`: el `TrackList` de canciones dentro de un disco recibe `albumMode`.
+- En móvil (≤700px): el grid colapsa a flex normal y la columna de duración se oculta.
+- El resto de usos de `TrackList` (TODO, ME GUSTA, búsqueda, playlists) mantienen el layout compacto original.
+
+---
+
 ## 2026-06-09 — Efecto 3D hover en tarjetas de artistas (INICIO y BANDAS)
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
