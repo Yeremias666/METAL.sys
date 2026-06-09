@@ -1499,18 +1499,16 @@ input:not([type=range]), textarea {
   background: var(--fg-primary);
   background-image: none;
   color: #fff !important;
-  box-shadow: none;
-  transform: none;
-  text-shadow: none !important;
+  text-shadow: 0 0 6px rgba(255,255,255,0.4) !important;
 }
 .album-play-btn:hover {
   border-color: var(--fg-primary);
   background: var(--fg-primary);
   background-image: none;
   color: #fff !important;
-  box-shadow: none !important;
-  transform: none !important;
-  text-shadow: none !important;
+  box-shadow: 3px 3px 0 rgba(214,31,31,0.4), 0 0 20px rgba(214,31,31,0.7);
+  transform: translate(-1px, -1px);
+  text-shadow: 0 0 6px rgba(255,255,255,0.4) !important;
 }
 
 /* Ensure like/playlist buttons also appear on hover inside album panels */
@@ -1524,22 +1522,6 @@ input:not([type=range]), textarea {
 .panel .track-list-row:hover .track-list-right-actions .playlist-btn {
   opacity: 1 !important;
   transform: none !important;
-}
-
-/* Force album-play button to be flat even if .big-btn adds hover effects */
-.album-play-btn {
-  box-shadow: none !important;
-  transform: none !important;
-}
-.album-play-btn:hover {
-  box-shadow: none !important;
-  transform: none !important;
-}
-
-.big-btn.album-play-btn, .big-btn.album-play-btn:hover {
-  box-shadow: none !important;
-  transform: none !important;
-  text-shadow: none !important;
 }
 
 /* Movil: ocultar vinilo, solo portada */
@@ -4249,13 +4231,14 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
-  font-size: 11px;
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
   border-radius: 2px;
   opacity: 0;
   transition: opacity 0.15s;
   display: flex; align-items: center; justify-content: center;
-  padding-left: 2px;
+  padding: 0;
   margin-left: 4px;
 }
 .track-list-row:hover .track-list-play { opacity: 1; }
@@ -4273,7 +4256,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-list-row .like-btn,
 .track-list-row .playlist-btn {
   width: 28px; height: 28px;
-  font-size: 14px;
+  font-size: 18px;
+  line-height: 1;
   padding: 0;
   align-self: auto;
   flex-shrink: 0;
