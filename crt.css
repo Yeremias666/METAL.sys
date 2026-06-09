@@ -4303,6 +4303,27 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: #000;
   box-shadow: 0 0 8px var(--fg-primary);
 }
+/* Global playlist button styling so buttons placed outside track-list-row keep same look */
+.playlist-btn {
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fg-primary);
+  background: transparent;
+  color: var(--fg-primary);
+  border-radius: 2px;
+  cursor: pointer;
+}
+.playlist-btn:hover {
+  background: var(--fg-primary);
+  color: #000;
+  box-shadow: 0 0 8px var(--fg-primary);
+}
 @media (max-width: 700px) {
   .track-list-play { opacity: 1; }
   .track-list-row .like-btn, .track-list-row .playlist-btn { opacity: 1; }

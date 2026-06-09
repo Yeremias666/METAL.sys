@@ -3018,7 +3018,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
         {onOpenMenu && (
-          <button onClick={(e) => { e.stopPropagation(); onOpenMenu(); }} title="Añadir a playlist" style={{marginRight:8}}>＋</button>
+          <button className="playlist-btn" onClick={(e) => { e.stopPropagation(); onOpenMenu(); }} title="Añadir a playlist">＋</button>
         )}
         {likedIds && onToggleLike && (
           <button onClick={(e) => { e.stopPropagation(); onToggleLike(track.id); }}
