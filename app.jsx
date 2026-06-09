@@ -4387,7 +4387,16 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
 }
 
 // ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
-function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong }) {
+function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+  const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setOpenPlaylistFor(null); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   if (!playlist) return (
     <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40,color:'var(--fg-dim)'}}>
       Playlist no encontrada. <button className="mini-btn" onClick={onBack}>VOLVER</button>
@@ -4467,14 +4476,39 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                   {f.duration > 0 && (
                     <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--fg-dim)',flexShrink:0}}>{fmtTimeSec(f.duration)}</span>
                   )}
-                  <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }} title="Reproducir">▶</button>
-                  {onRemoveSong && (
-                    <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
-                            title="Quitar de playlist"
-                            style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
-                            onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
-                            onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
-                  )}
+                  <div className="track-list-row-actions">
+                    <div style={{display:'flex', alignItems:'center', gap:8}}>
+                      {onToggleLike && (
+                        <button className={`like-btn${likedIds && likedIds.has && likedIds.has(f.id) ? ' liked' : ''}`} style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title={likedIds && likedIds.has && likedIds.has(f.id) ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+                      )}
+                      {onAddToPlaylist && (
+                        <div style={{position:'relative'}}>
+                          <button className="playlist-btn" onClick={e => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                          {openPlaylistFor === f.id && (
+                            <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                              <button className="mp-menu-submenu-create" onClick={e => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                              {playlists.map(pl => {
+                                const hasTrack = (pl.songIds || []).includes(f.id);
+                                return (
+                                  <button key={pl.id} onClick={e => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                                    {hasTrack ? '✓ ' : ''}{pl.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }} title="Reproducir">▶</button>
+                      {onRemoveSong && (
+                        <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
+                                title="Quitar de playlist"
+                                style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
+                                onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
+                                onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -7150,6 +7184,11 @@ function App() {
                   currentPlayingId={currentTrackId}
                   isPlaying={isPlaying}
                   onRemoveSong={removeSongFromPlaylist}
+                  likedIds={likedIds}
+                  onToggleLike={toggleLike}
+                  playlists={playlists}
+                  onAddToPlaylist={addSongToPlaylist}
+                  onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                 />
               )}
               {route.page === 'STATS' && (
