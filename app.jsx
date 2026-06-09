@@ -761,13 +761,13 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
         <button className={current.page === 'INICIO'      ? 'active' : ''} onClick={() => onNav({ page: 'INICIO' })}><NavGlyph kind="INICIO" />INICIO</button>
         <button className={current.page === 'STATS'       ? 'active' : ''} onClick={() => onNav({ page: 'STATS' })}><NavGlyph kind="GRAFICO" />STATS</button>
         <button className={current.page === 'SUBIR'       ? 'active' : ''} onClick={() => onNav({ page: 'SUBIR' })}><NavGlyph kind="SUBIR" />SUBIR</button>
-        <button className={current.page === 'SPOTDL'      ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
         <button className={current.page === 'TODO'        ? 'active' : ''} onClick={() => onNav({ page: 'TODO' })}><NavGlyph kind="NOTA" />TODO</button>
         <button className={current.page === 'LOCAL'       ? 'active' : ''} onClick={() => onNav({ page: 'LOCAL' })}><NavGlyph kind="CARPETA" />LOCAL</button>
         <button className={current.page === 'MESGUSTA'    ? 'active' : ''} onClick={() => onNav({ page: 'MESGUSTA' })}><NavGlyph kind="CORAZON" />ME GUSTA</button>
         <button className={current.page === 'PLAYLIST'    ? 'active' : ''} onClick={() => onNav({ page: 'PLAYLIST' })}><NavGlyph kind="LISTA" />PLAYLIST</button>
         <button className={current.page === 'BANDAS'      ? 'active' : ''} onClick={() => onNav({ page: 'BANDAS' })}><NavGlyph kind="PERSONA" />BANDAS</button>
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
+        <button className={current.page === 'SPOTDL'      ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
         <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
       </div>
     </nav>
