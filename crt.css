@@ -522,7 +522,7 @@ input:not([type=range]), textarea {
 /* Nav */
 .nav {
   margin-bottom: 18px;
-  font-size: 17px;
+  font-size: 20px;
 }
 .nav-system {
   display: flex;
