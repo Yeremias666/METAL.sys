@@ -4219,6 +4219,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   transition: opacity 0.15s;
   display: flex; align-items: center; justify-content: center;
   padding-left: 2px;
+  margin-left: 4px;
 }
 .track-list-row:hover .track-list-play { opacity: 1; }
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
@@ -4260,8 +4261,10 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   border-radius: 2px;
   cursor: pointer;
   margin-left: 4px;
-  font-size: 16px;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1;
+  text-shadow: 0 0 1px rgba(214,31,31,0.35);
 }
 .track-list-row .playlist-btn:hover {
   background: var(--fg-primary);
