@@ -789,6 +789,46 @@ function Marquee({ allCats = [], active = true }) {
   );
 }
 
+// ─── ARTIST CARD (reutilizable en INICIO y BANDAS) ─────────────
+function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 }) {
+  const cardRef = useRef(null);
+
+  const onMove = useCallback((e) => {
+    const el = cardRef.current; if (!el) return;
+    const r  = el.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
+    const dy = (e.clientY - r.top  - r.height * 0.5) / (r.height * 0.5);
+    el.style.transition = 'box-shadow 0.06s';
+    el.style.transform  = `perspective(600px) rotateX(${-dy * 8}deg) rotateY(${dx * 8}deg) translateY(-10px) scale(1.05)`;
+    el.style.boxShadow  = `${-dx * 12}px ${-dy * 10}px 40px rgba(214,31,31,0.65), 0 0 24px rgba(214,31,31,0.35)`;
+  }, []);
+
+  const onLeave = useCallback(() => {
+    const el = cardRef.current; if (!el) return;
+    el.style.transition = 'transform 0.38s cubic-bezier(0.23,1,0.32,1), box-shadow 0.38s';
+    el.style.transform  = '';
+    el.style.boxShadow  = '';
+  }, []);
+
+  return (
+    <div ref={cardRef} className="cat-card album-card-anim"
+         style={{ animationDelay: `${index * 40}ms` }}
+         onClick={() => onNav({ page: 'CAT', cat: artist })}
+         onMouseMove={onMove} onMouseLeave={onLeave}>
+      <div className="cat-card-img">
+        {cover
+          ? <img src={cover} alt={artist} />
+          : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+        <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
+      </div>
+      <div className="cat-card-info">
+        <div className="cat-name">{artist}</div>
+        <div className="cat-count">{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PAGE: INICIO ──────────────────────────────────────────────
 function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
@@ -962,23 +1002,15 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
             ) : (
               <>
                 <div className="cat-grid">
-                  {(showAllArtists ? allCats : allCats.slice(0, ARTIST_LIMIT)).map((artist) => {
+                  {(showAllArtists ? allCats : allCats.slice(0, ARTIST_LIMIT)).map((artist, idx) => {
                     const allSongs = [...files, ...localFiles].filter(f => (f.category || f.artist) === artist);
                     const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
                     const cover    = allSongs.find(f => f.thumbnail);
+                    const coverSrc = artistMeta[artist]?.image || cover?.thumbnail || null;
                     return (
-                      <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
-                        <div className="cat-card-img">
-                          {(artistMeta[artist]?.image || cover)
-                            ? <img src={artistMeta[artist]?.image || cover?.thumbnail} alt={artist} />
-                            : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
-                          <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
-                        </div>
-                        <div className="cat-card-info">
-                          <div className="cat-name">{artist}</div>
-                          <div className="cat-count">{allSongs.length} tema{allSongs.length===1?'':'s'} · {albums.length} disco{albums.length===1?'':'s'}</div>
-                        </div>
-                      </div>
+                      <ArtistCard key={artist} artist={artist} cover={coverSrc}
+                        subtitle={`${allSongs.length} tema${allSongs.length===1?'':'s'} · ${albums.length} disco${albums.length===1?'':'s'}`}
+                        onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
                     );
                   })}
                 </div>
@@ -1259,25 +1291,14 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
       </div>
 
       <div className="cat-grid" style={{marginTop:14}}>
-        {artists.map((artist) => {
+        {artists.map((artist, idx) => {
           const songs = allFiles.filter((f) => (f.category || f.artist) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
           return (
-            <div key={artist} className="cat-card" onClick={() => onNav({ page: 'CAT', cat: artist })}>
-              <div className="cat-card-img">
-                {artistImg
-                  ? <img src={artistImg} alt={artist} />
-                  : <div className="cat-card-no-cover">
-                      <svg width="52" height="52" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>
-                    </div>}
-                <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
-              </div>
-              <div className="cat-card-info">
-                <div className="cat-name">{artist}</div>
-                <div className="cat-count">{songs.length} tema{songs.length===1?'':'s'}</div>
-              </div>
-            </div>
+            <ArtistCard key={artist} artist={artist} cover={artistImg}
+              subtitle={`${songs.length} tema${songs.length===1?'':'s'}`}
+              onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
           );
         })}
       </div>

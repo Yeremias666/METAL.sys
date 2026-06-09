@@ -5,6 +5,19 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-09 — Efecto 3D hover en tarjetas de artistas (INICIO y BANDAS)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- Nuevo componente `ArtistCard` con el mismo efecto 3D de inclinación perspectiva que tienen los `AlbumCard` en la página de artista: en `onMouseMove` aplica `perspective(600px) rotateX/Y`, `translateY(-10px) scale(1.05)` y sombra roja dinámica según la posición del cursor; en `onMouseLeave` restaura con transición suave.
+- `HomePage`: el grid de artistas usa `ArtistCard` en lugar del `<div className="cat-card">` inline.
+- `BandasPage`: ídem — el grid de bandas usa `ArtistCard`.
+- No hay cambios visuales en reposo ni en otros componentes.
+
+---
+
 ## 2026-06-08 — Sistema de playlists: crear desde el reproductor y portada automática
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
