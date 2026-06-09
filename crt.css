@@ -4327,9 +4327,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
 /* Player/detail-specific sizing: same button style as playlist button in song list, scaled to match the adjacent like button */
 .player-actions .playlist-btn {
-  width: 38px;
-  height: 38px;
-  font-size: 18px;
+  width: 46px;
+  height: 46px;
+  font-size: 22px;
   line-height: 1;
   padding: 0;
   margin-right: 6px;
