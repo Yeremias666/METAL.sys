@@ -5986,36 +5986,31 @@ async function gtTranslate(text) {
 async function fetchNewsSource(src) {
   let xml = '';
 
-  // proxy 1: corsproxy.io (raw)
   try {
-    const r = await fetch(`https://corsproxy.io/?${encodeURIComponent(src.url)}`);
-    if (r.ok) {
-      const txt = await r.text();
-      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
-        xml = txt;
+    console.log(`[news:${src.id}] fetching via allorigins...`);
+    const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`);
+    console.log(`[news:${src.id}] response status=${r.status} ok=${r.ok}`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    let txt = d.contents || '';
+    console.log(`[news:${src.id}] contents length=${txt.length} starts="${txt.slice(0,100).replace(/\n/g,' ')}"`);
+    // allorigins sometimes HTML-encodes — decode
+    if (txt.includes('&lt;') && !txt.includes('<rss') && !txt.includes('<?xml')) {
+      const tmp = document.createElement('textarea');
+      tmp.innerHTML = txt;
+      txt = tmp.value;
+      console.log(`[news:${src.id}] decoded HTML entities, now starts="${txt.slice(0,60)}"`);
     }
-  } catch(e) {}
-
-  // proxy 2: allorigins.win/get (JSON wrapper)
-  if (!xml) {
-    try {
-      const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`);
-      if (r.ok) {
-        const d = await r.json();
-        let txt = d.contents || '';
-        // allorigins sometimes HTML-encodes the content — decode it
-        if (txt.includes('&lt;') && !txt.includes('<rss') && !txt.includes('<?xml')) {
-          const tmp = document.createElement('textarea');
-          tmp.innerHTML = txt;
-          txt = tmp.value;
-        }
-        if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
-          xml = txt;
-      }
-    } catch(e) {}
+    if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE'))
+      xml = txt;
+    else
+      console.warn(`[news:${src.id}] looks like HTML, discarding`);
+  } catch(e) {
+    console.error(`[news:${src.id}] fetch error:`, e.message);
+    throw e;
   }
 
-  if (!xml) throw new Error('all proxies failed');
+  if (!xml) throw new Error('empty or HTML response');
 
   console.log(`[news:${src.id}] xml length=${xml.length} starts="${xml.slice(0,80).replace(/\n/g,' ')}"`);
 
