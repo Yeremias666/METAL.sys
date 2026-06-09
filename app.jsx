@@ -2506,7 +2506,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
-  const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
+  
 
   const artist = (tags && tags.artist) || file.artist || null;
   const title  = (tags && tags.title)  || file.name;
@@ -2515,18 +2515,7 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
   const genre  = (tags && tags.genre)  || file.genre  || null;
   const isLiked = likedIds && likedIds.has && likedIds.has(file.id);
 
-  const handleClickOutside = (e) => {
-    if (e.target.closest('.playlist-dropdown-menu') === null) {
-      setOpenPlaylistFor(null);
-    }
-  };
-
-  useEffect(() => {
-    if (openPlaylistFor) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
-    }
-  }, [openPlaylistFor]);
+  
 
   return (
     <div className="radio-body">
@@ -2579,32 +2568,6 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
           <span>{isPlaying ? "❚❚" : "▶"}</span>
         </button>
         <button className="radio-nav-btn" onClick={onNext} disabled={!hasNext} title="Siguiente">▶▶</button>
-        <button className="radio-nav-btn" onClick={() => onToggleLike && onToggleLike(file.id)} title={isLiked ? 'Quitar de me gusta' : 'Agregar a me gusta'}>
-          {isLiked ? '♥' : '♡'}
-        </button>
-        <div className="playlist-dropdown-menu" style={{position: 'relative'}}>
-          <button className="radio-nav-btn" onClick={() => setOpenPlaylistFor(openPlaylistFor === file.id ? null : file.id)} title="Agregar a playlist">+</button>
-          {openPlaylistFor === file.id && (
-            <div style={{position: 'absolute', bottom: '100%', right: 0, background: 'var(--bg-panel)', border: '1px solid var(--fg-primary)', minWidth: '120px', zIndex: 1000, marginBottom: '4px'}}>
-              {playlists.length === 0 ? (
-                <div style={{padding: '8px', color: 'var(--fg-dim)', fontSize: '10px', fontFamily: 'var(--pixel)'}}>SIN PLAYLISTS</div>
-              ) : (
-                playlists.map(pl => {
-                  const hasTrack = pl.songIds && pl.songIds.includes(file.id);
-                  return (
-                    <button
-                      key={pl.id}
-                      onClick={(e) => { e.stopPropagation(); if (!hasTrack && onAddToPlaylist) onAddToPlaylist(file.id, pl.id); setOpenPlaylistFor(null); }}
-                      style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default', display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', fontSize:'11px', fontFamily:'var(--pixel)'} : {display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', color:'var(--fg-text)', cursor:'pointer', fontSize:'11px', fontFamily:'var(--pixel)'}}
-                    >
-                      {hasTrack ? '✓ ' : ''}{pl.name}
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          )}
-        </div>
         <div className="radio-knobs-side right">
           <div className="radio-knob small"></div>
           <div className="radio-knob"></div>
@@ -3054,6 +3017,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
+        {onOpenMenu && (
+          <button onClick={(e) => { e.stopPropagation(); onOpenMenu(); }} title="Añadir a playlist" style={{marginRight:8}}>＋</button>
+        )}
         {likedIds && onToggleLike && (
           <button onClick={(e) => { e.stopPropagation(); onToggleLike(track.id); }}
                   title={liked ? 'Quitar de Me Gusta' : 'Me Gusta'}
