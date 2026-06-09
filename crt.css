@@ -4230,11 +4230,11 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   align-self: auto;
   flex-shrink: 0;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s, border-color 0.15s, text-shadow 0.15s;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s, text-shadow 0.15s, background 0.15s;
 }
 .track-list-row:hover .like-btn,
 .track-list-row:hover .playlist-btn { opacity: 1; }
-.track-list-row .playlist-btn {
+.track-list-row .like-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4244,7 +4244,30 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   border-radius: 2px;
   cursor: pointer;
 }
-.track-list-row .playlist-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 8px var(--fg-primary); }
+.track-list-row .like-btn:hover {
+  background: var(--fg-primary);
+  color: #000;
+  box-shadow: 0 0 8px var(--fg-primary);
+  text-shadow: none;
+}
+.track-list-row .playlist-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fg-primary);
+  background: transparent;
+  color: var(--fg-primary);
+  border-radius: 2px;
+  cursor: pointer;
+  margin-left: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+.track-list-row .playlist-btn:hover {
+  background: var(--fg-primary);
+  color: #000;
+  box-shadow: 0 0 8px var(--fg-primary);
+}
 @media (max-width: 700px) {
   .track-list-play { opacity: 1; }
   .track-list-row .like-btn, .track-list-row .playlist-btn { opacity: 1; }

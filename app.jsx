@@ -1040,7 +1040,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
             )}
             {onAddToPlaylist && (
               <div style={{position:'relative', display:'flex', alignItems:'center'}}>
-                <button className="playlist-btn" style={{width:28, height:28, padding:0, marginLeft:6}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                <button className="playlist-btn" style={{width:28, height:28, padding:0, marginLeft:4}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
                 {showPlaylistMenu && (
                   <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
                     {playlists.length === 0 ? (
@@ -1073,7 +1073,26 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
 function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
-  const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
+  const [sorted, setSorted] = useState([]);
+  const displayFiles = sorted.length === allFiles.length ? sorted : allFiles;
+
+  useEffect(() => {
+    setSorted([]);
+    if (allFiles.length === 0) return;
+
+    const sortFiles = () => {
+      setSorted([...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })));
+    };
+
+    if ('requestIdleCallback' in window) {
+      const id = requestIdleCallback(sortFiles, { timeout: 250 });
+      return () => cancelIdleCallback(id);
+    }
+
+    const timeout = setTimeout(sortFiles, 0);
+    return () => clearTimeout(timeout);
+  }, [allFiles]);
+
   const gq = normStr(query.trim());
   const suggestions = useMemo(() => {
     if (!gq) return [];
