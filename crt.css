@@ -1435,6 +1435,8 @@ input:not([type=range]), textarea {
   height: 300px;
   overflow: visible;
   flex-shrink: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .album-detail-cover-img {
   width: 100%;
@@ -1444,6 +1446,31 @@ input:not([type=range]), textarea {
   image-rendering: crisp-edges;
   position: relative;
   z-index: 2;
+}
+.album-detail-meta {
+  margin-top: 20px;
+  text-align: center;
+  max-width: 420px;
+  width: 100%;
+}
+.album-detail-name {
+  font-family: var(--mono);
+  font-size: 22px;
+  color: var(--fg-text);
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+.album-detail-artist {
+  font-family: var(--pixel);
+  font-size: 12px;
+  color: var(--fg-secondary);
+  margin-bottom: 4px;
+}
+.album-detail-year {
+  font-family: var(--pixel);
+  font-size: 11px;
+  color: var(--fg-dim);
 }
 .album-detail-cover-empty {
   width: 100%;
@@ -1459,6 +1486,8 @@ input:not([type=range]), textarea {
 }
 /* Movil: ocultar vinilo, solo portada */
 .is-touch .album-detail-thumb .album-card-vinyl { display: none; }
+.is-touch .album-detail-thumb { transform: none !important; box-shadow: none !important; }
+.is-touch .album-detail-thumb:hover { transform: none !important; }
 @media (max-width: 700px) {
   .album-detail-thumb { width: 220px; height: 220px; }
 }

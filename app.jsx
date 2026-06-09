@@ -1653,8 +1653,48 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const [editImage, setEditImage] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const editImgInput = useRef(null);
+  const detailThumbRef = useRef(null);
   const meta = artistMeta[cat] || {};
+
   useEffect(() => { setSelectedAlbum(prefillAlbum || null); }, [prefillAlbum]);
+
+  const onAlbumThumbEnter = useCallback(() => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
+    const el = detailThumbRef.current;
+    if (!el) return;
+    el.style.transition = 'box-shadow 0.14s ease, transform 0.16s ease';
+    el.style.boxShadow = '0 18px 50px rgba(214,31,31,0.45), 0 0 24px rgba(214,31,31,0.25)';
+    const vinyl = el.querySelector('.album-card-vinyl');
+    if (vinyl) {
+      vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)';
+      vinyl.style.transform = 'translateY(-50%) translateX(54%)';
+    }
+  }, []);
+
+  const onAlbumThumbMove = useCallback((e) => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
+    const el = detailThumbRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width * 0.5) / (r.width * 0.5);
+    const dy = (e.clientY - r.top - r.height * 0.5) / (r.height * 0.5);
+    el.style.transform = `perspective(700px) rotateX(${(-dy * 8).toFixed(2)}deg) rotateY(${(dx * 8).toFixed(2)}deg) translateY(-8px) scale(1.03)`;
+    const vinyl = el.querySelector('.album-card-vinyl');
+    if (vinyl) vinyl.style.transform = 'translateY(-50%) translateX(54%)';
+  }, []);
+
+  const onAlbumThumbLeave = useCallback(() => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
+    const el = detailThumbRef.current;
+    if (!el) return;
+    el.style.transform = '';
+    el.style.boxShadow = '';
+    const vinyl = el.querySelector('.album-card-vinyl');
+    if (vinyl) {
+      vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)';
+      vinyl.style.transform = 'translateY(-50%)';
+    }
+  }, []);
 
   const albumObjects = [...new Set(list.map((f) => (f.album || 'SINGLE')).filter(Boolean))]
     .map((name) => {
@@ -1918,22 +1958,31 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="section">
         {currentAlbum ? (
           <div className="panel">
-            <div className="panel-hd">
-              <span style={{display:'flex', alignItems:'center', gap:8, overflow:'hidden', flex:1, minWidth:0}}>
-                <button className="cat-upload-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>&#9654;</button>
-                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{currentAlbum.name}</span>
+            <div className="panel-hd" style={{alignItems:'center'}}>
+              <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
+                <button className="big-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
+                  ▶ REPRODUCIR DISCO
+                </button>
+                <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1}}>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// {currentSongs.length} CANCIONES</span>
             </div>
-            <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px'}}>
+            <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px', flexDirection:'column', alignItems:'center'}}>
               <div className="album-detail-thumb"
-                   onMouseEnter={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%) translateX(54%)';} }}
-                   onMouseLeave={e => { const v=e.currentTarget.querySelector('.album-card-vinyl'); if(v){v.style.transition='transform 0.42s cubic-bezier(0.23,1,0.32,1)';v.style.transform='translateY(-50%)';} }}>
+                   ref={detailThumbRef}
+                   onMouseEnter={onAlbumThumbEnter}
+                   onMouseMove={onAlbumThumbMove}
+                   onMouseLeave={onAlbumThumbLeave}>
                 <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
                 {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
                   ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
                          alt={currentAlbum.name} className="album-detail-cover-img" />
                   : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
+              </div>
+              <div className="album-detail-meta">
+                <div className="album-detail-name">{currentAlbum.name}</div>
+                <div className="album-detail-artist">{cat}</div>
+                <div className="album-detail-year">{currentAlbum.year || 'SIN AÑO'}</div>
               </div>
             </div>
             <div className="panel-body" style={{padding:0}}>
