@@ -2502,10 +2502,11 @@ function useVuBars(analyser, isPlaying, barCount) {
   return vuData;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext, likedIds, onToggleLike, onNavToArtist, onNavToAlbum, onAddToPlaylist }) {
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext, likedIds, onToggleLike, onNavToArtist, onNavToAlbum, playlists = [], onAddToPlaylist }) {
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
+  const [showPlaylistDropdown, setShowPlaylistDropdown] = useState(false);
 
   const artist = (tags && tags.artist) || file.artist || null;
   const title  = (tags && tags.title)  || file.name;
@@ -2568,7 +2569,45 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
         <button className="radio-nav-btn" onClick={() => onToggleLike && onToggleLike(file.id)} title={isLiked ? 'Quitar de me gusta' : 'Agregar a me gusta'}>
           {isLiked ? '♥' : '♡'}
         </button>
-        <button className="radio-nav-btn" onClick={() => onAddToPlaylist && onAddToPlaylist(file.id)} title="Agregar a playlist">+</button>
+        <div style={{position: 'relative'}}>
+          <button className="radio-nav-btn" onClick={() => setShowPlaylistDropdown(!showPlaylistDropdown)} title="Agregar a playlist">+</button>
+          {showPlaylistDropdown && (
+            <div style={{position: 'absolute', bottom: '100%', right: 0, background: 'var(--bg-panel)', border: '1px solid var(--fg-primary)', minWidth: '120px', zIndex: 1000}}>
+              {playlists.length === 0 ? (
+                <div style={{padding: '8px', color: 'var(--fg-dim)', fontSize: '10px'}}>SIN PLAYLISTS</div>
+              ) : (
+                playlists.map(pl => {
+                  const hasTrack = pl.songIds && pl.songIds.includes(file.id);
+                  return (
+                    <button
+                      key={pl.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!hasTrack && onAddToPlaylist) onAddToPlaylist(file.id, pl.id);
+                        setShowPlaylistDropdown(false);
+                      }}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '6px 10px',
+                        textAlign: 'left',
+                        background: 'transparent',
+                        border: 'none',
+                        color: hasTrack ? 'var(--fg-primary)' : 'var(--fg-text)',
+                        cursor: hasTrack ? 'default' : 'pointer',
+                        opacity: hasTrack ? 0.6 : 1,
+                        fontSize: '11px',
+                        fontFamily: 'var(--pixel)'
+                      }}
+                    >
+                      {hasTrack ? '✓ ' : ''}{pl.name}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
         <div className="radio-knobs-side right">
           <div className="radio-knob small"></div>
           <div className="radio-knob"></div>
@@ -3288,7 +3327,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                            likedIds={likedIds} onToggleLike={onToggleLike}
                            onNavToArtist={(artist) => onNav({ page: 'CAT', cat: artist })}
                            onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist })}
-                           onAddToPlaylist={addSongToPlaylist} />
+                           playlists={playlists} onAddToPlaylist={addSongToPlaylist} />
               </div>
             )}
 
