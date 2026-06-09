@@ -1027,44 +1027,65 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
         return (
           <div key={f.id} className="track-list-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
             <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>{i+1}</span>
-            {f.thumbnail
-              ? <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
-              : noteIcon}
+            {f.thumbnail ? (
+              <img src={f.thumbnail} alt="" style={{width:36, height:36, objectFit:'cover', flexShrink:0, borderRadius:2, imageRendering:'pixelated'}} />
+            ) : noteIcon}
             <div style={{flex:1, minWidth:0}}>
               <div className="tl-name">{f.name}</div>
-              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-              {f.album && f.album !== (f.artist||f.category) && <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>}
+              <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{f.artist || f.category}</div>
+              {f.album && f.album !== (f.artist || f.category) && (
+                <div style={{fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-dim)', letterSpacing:'0.08em'}}>{f.album}</div>
+              )}
               <div className="track-list-row-actions">
-                <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }}>▶</button>
+                <button className="track-list-play" onClick={(e) => { e.stopPropagation(); onPlay ? onPlay(f) : onOpen(f.id); }} title="Reproducir">▶</button>
               </div>
             </div>
-            {onToggleLike && (
-              <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
-            )}
-            {onAddToPlaylist && (
-              <div style={{position:'relative', display:'flex', alignItems:'center'}}>
-                <button className="playlist-btn" style={{width:28, height:28, padding:0, marginLeft:4}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
-                {showPlaylistMenu && (
-                  <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
-                    {playlists.length === 0 ? (
-                      <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                    ) : (
-                      playlists.map(pl => {
-                        const hasTrack = (pl.songIds || []).includes(f.id);
-                        return (
-                          <button key={pl.id}
-                                  onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }}
-                                  style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
-                            {hasTrack ? '✓ ' : ''}{pl.name}
-                          </button>
-                        );
-                      })
-                    )}
-                    <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="track-list-right-actions">
+              {onToggleLike && (
+                <button
+                  className={`like-btn${isLiked ? ' liked' : ''}`}
+                  style={{flexShrink:0}}
+                  onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }}
+                  title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>
+                  ♥
+                </button>
+              )}
+              {onAddToPlaylist && (
+                <div style={{position:'relative', display:'flex', alignItems:'center'}}>
+                  <button
+                    className="playlist-btn"
+                    style={{width:28, height:28, padding:0}}
+                    onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }}
+                    title="Añadir a playlist">
+                    ＋
+                  </button>
+                  {showPlaylistMenu && (
+                    <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                      {playlists.length === 0 ? (
+                        <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                      ) : (
+                        playlists.map(pl => {
+                          const hasTrack = (pl.songIds || []).includes(f.id);
+                          return (
+                            <button
+                              key={pl.id}
+                              onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }}
+                              style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                              {hasTrack ? '✓ ' : ''}{pl.name}
+                            </button>
+                          );
+                        })
+                      )}
+                      <button
+                        className="mp-menu-submenu-create"
+                        onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>
+                        ＋ NUEVA PLAYLIST
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         );
       })}
@@ -2019,9 +2040,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
-                <button className="big-btn album-play-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
-                  ▶ REPRODUCIR DISCO
-                </button>
                 <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1}}>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// {currentSongs.length} CANCIONES</span>
@@ -2042,6 +2060,9 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                 <div className="album-detail-name">{currentAlbum.name}</div>
                 <div className="album-detail-artist">{cat}</div>
                 <div className="album-detail-year">{currentAlbum.year || 'SIN AÑO'}</div>
+                <button className="big-btn album-play-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
+                  ▶ REPRODUCIR DISCO
+                </button>
               </div>
             </div>
             <div className="panel-body" style={{padding:0}}>
