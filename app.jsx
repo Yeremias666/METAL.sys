@@ -2502,11 +2502,11 @@ function useVuBars(analyser, isPlaying, barCount) {
   return vuData;
 }
 
-function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext, likedIds, onToggleLike, onNavToArtist, onNavToAlbum, playlists = [], onAddToPlaylist }) {
+function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, hasPrev, hasNext, likedIds, onToggleLike, onNavToArtist, onNavToAlbum, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const BAR_COUNT = 12;
   const vuData = useVuBars(analyser, isPlaying, BAR_COUNT);
   const cover = file.coverArt || file.thumbnail || (tags && tags.coverArt) || null;
-  const [showPlaylistDropdown, setShowPlaylistDropdown] = useState(false);
+  const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
 
   const artist = (tags && tags.artist) || file.artist || null;
   const title  = (tags && tags.title)  || file.name;
@@ -2514,6 +2514,19 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
   const year   = (tags && tags.year)   || file.year   || null;
   const genre  = (tags && tags.genre)  || file.genre  || null;
   const isLiked = likedIds && likedIds.has && likedIds.has(file.id);
+
+  const handleClickOutside = (e) => {
+    if (e.target.closest('.playlist-dropdown-menu') === null) {
+      setOpenPlaylistFor(null);
+    }
+  };
+
+  useEffect(() => {
+    if (openPlaylistFor) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [openPlaylistFor]);
 
   return (
     <div className="radio-body">
@@ -2569,36 +2582,20 @@ function AudioInfo({ file, tags, onPlay, isPlaying, analyser, onPrev, onNext, ha
         <button className="radio-nav-btn" onClick={() => onToggleLike && onToggleLike(file.id)} title={isLiked ? 'Quitar de me gusta' : 'Agregar a me gusta'}>
           {isLiked ? '♥' : '♡'}
         </button>
-        <div style={{position: 'relative'}}>
-          <button className="radio-nav-btn" onClick={() => setShowPlaylistDropdown(!showPlaylistDropdown)} title="Agregar a playlist">+</button>
-          {showPlaylistDropdown && (
-            <div style={{position: 'absolute', bottom: '100%', right: 0, background: 'var(--bg-panel)', border: '1px solid var(--fg-primary)', minWidth: '120px', zIndex: 1000}}>
+        <div className="playlist-dropdown-menu" style={{position: 'relative'}}>
+          <button className="radio-nav-btn" onClick={() => setOpenPlaylistFor(openPlaylistFor === file.id ? null : file.id)} title="Agregar a playlist">+</button>
+          {openPlaylistFor === file.id && (
+            <div style={{position: 'absolute', bottom: '100%', right: 0, background: 'var(--bg-panel)', border: '1px solid var(--fg-primary)', minWidth: '120px', zIndex: 1000, marginBottom: '4px'}}>
               {playlists.length === 0 ? (
-                <div style={{padding: '8px', color: 'var(--fg-dim)', fontSize: '10px'}}>SIN PLAYLISTS</div>
+                <div style={{padding: '8px', color: 'var(--fg-dim)', fontSize: '10px', fontFamily: 'var(--pixel)'}}>SIN PLAYLISTS</div>
               ) : (
                 playlists.map(pl => {
                   const hasTrack = pl.songIds && pl.songIds.includes(file.id);
                   return (
                     <button
                       key={pl.id}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!hasTrack && onAddToPlaylist) onAddToPlaylist(file.id, pl.id);
-                        setShowPlaylistDropdown(false);
-                      }}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        padding: '6px 10px',
-                        textAlign: 'left',
-                        background: 'transparent',
-                        border: 'none',
-                        color: hasTrack ? 'var(--fg-primary)' : 'var(--fg-text)',
-                        cursor: hasTrack ? 'default' : 'pointer',
-                        opacity: hasTrack ? 0.6 : 1,
-                        fontSize: '11px',
-                        fontFamily: 'var(--pixel)'
-                      }}
+                      onClick={(e) => { e.stopPropagation(); if (!hasTrack && onAddToPlaylist) onAddToPlaylist(file.id, pl.id); setOpenPlaylistFor(null); }}
+                      style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default', display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', fontSize:'11px', fontFamily:'var(--pixel)'} : {display:'block', width:'100%', padding:'6px 10px', textAlign:'left', background:'transparent', border:'none', color:'var(--fg-text)', cursor:'pointer', fontSize:'11px', fontFamily:'var(--pixel)'}}
                     >
                       {hasTrack ? '✓ ' : ''}{pl.name}
                     </button>
@@ -3151,7 +3148,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav, playlists = [] }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav, playlists = [], setPlaylistSongToAdd, onAddToPlaylist }) {
   const [editing, setEditing] = useState(false);
   const [detailSearch, setDetailSearch] = useState('');
   const [editingBmId, setEditingBmId]     = useState(null);
@@ -3327,7 +3324,8 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                            likedIds={likedIds} onToggleLike={onToggleLike}
                            onNavToArtist={(artist) => onNav({ page: 'CAT', cat: artist })}
                            onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist })}
-                           playlists={playlists} onAddToPlaylist={addSongToPlaylist} />
+                           playlists={playlists} onAddToPlaylist={(fileId, playlistId) => {}} 
+                           onOpenCreatePlaylist={() => { if (setPlaylistSongToAdd) setPlaylistSongToAdd(file.id); }} />
               </div>
             )}
 
@@ -7181,7 +7179,7 @@ function App() {
                                 onPrev={goDetailPrev} onNext={goDetailNext}
                                 hasPrev={hasPrevDetail} hasNext={hasNextDetail}
                                 allFiles={[...files, ...localFiles].filter(isAudioFile)}
-                                onOpenFile={openFile} onNav={navigateTo} playlists={playlists} />
+                                onOpenFile={openFile} onNav={navigateTo} playlists={playlists} setPlaylistSongToAdd={setPlaylistSongToAdd} onAddToPlaylist={addSongToPlaylist} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>navigateTo({page:'INICIO'})}>VOLVER</button>
                     </div></div>
