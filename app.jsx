@@ -1056,18 +1056,15 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
                       <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
                       {showPlaylistMenu && (
                         <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
-                          {playlists.length === 0 ? (
-                            <button onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                          ) : (
-                            playlists.map(pl => {
-                              const hasTrack = (pl.songIds || []).includes(f.id);
-                              return (
-                                <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
-                                  {hasTrack ? '✓ ' : ''}{pl.name}
-                                </button>
-                              );
-                            })
-                          )}
+                          <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                          {playlists.map(pl => {
+                            const hasTrack = (pl.songIds || []).includes(f.id);
+                            return (
+                              <button key={pl.id} onClick={(e) => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                                {hasTrack ? '✓ ' : ''}{pl.name}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
