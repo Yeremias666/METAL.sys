@@ -5984,11 +5984,22 @@ async function gtTranslate(text) {
 }
 
 async function fetchNewsSource(src) {
-  const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(src.url)}`;
-  const r = await fetch(proxy);
-  const d = await r.json();
-  const xml = d.contents || '';
-  if (!xml || xml.trimStart().startsWith('<!DOCTYPE') || xml.trimStart().startsWith('<html')) throw new Error('not rss');
+  let xml = '';
+  const proxies = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+  ];
+  for (const mkProxy of proxies) {
+    try {
+      const r = await fetch(mkProxy(src.url));
+      if (!r.ok) continue;
+      const txt = await r.text();
+      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE')) {
+        xml = txt; break;
+      }
+    } catch(e) { continue; }
+  }
+  if (!xml) throw new Error('all proxies failed');
 
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   if (doc.querySelector('parsererror')) throw new Error('xml parse error');
@@ -6046,12 +6057,19 @@ function NewsPage() {
   const [translating, setTranslating] = useState(false);
   const transCache = useRef({});
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    // limpia caché vacía de intentos fallidos anteriores
+    try {
+      const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || 'null');
+      if (cached && (!cached.items || cached.items.length === 0)) localStorage.removeItem(NEWS_CACHE_KEY);
+    } catch(e) {}
+    loadAll();
+  }, []);
 
   const loadAll = async () => {
     try {
       const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || 'null');
-      if (cached && Date.now() - cached.ts < NEWS_CACHE_TTL) {
+      if (cached && cached.items && cached.items.length > 0 && Date.now() - cached.ts < NEWS_CACHE_TTL) {
         let trans = {};
         try { trans = JSON.parse(localStorage.getItem(NEWS_TRANS_KEY) || '{}'); } catch(e) {}
         transCache.current = trans;
