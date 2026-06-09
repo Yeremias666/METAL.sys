@@ -533,7 +533,7 @@ input:not([type=range]), textarea {
   flex-wrap: nowrap;
   gap: 4px;
   align-items: center;
-  min-width: max-content;
+  min-width: 0;
 }
 
 /* Nav search */
@@ -1498,19 +1498,19 @@ input:not([type=range]), textarea {
   border-color: var(--fg-primary);
   background: var(--fg-primary);
   background-image: none;
-  color: #000;
+  color: #fff !important;
   box-shadow: none;
   transform: none;
-  text-shadow: none;
+  text-shadow: none !important;
 }
 .album-play-btn:hover {
   border-color: var(--fg-primary);
   background: var(--fg-primary);
   background-image: none;
-  color: #000;
-  box-shadow: none;
-  transform: none;
-  text-shadow: none;
+  color: #fff !important;
+  box-shadow: none !important;
+  transform: none !important;
+  text-shadow: none !important;
 }
 
 /* Ensure like/playlist buttons also appear on hover inside album panels */
