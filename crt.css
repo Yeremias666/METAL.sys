@@ -2040,7 +2040,7 @@ input:not([type=range]), textarea {
 .player-actions {
   margin-top: 22px;
   display: flex;
-  gap: 14px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
@@ -4332,7 +4332,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 22px;
   line-height: 1;
   padding: 0;
-  margin-right: 6px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -4347,6 +4346,29 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 12px var(--fg-primary);
+}
+.player-actions .like-btn {
+  width: 46px;
+  height: 46px;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--fg-primary);
+  background: transparent;
+  color: var(--fg-primary);
+  border-radius: 2px;
+  cursor: pointer;
+  text-shadow: 0 0 6px var(--fg-primary);
+}
+.player-actions .like-btn:hover,
+.player-actions .like-btn.liked {
+  background: var(--fg-primary);
+  color: #000;
+  box-shadow: 0 0 12px var(--fg-primary);
+  text-shadow: none;
 }
 .detail-playlist-wrapper { position: relative; }
 .detail-playlist-dropdown {

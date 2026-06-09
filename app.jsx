@@ -3114,7 +3114,7 @@ function UploadProgressPage({ progress }) {
 }
 
 // ─── PAGE: DETAIL (player) ─────────────────────────────────────
-function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav, playlists = [], setPlaylistSongToAdd, onAddToPlaylist }) {
+function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onPlayAudio, currentPlayingId, isPlaying, id3Tags, requestID3, analyser, likedIds, onToggleLike, bookmarks, onAddBookmark, onDeleteBookmark, onUpdateBookmark, onSeekBookmark, onSeekBookmarkInFile, clipStore, onAddClip, onDeleteClip, onUpdateClip, onPlayClip, onPlayClipFromFile, onStopClip, activeClip, position, onPrev, onNext, hasPrev, hasNext, allFiles = [], onOpenFile, onNav, playlists = [], setPlaylistSongToAdd, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [editing, setEditing] = useState(false);
   const [openPlaylistMenu, setOpenPlaylistMenu] = useState(false);
   const playlistMenuRef = useRef(null);
@@ -3299,7 +3299,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                            onNavToArtist={(artist) => onNav({ page: 'CAT', cat: artist })}
                            onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist })}
                            playlists={playlists} onAddToPlaylist={(fileId, playlistId) => {}} 
-                           onOpenCreatePlaylist={() => { if (setPlaylistSongToAdd) setPlaylistSongToAdd(file.id); }} />
+                           onOpenCreatePlaylist={() => onOpenCreatePlaylist?.(file.id)} />
               </div>
             )}
 
@@ -3488,7 +3488,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                   <button className="playlist-btn" onClick={(e) => { e.stopPropagation(); setOpenPlaylistMenu(p => !p); }} title="Añadir a playlist">＋</button>
                   {openPlaylistMenu && (
                     <div className="mp-menu-dropdown detail-playlist-dropdown">
-                      <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); if (setPlaylistSongToAdd) setPlaylistSongToAdd(file.id); setOpenPlaylistMenu(false); }}>＋ NUEVA PLAYLIST</button>
+                      <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(file.id); setOpenPlaylistMenu(false); }}>＋ NUEVA PLAYLIST</button>
                       {playlists.map(pl => {
                         const hasTrack = (pl.songIds || []).includes(file.id);
                         return (
@@ -7198,7 +7198,9 @@ function App() {
                                 onPrev={goDetailPrev} onNext={goDetailNext}
                                 hasPrev={hasPrevDetail} hasNext={hasNextDetail}
                                 allFiles={[...files, ...localFiles].filter(isAudioFile)}
-                                onOpenFile={openFile} onNav={navigateTo} playlists={playlists} setPlaylistSongToAdd={setPlaylistSongToAdd} onAddToPlaylist={addSongToPlaylist} />
+                                onOpenFile={openFile} onNav={navigateTo} playlists={playlists}
+                                setPlaylistSongToAdd={setPlaylistSongToAdd} onAddToPlaylist={addSongToPlaylist}
+                                onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
                       Archivo no encontrado. <button className="mini-btn" onClick={()=>navigateTo({page:'INICIO'})}>VOLVER</button>
                     </div></div>
