@@ -1495,15 +1495,22 @@ input:not([type=range]), textarea {
 }
 .album-play-btn {
   margin-top: 14px;
-  border-color: rgba(255,255,255,0.9);
-  background: linear-gradient(180deg, rgba(255,255,255,0.12), var(--fg-primary));
+  border-color: var(--fg-primary);
+  background: var(--fg-primary);
+  background-image: none;
+  color: #000;
   box-shadow: none;
   transform: none;
+  text-shadow: none;
 }
 .album-play-btn:hover {
-  border-color: #fff;
+  border-color: var(--fg-primary);
+  background: var(--fg-primary);
+  background-image: none;
+  color: #000;
   box-shadow: none;
   transform: none;
+  text-shadow: none;
 }
 
 /* Ensure like/playlist buttons also appear on hover inside album panels */
@@ -4303,10 +4310,10 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: var(--fg-primary);
   border-radius: 2px;
   cursor: pointer;
-  width: 30px;
-  height: 30px;
-  font-size: 16px;
-  font-weight: 800;
+  width: 28px;
+  height: 28px;
+  font-size: 18px;
+  font-weight: 700;
   line-height: 1;
   text-shadow: none;
 }
