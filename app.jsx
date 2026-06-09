@@ -1960,7 +1960,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
-                <button className="big-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
+                <button className="big-btn album-play-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
                   ▶ REPRODUCIR DISCO
                 </button>
                 <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1}}>{currentAlbum.name}</span>
