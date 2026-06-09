@@ -1712,7 +1712,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [] }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const list = files.filter((f) => (f.category || f.artist) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -2062,7 +2062,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   SIN CANCIONES
                 </div>
               ) : (
-                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
+                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
               )}
             </div>
           </div>
@@ -2088,7 +2088,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               {searchSongs.length > 0 && (
                 <>
                   <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                  <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} />
+                  <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
                 </>
               )}
               {searchAlbums.length === 0 && searchSongs.length === 0 && (
@@ -7103,6 +7103,9 @@ function App() {
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
                               artistMeta={artistMeta} onUpdateArtistMeta={updateArtistMeta}
                               playlists={playlists}
+                              likedIds={likedIds} onToggleLike={toggleLike}
+                              onAddToPlaylist={addSongToPlaylist}
+                              onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                               onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)}
                               onPlayFile={(f) => {

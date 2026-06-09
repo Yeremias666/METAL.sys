@@ -1511,6 +1511,30 @@ input:not([type=range]), textarea {
 .panel .track-list-row:hover .playlist-btn {
   opacity: 1;
 }
+
+/* More specific override for right-side action buttons inside album panels */
+.panel .track-list-row:hover .track-list-right-actions .like-btn,
+.panel .track-list-row:hover .track-list-right-actions .playlist-btn {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+/* Force album-play button to be flat even if .big-btn adds hover effects */
+.album-play-btn {
+  box-shadow: none !important;
+  transform: none !important;
+}
+.album-play-btn:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.big-btn.album-play-btn, .big-btn.album-play-btn:hover {
+  box-shadow: none !important;
+  transform: none !important;
+  text-shadow: none !important;
+}
+
 /* Movil: ocultar vinilo, solo portada */
 .is-touch .album-detail-thumb .album-card-vinyl { display: none; }
 .is-touch .album-detail-thumb { transform: none !important; box-shadow: none !important; }
