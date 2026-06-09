@@ -1082,7 +1082,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
                   )}
                   {onAddToPlaylist && (
                     <div style={{position:'relative'}}>
-                      <button className="playlist-btn" style={{width:30, height:30, padding:0}} onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
+                      <button className="playlist-btn" onClick={(e) => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
                       {showPlaylistMenu && (
                         <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
                           <button className="mp-menu-submenu-create" onClick={(e) => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>

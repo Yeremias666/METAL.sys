@@ -521,16 +521,12 @@ input:not([type=range]), textarea {
 
 /* Nav */
 .nav {
-  overflow-x: auto;
-  overflow-y: visible;
-  scrollbar-width: none;
   margin-bottom: 18px;
-  font-size: clamp(13px, 1.4vw, 22px);
+  font-size: clamp(11px, 1.1vw, 14px);
 }
-.nav::-webkit-scrollbar { display: none; }
 .nav-system {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
   min-width: 0;
