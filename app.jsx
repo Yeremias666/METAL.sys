@@ -1078,7 +1078,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
               <div style={{display:'flex', alignItems:'center', gap:8}}>
                 <div style={{display:'flex', alignItems:'center', gap:8}}>
                   {onToggleLike && (
-                    <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+                    <button className={`like-btn${isLiked ? ' liked' : ''}`} style={{flexShrink:0}} onClick={(e) => { e.stopPropagation(); onToggleLike(f.id); }} title={isLiked ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>{isLiked ? '♥' : '♡'}</button>
                   )}
                   {onAddToPlaylist && (
                     <div style={{position:'relative'}}>
@@ -4474,7 +4474,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                   <div className="track-list-row-actions">
                     <div style={{display:'flex', alignItems:'center', gap:8}}>
                       {onToggleLike && (
-                        <button className={`like-btn${likedIds && likedIds.has && likedIds.has(f.id) ? ' liked' : ''}`} style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title={likedIds && likedIds.has && likedIds.has(f.id) ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>♥</button>
+                        <button className={`like-btn${likedIds && likedIds.has && likedIds.has(f.id) ? ' liked' : ''}`} style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title={likedIds && likedIds.has && likedIds.has(f.id) ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>{likedIds && likedIds.has && likedIds.has(f.id) ? '♥' : '♡'}</button>
                       )}
                       {onAddToPlaylist && (
                         <div style={{position:'relative'}}>
