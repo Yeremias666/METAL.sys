@@ -6001,10 +6001,10 @@ function extractImageUrlFromHtml(html) {
       || el.dataset.lazySrc
       || el.dataset.original
       || el.dataset.originalSrc
+      || el.getAttribute('data-src')
       || getUrlFromSrcset(el.getAttribute('srcset'))
       || getUrlFromSrcset(el.getAttribute('data-srcset'))
       || getUrlFromSrcset(el.getAttribute('data-original-src'))
-      || el.getAttribute('data-src')
       || '';
   };
 
@@ -6013,6 +6013,10 @@ function extractImageUrlFromHtml(html) {
 
   const source = wrapper.querySelector('source');
   if (source) return getImageUrl(source);
+
+  const regex = /<img[^>]+(?:src|data-src|data-lazy-src|data-original)=["']([^"']+)["']/i;
+  const match = decoded.match(regex);
+  if (match) return match[1];
 
   return '';
 }
