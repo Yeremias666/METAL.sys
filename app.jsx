@@ -1033,45 +1033,48 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
   );
 }
 
-function DurationCell({ src }) {
+function DurationCell({ file }) {
   const [dur, setDur] = React.useState(null);
   React.useEffect(() => {
-    if (!src) return;
     let cancelled = false;
     let objectUrl = null;
     let audio = null;
-    fetch(src)
-      .then(r => r.blob())
-      .then(blob => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
+    (async () => {
+      try {
+        let url;
+        if (file.isLocal && file.fileHandle) {
+          const f = await file.fileHandle.getFile();
+          url = URL.createObjectURL(f);
+          objectUrl = url;
+        } else if (file.fileData) {
+          const blob = await fetch(file.fileData).then(r => r.blob());
+          url = URL.createObjectURL(blob);
+          objectUrl = url;
+        } else {
+          return;
+        }
+        if (cancelled) { URL.revokeObjectURL(url); return; }
         audio = document.createElement('audio');
         audio.preload = 'metadata';
         audio.addEventListener('loadedmetadata', () => {
           if (!cancelled) {
             const s = audio.duration;
             if (isFinite(s) && s > 0) {
-              const m = Math.floor(s / 60);
-              const sec = String(Math.floor(s % 60)).padStart(2, '0');
-              setDur(`${m}:${sec}`);
+              setDur(`${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
             }
           }
           audio.src = '';
-          URL.revokeObjectURL(objectUrl);
-          objectUrl = null;
-        }, { once: true });
-        audio.addEventListener('error', () => {
           if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
         }, { once: true });
-        audio.src = objectUrl;
-      })
-      .catch(() => {});
+        audio.src = url;
+      } catch (_) {}
+    })();
     return () => {
       cancelled = true;
       if (audio) audio.src = '';
       if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
     };
-  }, [src]);
+  }, [file.id]);
   return <span className="tt-dur">{dur || '—'}</span>;
 }
 
@@ -1146,7 +1149,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
               <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
-              <DurationCell src={f.fileData} />
+              <DurationCell file={f} />
               {renderActions(f, showPlaylistMenu)}
             </div>
           );
