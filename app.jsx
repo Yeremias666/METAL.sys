@@ -1948,6 +1948,21 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         )}
       </div>
 
+      {/* Artist summary panel: image, name, counts */}
+      <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
+        <div style={{textAlign:'center'}}>
+          {artistImage ? (
+            <img src={artistImage} alt={cat} style={{width:160, height:160, objectFit:'cover', borderRadius:2, border:'1px solid rgba(214,31,31,0.25)'}} />
+          ) : (
+            <div style={{width:160, height:160, display:'inline-block', background:'rgba(214,31,31,0.04)', border:'1px dashed rgba(214,31,31,0.25)'}} />
+          )}
+          <div className="artist-meta" style={{marginTop:12}}>
+            <div className="artist-name">{cat}</div>
+            <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
+          </div>
+        </div>
+      </div>
+
       {list.length > 0 && (
         <div className="section">
           <div className="panel searchbar">
