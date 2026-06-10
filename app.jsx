@@ -1037,17 +1037,40 @@ function DurationCell({ src }) {
   const [dur, setDur] = React.useState(null);
   React.useEffect(() => {
     if (!src) return;
-    const a = new Audio();
-    a.preload = 'metadata';
-    a.onloadedmetadata = () => {
-      const s = Math.floor(a.duration);
-      if (!isNaN(s) && isFinite(s)) {
-        setDur(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
-      }
-      a.src = '';
+    let cancelled = false;
+    let objectUrl = null;
+    let audio = null;
+    fetch(src)
+      .then(r => r.blob())
+      .then(blob => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        audio = document.createElement('audio');
+        audio.preload = 'metadata';
+        audio.addEventListener('loadedmetadata', () => {
+          if (!cancelled) {
+            const s = audio.duration;
+            if (isFinite(s) && s > 0) {
+              const m = Math.floor(s / 60);
+              const sec = String(Math.floor(s % 60)).padStart(2, '0');
+              setDur(`${m}:${sec}`);
+            }
+          }
+          audio.src = '';
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }, { once: true });
+        audio.addEventListener('error', () => {
+          if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+        }, { once: true });
+        audio.src = objectUrl;
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (audio) audio.src = '';
+      if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
     };
-    a.src = src;
-    return () => { a.src = ''; };
   }, [src]);
   return <span className="tt-dur">{dur || '—'}</span>;
 }
