@@ -6268,7 +6268,7 @@ function NewsPage() {
             <span style={{color:'var(--fg-dim)', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.06em'}}>{reader.sourceName.toUpperCase()} · {fmtDate(reader.pubDate)}</span>
           </div>
           <div className="panel-body news-reader">
-            {reader.thumbnail && <img src={reader.thumbnail} alt="" className="news-reader-img" />}
+            {reader.thumbnail && <div className="news-reader-img" style={{ backgroundImage: `url(${reader.thumbnail})` }} />}
             <h2 className="news-reader-title">{reader.titleEs || reader.title}</h2>
             <div className="news-reader-body">
               {readerContent === '[ traduciendo... ]'
@@ -6320,7 +6320,7 @@ function NewsPage() {
             <div key={item.id} className="news-card" onClick={() => openReader(item)}>
               <div className="news-card-img-wrap">
                 {item.thumbnail
-                  ? <img src={item.thumbnail} alt="" className="news-card-img" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }} />
+                  ? <div className="news-card-bg" style={{ backgroundImage: `url(${item.thumbnail})` }} />
                   : <div className="news-card-no-img">◈</div>}
               </div>
               <div className="news-card-body">
