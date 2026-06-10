@@ -5988,9 +5988,33 @@ function extractImageUrlFromHtml(html) {
   const decoded = decodeHtmlEntities(html);
   const wrapper = document.createElement('div');
   wrapper.innerHTML = decoded;
+
+  const getUrlFromSrcset = (value) => {
+    if (!value) return '';
+    return value.split(',').map(part => part.trim().split(/\s+/)[0]).find(Boolean) || '';
+  };
+
+  const getImageUrl = (el) => {
+    if (!el) return '';
+    return el.getAttribute('src')
+      || el.dataset.src
+      || el.dataset.lazySrc
+      || el.dataset.original
+      || el.dataset.originalSrc
+      || getUrlFromSrcset(el.getAttribute('srcset'))
+      || getUrlFromSrcset(el.getAttribute('data-srcset'))
+      || getUrlFromSrcset(el.getAttribute('data-original-src'))
+      || el.getAttribute('data-src')
+      || '';
+  };
+
   const img = wrapper.querySelector('img');
-  if (!img) return '';
-  return img.src || img.dataset.src || img.dataset.lazySrc || img.dataset.original || img.getAttribute('data-srcset')?.split(',')[0]?.trim().split(' ')[0] || '';
+  if (img) return getImageUrl(img);
+
+  const source = wrapper.querySelector('source');
+  if (source) return getImageUrl(source);
+
+  return '';
 }
 
 function normalizeImageUrl(url, baseUrl) {
@@ -6025,9 +6049,17 @@ function normalizeImageUrl(url, baseUrl) {
 
 function findNewsThumbnail(item, baseUrl) {
   if (!item) return '';
+  const imageUrl = item.image && typeof item.image === 'string'
+    ? item.image
+    : item.image && (item.image.url || item.image.src) || '';
+  const itunesUrl = item.itunes && typeof item.itunes.image === 'string'
+    ? item.itunes.image
+    : item.itunes && (item.itunes.image?.href || item.itunes.image?.url) || '';
+
   return normalizeImageUrl(item.thumbnail, baseUrl)
     || normalizeImageUrl(item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href), baseUrl)
-    || normalizeImageUrl(item.image && (item.image.url || item.image.src), baseUrl)
+    || normalizeImageUrl(imageUrl, baseUrl)
+    || normalizeImageUrl(itunesUrl, baseUrl)
     || normalizeImageUrl(extractImageUrlFromHtml(item.content), baseUrl)
     || normalizeImageUrl(extractImageUrlFromHtml(item.description), baseUrl)
     || normalizeImageUrl(extractImageUrlFromHtml(item.summary), baseUrl)
@@ -6144,13 +6176,32 @@ async function fetchNewsSource(src) {
     const pubDate = t('pubDate') || t('published') || t('updated') || '';
     const guid    = t('guid') || link;
 
-    let thumbnail = a('media:thumbnail', 'url') || a('media:content', 'url') || '';
+    let thumbnail = a('media:thumbnail', 'url') || '';
+    if (!thumbnail) {
+      const contents = node.getElementsByTagName('media:content');
+      for (let i = 0; i < contents.length; i++) {
+        const url = contents[i].getAttribute('url');
+        const type = (contents[i].getAttribute('type') || '').toLowerCase();
+        if (url && (type.startsWith('image') || /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(url))) {
+          thumbnail = url;
+          break;
+        }
+      }
+    }
+    if (!thumbnail) thumbnail = a('media:content', 'url') || '';
+    if (!thumbnail) thumbnail = a('itunes:image', 'href') || a('itunes:image', 'url') || a('image', 'url') || a('image', 'src') || '';
     if (!thumbnail) {
       const enc = node.getElementsByTagName('enclosure')[0];
-      if (enc && (enc.getAttribute('type') || '').startsWith('image')) thumbnail = enc.getAttribute('url') || '';
+      if (enc) {
+        const url = enc.getAttribute('url') || enc.getAttribute('href') || '';
+        const type = (enc.getAttribute('type') || '').toLowerCase();
+        if (url && (type.startsWith('image') || /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(url))) {
+          thumbnail = url;
+        }
+      }
     }
     if (!thumbnail) {
-      const m = (content || desc).match(/<img[^>]+src=["']([^"']+\.(?:jpe?g|png|webp)[^"']*)["']/i);
+      const m = (content || desc).match(/<img[^>]+src=["']([^"']+\.(?:jpe?g|png|webp|gif|bmp|svg)[^"']*)["']/i);
       if (m) thumbnail = m[1];
     }
 
