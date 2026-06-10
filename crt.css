@@ -725,13 +725,11 @@ input:not([type=range]), textarea {
   letter-spacing: 0.08em;
   cursor: pointer;
   flex-shrink: 0;
-  transition: transform 0.08s, background 0.12s, box-shadow 0.12s;
-  box-shadow: 0 0 12px rgba(214,31,31,0.35), inset 0 0 6px rgba(255,255,255,0.1);
+  transition: background 0.12s, box-shadow 0.12s;
 }
 .cat-upload-btn:hover {
-  background: #c90909;
-  box-shadow: 0 0 16px rgba(214,31,31,0.55), 0 0 4px rgba(255,255,255,0.15);
-  transform: translate(-1px, -1px);
+  background: var(--fg-primary);
+  box-shadow: none;
 }
 
 /* Hero / welcome */
@@ -1847,7 +1845,7 @@ input:not([type=range]), textarea {
 
 /* ─── Detail page / player ───────────────────────────────── */
 .detail-page .panel-hd {
-  background: linear-gradient(90deg, var(--fg-primary) 0%, #8a0a0a 100%);
+  background: var(--fg-primary);
   color: #000;
 }
 

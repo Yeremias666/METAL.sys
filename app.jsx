@@ -1940,10 +1940,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       </div>
 
       <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', padding:'8px 12px'}}>
-        <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
-                onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
-        <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
-                onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
+        <button className="mini-btn alt" onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
+        <button className="mini-btn alt" onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
           ✎ EDITAR
         </button>
       </div>
