@@ -1138,7 +1138,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
               <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
-              <span className="tt-artist">{f.artist || f.category || '—'}</span>
+              <span className="tt-artist">{f.category || f.artist || '—'}</span>
               <DurationCell file={f} />
               {renderActions(f, showPlaylistMenu)}
             </div>
@@ -4656,7 +4656,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                     <span className="tt-num" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{isNowPlaying && isPlaying ? '▶' : i+1}</span>
                     <span className="tt-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</span>
                     <span className="tt-album">{f.album || '—'}</span>
-                    <span className="tt-artist">{f.artist || f.category || '—'}</span>
+                    <span className="tt-artist">{f.category || f.artist || '—'}</span>
                     <DurationCell file={f} />
                     <div className="track-list-row-actions">
                       <div style={{display:'flex', alignItems:'center', gap:8}}>
