@@ -333,10 +333,7 @@ function isImageFile(f)    { return /^(jpg|jpeg|png|gif|bmp|webp|svg|ico)$/.test
 function normStr(s) {
   return (s || '').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
-// Devuelve el intérprete principal del álbum (preferencia: albumArtist, luego artist, luego category)
-function getPrimaryArtist(f) {
-  return (f && (f.albumArtist || f.artist || f.category)) || '';
-}
+
 function buildPlaylistHits(playlists, allFiles, q) {
   return (playlists || [])
     .filter(pl => normStr(pl.name).includes(q))
@@ -1558,7 +1555,6 @@ function FolderImportSection({ vault, onUpload }) {
               description: [tags.album, tags.year, tags.genre].filter(Boolean).join(' · '),
               category: primaryArtist,
               artist:   primaryArtist,
-              albumArtist: primaryArtist,
               album:    tags.album  || '',
               track:    tags.track  || '',
               disc:     tags.disc   || '',
@@ -5348,13 +5344,13 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const delCount = log.filter(e=>e.kind==='DEL').length;
 
   // All artists (usar intérprete del álbum cuando esté disponible)
-  const allArtistsList = [...new Set(audioFiles.map(f=>getPrimaryArtist(f)).filter(Boolean))];
+  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category).filter(Boolean))];
   const artistColorMap = {};
   allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
 
   // Artist plays (por intérprete del álbum)
   const artistPlays = {};
-  audioFiles.forEach(f => { const a=getPrimaryArtist(f)||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
+  audioFiles.forEach(f => { const a=f.artist||f.category||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
   const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
   const topArtists = allArtistPlays.slice(0,10);
   const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
@@ -5366,12 +5362,12 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   // Fav album (agrupar por intérprete de álbum + nombre de álbum)
   const albumPlays = {};
   audioFiles.forEach(f => {
-    const key = `${getPrimaryArtist(f)}||${f.album||'SINGLE'}`;
+    const key = `${f.category||f.artist}||${f.album||'SINGLE'}`;
     albumPlays[key] = (albumPlays[key]||0) + (playCounts[f.id]||0);
   });
   const [topAlbumKey='||', topAlbumPlays=0] = Object.entries(albumPlays).sort((a,b)=>b[1]-a[1])[0] || [];
   const [favAlbumArtist='', favAlbumName=''] = topAlbumKey.split('||');
-  const favAlbumCover = audioFiles.find(f=>getPrimaryArtist(f)===favAlbumArtist&&(f.album||'SINGLE')===favAlbumName&&(f.thumbnail||f.coverArt));
+  const favAlbumCover = audioFiles.find(f=>(f.category||f.artist)===favAlbumArtist&&(f.album||'SINGLE')===favAlbumName&&(f.thumbnail||f.coverArt));
 
   // Genres
   const genrePlays = {};
@@ -5510,7 +5506,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
               {(() => {
                 const favArtist = allArtistPlays[0] && allArtistPlays[0][1]>0 ? allArtistPlays[0][0] : null;
                 const favArtistImg = favArtist
-                  ? (artistMeta[favArtist]?.image || audioFiles.find(f=>getPrimaryArtist(f)===favArtist&&(f.thumbnail||f.coverArt))?.thumbnail || audioFiles.find(f=>getPrimaryArtist(f)===favArtist&&f.coverArt)?.coverArt || null)
+                  ? (artistMeta[favArtist]?.image || audioFiles.find(f=>(f.artist||f.category)===favArtist&&(f.thumbnail||f.coverArt))?.thumbnail || audioFiles.find(f=>(f.artist||f.category)===favArtist&&f.coverArt)?.coverArt || null)
                   : null;
                 return (
                   <div className="stat-highlight">
@@ -5532,7 +5528,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                   : <div className="sh-icon"><IconGlyph iconId="nota" size={36}/></div>}
                 <div className="sh-label">CANCIÓN FAVORITA</div>
                 <div className="sh-name">{mostPlayed && mostPlayedCount>0 ? mostPlayed.name : '— SIN DATOS —'}</div>
-                {mostPlayed && mostPlayedCount>0 && <div className="sh-sub">▶ {mostPlayedCount}× · {getPrimaryArtist(mostPlayed)}</div>}
+                {mostPlayed && mostPlayedCount>0 && <div className="sh-sub">▶ {mostPlayedCount}× · {mostPlayed.category||mostPlayed.artist||''}</div>}
               </div>
               {/* Disco favorito */}
               <div className="stat-highlight">
@@ -6371,7 +6367,6 @@ function App() {
         description: meta.description,
         category:    meta.artist || meta.category,
         artist:      meta.artist  || '',
-        albumArtist: meta.albumArtist || meta.artist || meta.category || '',
         album:       meta.album   || '',
         track:       meta.track   || '',
         disc:        meta.disc    || '',
@@ -6558,7 +6553,7 @@ function App() {
     setPlayCounts(prev => { const n = { ...prev, [id]: (prev[id] || 0) + 1 }; saveCounts(n); return n; });
     const file = [...files, ...localFiles].find(f => f.id === id);
     setPlayLog(prev => {
-      const n = [{ id, artist: getPrimaryArtist(file), ts: Date.now() }, ...prev].slice(0,2000);
+      const n = [{ id, artist: (file?.category || file?.artist || ''), ts: Date.now() }, ...prev].slice(0,2000);
       savePLog(n);
       return n;
     });
@@ -6578,7 +6573,7 @@ function App() {
       audio.play().catch(() => {});
       return;
     }
-    if (!skipLog) addToLog({ kind: 'PLAY', name: file.name, artist: getPrimaryArtist(file) });
+    if (!skipLog) addToLog({ kind: 'PLAY', name: file.name, artist: file.category || file.artist || '' });
     // Count previous track if it was played for at least 30 seconds
     if (currentTrackId && playStartRef.current) {
       const elapsed = Date.now() - playStartRef.current;
@@ -6706,7 +6701,7 @@ function App() {
       if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
       return next;
     });
-    addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: getPrimaryArtist(f) });
+    addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
   };
 
   // Auth handlers
@@ -6910,7 +6905,6 @@ function App() {
             fileData: null,      // never stored
             isLocal: true,
             fileHandle,
-            albumArtist: tags.albumArtist || tags.artist || '',
             uploadedAt: file.lastModified || Date.now(),
             downloads: 0,
           };
@@ -6986,11 +6980,11 @@ function App() {
     if (audio.paused) {
       audio.play().catch(() => {});
       const f = currentTrack;
-      if (f) addToLog({ kind: 'PLAY', name: f.name, artist: getPrimaryArtist(f) });
+      if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.category || f.artist || '' });
     } else {
       audio.pause();
       const f = currentTrack;
-      if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: getPrimaryArtist(f) });
+      if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.category || f.artist || '' });
     }
   };
   const playNext = (wrap = true, { autoAdvance = false } = {}) => {
@@ -7000,7 +6994,7 @@ function App() {
     const idx = queue.findIndex((f) => f.id === currentTrackId);
     const next = (idx === -1) ? queue[0] : (wrap ? queue[(idx + 1) % queue.length] : queue[idx + 1]);
     if (next) {
-      if (!autoAdvance) addToLog({ kind: 'NEXT', name: next.name, artist: getPrimaryArtist(next) });
+      if (!autoAdvance) addToLog({ kind: 'NEXT', name: next.name, artist: next.artist || next.category || '' });
       startTrack(next, undefined, { skipLog: true });
     }
   };
@@ -7015,7 +7009,7 @@ function App() {
     const idx = queue.findIndex((f) => f.id === currentTrackId);
     const prev = (idx === -1) ? queue[queue.length - 1] : queue[(idx - 1 + queue.length) % queue.length];
     if (prev) {
-      addToLog({ kind: 'PREV', name: prev.name, artist: getPrimaryArtist(prev) });
+      addToLog({ kind: 'PREV', name: prev.name, artist: prev.artist || prev.category || '' });
       startTrack(prev, undefined, { skipLog: true });
     }
   };
