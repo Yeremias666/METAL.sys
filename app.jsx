@@ -1962,14 +1962,14 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         )}
       </div>
 
-      <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'flex-start', padding:'8px 12px'}}>
-        <button className="mini-btn alt" onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
-        {!selectedAlbum && (
+      {!selectedAlbum && (
+        <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'flex-start', padding:'8px 12px'}}>
+          <button className="mini-btn alt" onClick={() => onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
           <button className="mini-btn alt" onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
             ✎ EDITAR
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Artist summary panel: image, name, counts */}
       {!selectedAlbum && (
@@ -1994,7 +1994,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         </div>
       )}
 
-      {list.length > 0 && (
+      {list.length > 0 && !selectedAlbum && (
         <div className="section">
           <div className="panel searchbar">
             <div className="panel-hd">BUSCADOR</div>
@@ -2092,6 +2092,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         {currentAlbum ? (
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
+              <button className="mini-btn alt" style={{marginRight:10, flexShrink:0}} onClick={() => onNav({ page: 'CAT', cat })}>◀ VOLVER</button>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap', color:'#000'}}>
                 <span>/{cat}/</span><span>{currentAlbum.name}</span>
               </span>
