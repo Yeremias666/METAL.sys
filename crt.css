@@ -3909,8 +3909,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ─── Playlist auto cover grid (Spotify-style) ────────────── */
 .ac-auto-grid {
   display: grid;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   transition: transform 0.55s cubic-bezier(0.23,1,0.32,1);
   will-change: transform;
