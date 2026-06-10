@@ -4265,8 +4265,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-table { width: 100%; }
 .track-table-header {
   display: grid;
-  grid-template-columns: 36px minmax(0,1fr) 200px 70px;
-  gap: 0 12px;
+  grid-template-columns: 36px 360px 200px 60px;
+  gap: 0 16px;
   padding: 7px 14px;
   border-bottom: 1px solid rgba(214,31,31,0.25);
   font-family: var(--pixel);
@@ -4276,8 +4276,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .track-table-row {
   display: grid !important;
-  grid-template-columns: 36px minmax(0,1fr) 200px 70px;
-  gap: 0 12px;
+  grid-template-columns: 36px 360px 200px 60px;
+  gap: 0 16px;
   position: relative;
 }
 .track-table-row .track-list-row-actions {
