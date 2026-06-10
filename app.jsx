@@ -1945,22 +1945,24 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         </div>
       )}
 
-      <div className="panel">
-        <div className="panel-hd">
-          <span style={{display:'flex', alignItems:'center', gap:8, minWidth:0, flex:1, overflow:'hidden'}}>
-            {artistImage && (
-              <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
-            )}
-            <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{cat}</span>
-          </span>
-          <span className="dots" style={{whiteSpace:'nowrap'}}>/// {list.length}</span>
-        </div>
-        {meta.description && (
-          <div style={{padding:'6px 14px 10px', color:'var(--fg-secondary)', fontSize:17, borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
-            {meta.description}
+      {!selectedAlbum && (
+        <div className="panel">
+          <div className="panel-hd">
+            <span style={{display:'flex', alignItems:'center', gap:8, minWidth:0, flex:1, overflow:'hidden'}}>
+              {artistImage && (
+                <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
+              )}
+              <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{cat}</span>
+            </span>
+            <span className="dots" style={{whiteSpace:'nowrap'}}>/// {list.length}</span>
           </div>
-        )}
-      </div>
+          {meta.description && (
+            <div style={{padding:'6px 14px 10px', color:'var(--fg-secondary)', fontSize:17, borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
+              {meta.description}
+            </div>
+          )}
+        </div>
+      )}
 
       {!selectedAlbum && (
         <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'flex-start', padding:'8px 12px'}}>
@@ -1994,7 +1996,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         </div>
       )}
 
-      {list.length > 0 && (
+      {!selectedAlbum && list.length > 0 && (
         <div className="section">
           <div className="panel searchbar">
             <div className="panel-hd">BUSCADOR</div>
@@ -2100,6 +2102,79 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
             <div style={{padding:'8px 12px'}}>
               <button className="mini-btn alt" onClick={() => onNav({ page: 'CAT', cat })}>◀ VOLVER</button>
             </div>
+            {list.length > 0 && (
+              <div style={{padding:'0 12px 12px'}}>
+                <div className="panel searchbar">
+                  <div className="panel-hd">BUSCADOR</div>
+                  <div className="panel-body searchbar-body">
+                    <div className="search-row">
+                      <input
+                        className="field-input"
+                        placeholder="◆ BUSCAR POR TÍTULO O ÁLBUM..."
+                        value={query}
+                        onChange={(e) => { setQuery(e.target.value); if (showResults) setShowResults(false); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') submitSearch(); }}
+                      />
+                      <button className="big-btn" onClick={submitSearch}>BUSCAR</button>
+                      {query && <button className="mini-btn alt" onClick={clearSearch}>✕</button>}
+                    </div>
+                    {q && !showResults && (
+                      <div className="search-suggestions">
+                        {suggestions.length === 0 ? (
+                          <div className="search-suggestion empty">No hay coincidencias todavía.</div>
+                        ) : (
+                          suggestions.map((item, idx) => (
+                            <button
+                              key={idx}
+                              className="search-suggestion search-suggestion-anim"
+                              style={{ animationDelay: `${idx * 30}ms` }}
+                              onClick={() => {
+                                clearSearch();
+                                if (item.type === 'artist') {
+                                  onNav({ page: 'CAT', cat: item.label });
+                                } else if (item.type === 'album') {
+                                  const itemArtist = item.file.category || item.file.artist;
+                                  if (itemArtist === cat) openAlbum(item.file.album);
+                                  else onNav({ page: 'CAT', cat: itemArtist, album: item.file.album });
+                                } else if (item.type === 'playlist') {
+                                  onNav({ page: 'PLAYLIST', playlistId: item.playlist.id });
+                                } else {
+                                  onOpenFile(item.file.id);
+                                }
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div className="search-suggestion-thumb">
+                                  {item.type === 'artist'
+                                    ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7z"/></svg>)
+                                    : item.type === 'playlist'
+                                      ? (item.thumb ? <img src={item.thumb} alt="" /> : <span style={{fontSize:16,color:'var(--fg-primary)'}}>◈</span>)
+                                    : item.type === 'album'
+                                      ? (item.file.thumbnail || item.file.coverArt ? <img src={item.file.thumbnail || item.file.coverArt} alt={item.label} /> : <IconGlyph iconId="disco" size={24} />)
+                                      : (item.file.thumbnail ? <img src={item.file.thumbnail} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)}
+                                </div>
+                                <div style={{ textAlign: 'left' }}>
+                                  <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                                  <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                                    {item.type === 'artist' ? 'ARTISTA'
+                                      : item.type === 'album' ? `DISCO · ${item.file.category || item.file.artist || ''}`
+                                      : item.type === 'playlist' ? `${(item.playlist.songIds||[]).length} CANCIONES`
+                                      : `CANCIÓN · ${item.file.category || item.file.artist || ''}`}
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="search-item-type">
+                                {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : item.type === 'playlist' ? 'PLAYLIST' : 'CANCIÓN'}
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="panel" style={{margin:'0 12px 12px'}}>
               <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px', flexDirection:'column', alignItems:'center'}}>
                 <div className="album-detail-thumb"
