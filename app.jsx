@@ -1033,6 +1033,25 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
   );
 }
 
+function DurationCell({ src }) {
+  const [dur, setDur] = React.useState(null);
+  React.useEffect(() => {
+    if (!src) return;
+    const a = new Audio();
+    a.preload = 'metadata';
+    a.onloadedmetadata = () => {
+      const s = Math.floor(a.duration);
+      if (!isNaN(s) && isFinite(s)) {
+        setDur(`${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+      }
+      a.src = '';
+    };
+    a.src = src;
+    return () => { a.src = ''; };
+  }, [src]);
+  return <span className="tt-dur">{dur || '—'}</span>;
+}
+
 function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
@@ -1104,7 +1123,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
               <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
-              <span className="tt-dur">—</span>
+              <DurationCell src={f.fileData} />
               {renderActions(f, showPlaylistMenu)}
             </div>
           );
