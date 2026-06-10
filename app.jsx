@@ -1128,7 +1128,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
           <span>TÍTULO</span>
           <span>DISCO</span>
           <span>ARTISTA</span>
-          <span>DUR.</span>
+          <span className="tt-dur" style={{color:'var(--fg-secondary)'}}>DUR.</span>
         </div>
         {files.map((f, i) => {
           const showPlaylistMenu = openPlaylistFor === f.id;
