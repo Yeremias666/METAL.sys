@@ -1975,12 +1975,12 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
         <div style={{textAlign:'center'}}>
           {artistImage ? (
-            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160}}
+            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160, overflow:'visible'}}
                  onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
-              <img src={artistImage} alt={cat} className="album-detail-cover-img" />
+              <img src={artistImage} alt={cat} className="album-detail-cover-img" style={{overflow:'hidden', borderRadius:2}} />
             </div>
           ) : (
-            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160}}
+            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160, overflow:'visible'}}
                  onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
               <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
             </div>
