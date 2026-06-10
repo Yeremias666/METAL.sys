@@ -6077,6 +6077,101 @@ async function gtTranslate(text) {
   return d[0].map(c => c[0]).join('');
 }
 
+async function fetchNewsXml(srcUrl) {
+  const u = encodeURIComponent(srcUrl);
+  const proxies = [
+    ['allorigins/g', async () => {
+      const t = await _fetchWithTimeout(`https://api.allorigins.win/get?url=${u}`, 20000);
+      let c = JSON.parse(t).contents || '';
+      if (c.includes('&lt;') && !c.includes('<rss') && !c.includes('<?xml')) {
+        const el = document.createElement('textarea'); el.innerHTML = c; c = el.value;
+      }
+      return c;
+    }],
+    ['codetabs', () => _fetchWithTimeout(`https://api.codetabs.com/v1/proxy?quest=${u}`, 20000)],
+  ];
+
+  for (const [name, attempt] of proxies) {
+    try {
+      const txt = await attempt();
+      if (txt && !txt.trimStart().startsWith('<html') && !txt.trimStart().startsWith('<!DOCTYPE')) {
+        console.log(`[news:xml] XML OK via ${name}, len=${txt.length}`);
+        return txt;
+      }
+      console.log(`[news:xml] ${name} returned HTML/empty`);
+    } catch(e) {
+      console.log(`[news:xml] ${name} failed: ${e.message}`);
+    }
+  }
+  throw new Error('all proxies failed');
+}
+
+function parseNewsSourceXml(xml, src) {
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  if (doc.querySelector('parsererror')) throw new Error('xml parse error');
+
+  const itemNodes = [...doc.getElementsByTagName('item')];
+  const entryNodes = [...doc.getElementsByTagName('entry')];
+  const nodes = itemNodes.length > 0 ? itemNodes : entryNodes;
+  if (!nodes.length) throw new Error('no items');
+
+  return nodes.slice(0, 20).map(node => {
+    const t = (tag) => {
+      const el = node.getElementsByTagName(tag)[0];
+      return el ? (el.textContent || '').trim() : '';
+    };
+    const a = (tag, att) => {
+      const els = node.getElementsByTagName(tag);
+      for (let i = 0; i < els.length; i++) {
+        const v = els[i].getAttribute(att);
+        if (v) return v;
+      }
+      return '';
+    };
+
+    const title   = t('title');
+    const linkEl  = node.getElementsByTagName('link')[0];
+    const link    = linkEl ? (linkEl.textContent.trim() || linkEl.getAttribute('href') || '') : '';
+    const desc    = t('description') || t('summary');
+    const content = t('content:encoded') || t('content') || desc;
+    const pubDate = t('pubDate') || t('published') || t('updated') || '';
+    const guid    = t('guid') || link;
+
+    let thumbnail = a('media:thumbnail', 'url') || '';
+    if (!thumbnail) {
+      const contents = node.getElementsByTagName('media:content');
+      for (let i = 0; i < contents.length; i++) {
+        const url = contents[i].getAttribute('url');
+        const type = (contents[i].getAttribute('type') || '').toLowerCase();
+        if (url && (type.startsWith('image') || /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(url))) {
+          thumbnail = url;
+          break;
+        }
+      }
+    }
+    if (!thumbnail) thumbnail = a('media:content', 'url') || '';
+    if (!thumbnail) thumbnail = a('itunes:image', 'href') || a('itunes:image', 'url') || a('image', 'url') || a('image', 'src') || '';
+    if (!thumbnail) {
+      const enc = node.getElementsByTagName('enclosure')[0];
+      if (enc) {
+        const url = enc.getAttribute('url') || enc.getAttribute('href') || '';
+        const type = (enc.getAttribute('type') || '').toLowerCase();
+        if (url && (type.startsWith('image') || /\.(jpe?g|png|gif|webp|bmp|svg)(\?|$)/i.test(url))) {
+          thumbnail = url;
+        }
+      }
+    }
+    if (!thumbnail) {
+      const m = (content || desc).match(/<img[^>]+src=["']([^"']+\.(?:jpe?g|png|webp|gif|bmp|svg)[^"']*)["']/i);
+      if (m) thumbnail = m[1];
+    }
+
+    return { id: guid, source: src.id, sourceName: src.name, lang: src.lang,
+         title, description: stripHtml(desc).slice(0, 350), content, link,
+         thumbnail: normalizeImageUrl(thumbnail, src.url), pubDate, titleEs: null, descEs: null };
+  }).filter(i => i.title);
+}
+
 async function _fetchWithTimeout(url, ms = 20000) {
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), ms);
@@ -6111,6 +6206,19 @@ async function fetchNewsSource(src) {
         try {
           console.log(`[news:${src.id}] thumbnails:`, mapped.slice(0,5).map(m => m.thumbnail));
         } catch(e) {}
+        if (mapped.some(i => !i.thumbnail)) {
+          console.log(`[news:${src.id}] rss2json items missing thumbnails, falling back to XML parser`);
+          try {
+            const rawXml = await fetchNewsXml(src.url);
+            const xmlItems = parseNewsSourceXml(rawXml, src);
+            if (xmlItems && xmlItems.length) {
+              console.log(`[news:${src.id}] xml fallback returned ${xmlItems.length} items`);
+              return xmlItems;
+            }
+          } catch (e) {
+            console.log(`[news:${src.id}] xml fallback failed: ${e.message}`);
+          }
+        }
         return mapped;
     }
     console.log(`[news:${src.id}] rss2json status=${d.status} msg=${d.message||''}`);
@@ -6240,14 +6348,19 @@ function NewsPage() {
     try {
       const cached = JSON.parse(localStorage.getItem(NEWS_CACHE_KEY) || 'null');
       if (cached && cached.items && cached.items.length > 0 && Date.now() - cached.ts < NEWS_CACHE_TTL) {
-        let trans = {};
-        try { trans = JSON.parse(localStorage.getItem(NEWS_TRANS_KEY) || '{}'); } catch(e) {}
-        transCache.current = trans;
-        const merged = cached.items.map(i => trans[i.id] ? { ...i, titleEs: trans[i.id].t, descEs: trans[i.id].d } : i);
-        setItems(merged);
-        setLoading(false);
-        translateMissing(merged);
-        return;
+        const missingCount = cached.items.filter(i => !i.thumbnail).length;
+        if (missingCount > (cached.items.length * 0.3)) {
+          localStorage.removeItem(NEWS_CACHE_KEY);
+        } else {
+          let trans = {};
+          try { trans = JSON.parse(localStorage.getItem(NEWS_TRANS_KEY) || '{}'); } catch(e) {}
+          transCache.current = trans;
+          const merged = cached.items.map(i => trans[i.id] ? { ...i, titleEs: trans[i.id].t, descEs: trans[i.id].d } : i);
+          setItems(merged);
+          setLoading(false);
+          translateMissing(merged);
+          return;
+        }
       }
     } catch(e) {}
 
