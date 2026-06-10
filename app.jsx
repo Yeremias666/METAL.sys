@@ -1262,7 +1262,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
           : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
                        likedIds={likedIds} onToggleLike={onToggleLike}
                        playlists={playlists} onAddToPlaylist={onAddToPlaylist}
-                       onOpenCreatePlaylist={onOpenCreatePlaylist} />
+                       onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
         }
       </div></div></div>
     </div>
@@ -2162,7 +2162,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   {searchSongs.length > 0 && (
                     <>
                       <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                      <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
+                      <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
                     </>
                   )}
                   {searchAlbums.length === 0 && searchSongs.length === 0 && (
@@ -4875,7 +4875,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
                        onToggleLike={onToggleLike}
                        playlists={playlists}
                        onAddToPlaylist={onAddToPlaylist}
-                       onOpenCreatePlaylist={onOpenCreatePlaylist} />
+                       onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
           </div></div></div>
       }
     </div>
