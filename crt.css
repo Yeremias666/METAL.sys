@@ -4265,7 +4265,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-table { width: 100%; }
 .track-table-header {
   display: grid;
-  grid-template-columns: 36px 360px 300px 60px;
+  grid-template-columns: 36px 340px 160px 160px 1fr;
   gap: 0 16px;
   padding: 7px 14px;
   border-bottom: 1px solid rgba(214,31,31,0.25);
@@ -4276,7 +4276,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .track-table-row {
   display: grid !important;
-  grid-template-columns: 36px 360px 300px 60px;
+  grid-template-columns: 36px 340px 160px 160px 1fr;
   gap: 0 16px;
   position: relative;
 }
@@ -4297,11 +4297,12 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .tt-num { text-align: right; font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); padding-left: 4px; }
 .tt-name { font-family: var(--mono); font-size: 14px; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tt-album { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tt-dur { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); }
+.tt-artist { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-dur { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); text-align: right; padding-right: 120px; }
 @media (max-width: 640px) {
   .track-table-header { display: none; }
   .track-table-row { display: flex !important; gap: 0 10px; position: relative; }
-  .tt-album, .tt-dur { display: none; }
+  .tt-album, .tt-artist, .tt-dur { display: none; }
   .tt-num { width: 24px; flex-shrink: 0; }
   .tt-name { flex: 1; min-width: 0; }
 }
