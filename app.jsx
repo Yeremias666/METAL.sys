@@ -1100,7 +1100,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
           const showPlaylistMenu = openPlaylistFor === f.id;
           const trackNum = f.track ? f.track.split('/')[0] : String(i + 1);
           return (
-            <div key={f.id} className="track-list-row track-table-row" onClick={() => onOpen(f.id)}>
+            <div key={f.id} className="track-list-row track-table-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
               <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
