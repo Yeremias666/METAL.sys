@@ -1952,9 +1952,13 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
         <div style={{textAlign:'center'}}>
           {artistImage ? (
-            <img src={artistImage} alt={cat} style={{width:160, height:160, objectFit:'cover', borderRadius:2, border:'1px solid rgba(214,31,31,0.25)'}} />
+            <div className="album-detail-thumb artist-thumb" style={{width:160, height:160}}>
+              <img src={artistImage} alt={cat} className="album-detail-cover-img" />
+            </div>
           ) : (
-            <div style={{width:160, height:160, display:'inline-block', background:'rgba(214,31,31,0.04)', border:'1px dashed rgba(214,31,31,0.25)'}} />
+            <div className="album-detail-thumb artist-thumb" style={{width:160, height:160}}>
+              <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
+            </div>
           )}
           <div className="artist-meta" style={{marginTop:12}}>
             <div className="artist-name">{cat}</div>
