@@ -4203,7 +4203,7 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPe
   );
 }
 
-// ─── PROFILE MODAL ──────────────────────────────────────────────
+// ───── PROFILE MODAL ──────────────────────────────────────────────
 function resizeImageToDataURL(file, size = 128) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
