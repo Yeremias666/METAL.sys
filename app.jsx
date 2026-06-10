@@ -397,6 +397,7 @@ async function _parseID3Buffer(buf) {
         if (frameId === 'TCON') tags.genre = text.replace(/^\(?\d+\)?/, '').trim() || text;
         if (frameId === 'TRCK') tags.track = text;
         if (frameId === 'TPOS') tags.disc = text;
+        if (frameId === 'TLEN') { const ms = parseInt(text, 10); if (ms > 0) tags.duration = ms / 1000; }
       } catch {}
     } else if (frameId === 'APIC') {
       try {
@@ -1034,48 +1035,36 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
 }
 
 function DurationCell({ file }) {
+  const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const [dur, setDur] = React.useState(null);
   React.useEffect(() => {
+    if (file.duration && isFinite(file.duration)) return;
     let cancelled = false;
-    let objectUrl = null;
-    let audio = null;
+    let audioEl = null;
     (async () => {
       try {
-        let url;
-        if (file.isLocal && file.fileHandle) {
-          const f = await file.fileHandle.getFile();
-          url = URL.createObjectURL(f);
-          objectUrl = url;
-        } else if (file.fileData) {
-          const blob = await fetch(file.fileData).then(r => r.blob());
-          url = URL.createObjectURL(blob);
-          objectUrl = url;
-        } else {
-          return;
+        let src = file.fileData;
+        if (!src && file.r2Path) {
+          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
+          const d = await r.json();
+          src = d.url;
         }
-        if (cancelled) { URL.revokeObjectURL(url); return; }
-        audio = document.createElement('audio');
-        audio.preload = 'metadata';
-        audio.addEventListener('loadedmetadata', () => {
-          if (!cancelled) {
-            const s = audio.duration;
-            if (isFinite(s) && s > 0) {
-              setDur(`${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`);
-            }
+        if (!src || cancelled) return;
+        audioEl = document.createElement('audio');
+        audioEl.preload = 'metadata';
+        audioEl.addEventListener('loadedmetadata', () => {
+          if (!cancelled && isFinite(audioEl.duration) && audioEl.duration > 0) {
+            setDur(fmtDur(audioEl.duration));
           }
-          audio.src = '';
-          if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+          audioEl.src = '';
         }, { once: true });
-        audio.src = url;
+        audioEl.src = src;
       } catch (_) {}
     })();
-    return () => {
-      cancelled = true;
-      if (audio) audio.src = '';
-      if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
-    };
+    return () => { cancelled = true; if (audioEl) audioEl.src = ''; };
   }, [file.id]);
-  return <span className="tt-dur">{dur || '—'}</span>;
+  const display = (file.duration && isFinite(file.duration)) ? fmtDur(file.duration) : (dur || '—');
+  return <span className="tt-dur">{display}</span>;
 }
 
 function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false }) {
@@ -7068,6 +7057,17 @@ function App() {
           const slice = file.slice(0, 1024 * 1024);
           const buf = await slice.arrayBuffer();
           const tags = await _parseID3Buffer(buf);
+          let duration = tags.duration || null;
+          if (!duration) {
+            const blobUrl = URL.createObjectURL(file);
+            duration = await new Promise(resolve => {
+              const a = document.createElement('audio');
+              a.preload = 'metadata';
+              a.onloadedmetadata = () => { resolve(isFinite(a.duration) ? a.duration : null); a.src = ''; URL.revokeObjectURL(blobUrl); };
+              a.onerror = () => { resolve(null); a.src = ''; URL.revokeObjectURL(blobUrl); };
+              a.src = blobUrl;
+            });
+          }
           return {
             id: 'local_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
             name: tags.title || name.replace(/\.[^.]+$/, ''),
@@ -7085,6 +7085,7 @@ function App() {
             fileData: null,      // never stored
             isLocal: true,
             fileHandle,
+            duration,
             uploadedAt: file.lastModified || Date.now(),
             downloads: 0,
           };
