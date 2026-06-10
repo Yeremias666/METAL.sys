@@ -1126,8 +1126,8 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
         <div className="track-table-header">
           <span>#</span>
           <span>TÍTULO</span>
-          <span>ARTISTA</span>
           <span>DISCO</span>
+          <span>ARTISTA</span>
           <span>DUR.</span>
         </div>
         {files.map((f, i) => {
@@ -1137,8 +1137,8 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
             <div key={f.id} className="track-list-row track-table-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
               <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
-              <span className="tt-artist">{f.artist || f.category || '—'}</span>
               <span className="tt-album">{f.album || '—'}</span>
+              <span className="tt-artist">{f.artist || f.category || '—'}</span>
               <DurationCell file={f} />
               {renderActions(f, showPlaylistMenu)}
             </div>
