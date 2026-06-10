@@ -1994,7 +1994,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         </div>
       )}
 
-      {list.length > 0 && !selectedAlbum && (
+      {list.length > 0 && (
         <div className="section">
           <div className="panel searchbar">
             <div className="panel-hd">BUSCADOR</div>
@@ -2092,41 +2092,45 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         {currentAlbum ? (
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
-              <button className="mini-btn alt" style={{marginRight:10, flexShrink:0}} onClick={() => onNav({ page: 'CAT', cat })}>◀ VOLVER</button>
               <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap', color:'#000'}}>
                 <span>/{cat}/</span><span>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// DISCO</span>
             </div>
-            <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px', flexDirection:'column', alignItems:'center'}}>
-              <div className="album-detail-thumb"
-                   ref={detailThumbRef}
-                   onMouseEnter={onAlbumThumbEnter}
-                   onMouseMove={onAlbumThumbMove}
-                   onMouseLeave={onAlbumThumbLeave}>
-                <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
-                {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
-                  ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
-                         alt={currentAlbum.name} className="album-detail-cover-img" />
-                  : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
-              </div>
-              <div className="album-detail-meta">
-                <div className="album-detail-name">{currentAlbum.name}</div>
-                <div className="album-detail-artist">{cat}</div>
-                <div className="album-detail-year">{currentAlbum.year || 'SIN AÑO'}</div>
-                <button className="big-btn album-play-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
-                  ▶ REPRODUCIR DISCO
-                </button>
-              </div>
+            <div style={{padding:'8px 12px'}}>
+              <button className="mini-btn alt" onClick={() => onNav({ page: 'CAT', cat })}>◀ VOLVER</button>
             </div>
-            <div className="panel-body" style={{padding:0}}>
-              {currentSongs.length === 0 ? (
-                <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
-                  SIN CANCIONES
+            <div className="panel" style={{margin:'0 12px 12px'}}>
+              <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px', flexDirection:'column', alignItems:'center'}}>
+                <div className="album-detail-thumb"
+                     ref={detailThumbRef}
+                     onMouseEnter={onAlbumThumbEnter}
+                     onMouseMove={onAlbumThumbMove}
+                     onMouseLeave={onAlbumThumbLeave}>
+                  <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
+                  {(currentAlbum.cover?.thumbnail || currentAlbum.cover?.coverArt)
+                    ? <img src={currentAlbum.cover.thumbnail || currentAlbum.cover.coverArt}
+                           alt={currentAlbum.name} className="album-detail-cover-img" />
+                    : <div className="album-detail-cover-empty"><IconGlyph iconId="disco" size={80} /></div>}
                 </div>
-              ) : (
-                <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
-              )}
+                <div className="album-detail-meta">
+                  <div className="album-detail-name">{currentAlbum.name}</div>
+                  <div className="album-detail-artist">{cat}</div>
+                  <div className="album-detail-year">{currentAlbum.year || 'SIN AÑO'}</div>
+                  <button className="big-btn album-play-btn" title="Reproducir disco" onClick={() => onPlayAlbum(cat, currentAlbum.name)}>
+                    ▶ REPRODUCIR DISCO
+                  </button>
+                </div>
+              </div>
+              <div className="panel-body" style={{padding:0}}>
+                {currentSongs.length === 0 ? (
+                  <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>
+                    SIN CANCIONES
+                  </div>
+                ) : (
+                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} />
+                )}
+              </div>
             </div>
           </div>
         ) : showResults ? (
