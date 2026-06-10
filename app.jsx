@@ -1967,26 +1967,26 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               ✎ EDITAR
             </button>
           </div>
-          <div className="panel" style={{margin:'0 12px 12px'}}>
-            <div style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
-              <div style={{textAlign:'center'}}>
-                {artistImage ? (
-                  <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
-                       onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
-                    <img src={artistImage} alt={cat} className="album-detail-cover-img" style={{overflow:'hidden', borderRadius:2}} />
-                  </div>
-                ) : (
-                  <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
-                       onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
-                    <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
-                  </div>
-                )}
-                <div className="artist-meta" style={{marginTop:12}}>
-                  <div className="artist-name">{cat}</div>
-                  <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
+          <div style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
+            <div style={{textAlign:'center'}}>
+              {artistImage ? (
+                <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
+                     onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
+                  <img src={artistImage} alt={cat} className="album-detail-cover-img" style={{overflow:'hidden', borderRadius:2}} />
                 </div>
+              ) : (
+                <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
+                     onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
+                  <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
+                </div>
+              )}
+              <div className="artist-meta" style={{marginTop:12}}>
+                <div className="artist-name">{cat}</div>
+                <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
               </div>
             </div>
+          </div>
+          <div className="panel" style={{margin:'0 12px 12px'}}>
             {list.length > 0 && (
               <div style={{padding:'0 12px 12px'}}>
                 <div className="panel searchbar">
@@ -2124,7 +2124,10 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         <div className="section detail-page">
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
-              <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap', color:'#000'}}>
+              <span style={{display:'flex', alignItems:'center', gap:8, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap', color:'#000'}}>
+                {artistImage && (
+                  <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
+                )}
                 <span>/{cat}/</span><span>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// DISCO</span>
@@ -3322,7 +3325,13 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
     <div className="detail-page">
       <div className="panel">
         <div className="panel-hd">
-          <span style={{color:'#000'}}>/{file.artist || file.category}/{file.album || 'SINGLE'}/</span><span style={{color:'#000'}}>{file.name}</span>
+          <span style={{display:'flex', alignItems:'center', gap:8, flex:1, minWidth:0, overflow:'hidden', color:'#000'}}>
+            {(file.thumbnail || file.coverArt) && (
+              <img src={file.thumbnail || file.coverArt} alt="" style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
+            )}
+            <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>/{file.artist || file.category}/{file.album || 'SINGLE'}/</span>
+            <span style={{flexShrink:0}}>{file.name}</span>
+          </span>
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:14, marginBottom: 14, flexWrap:'wrap'}}>
