@@ -1972,25 +1972,27 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       </div>
 
       {/* Artist summary panel: image, name, counts */}
-      <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
-        <div style={{textAlign:'center'}}>
-          {artistImage ? (
-            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
-                 onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
-              <img src={artistImage} alt={cat} className="album-detail-cover-img" style={{overflow:'hidden', borderRadius:2}} />
+      {!selectedAlbum && (
+        <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
+          <div style={{textAlign:'center'}}>
+            {artistImage ? (
+              <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
+                   onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
+                <img src={artistImage} alt={cat} className="album-detail-cover-img" style={{overflow:'hidden', borderRadius:2}} />
+              </div>
+            ) : (
+              <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
+                   onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
+                <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
+              </div>
+            )}
+            <div className="artist-meta" style={{marginTop:12}}>
+              <div className="artist-name">{cat}</div>
+              <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
             </div>
-          ) : (
-            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:260, height:260, overflow:'visible'}}
-                 onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
-              <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
-            </div>
-          )}
-          <div className="artist-meta" style={{marginTop:12}}>
-            <div className="artist-name">{cat}</div>
-            <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
           </div>
         </div>
-      </div>
+      )}
 
       {list.length > 0 && (
         <div className="section">
