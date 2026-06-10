@@ -1939,11 +1939,13 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         )}
       </div>
 
-      <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', padding:'8px 12px'}}>
+      <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'flex-start', padding:'8px 12px'}}>
         <button className="mini-btn alt" onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
-        <button className="mini-btn alt" onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
-          ✎ EDITAR
-        </button>
+        {!selectedAlbum && (
+          <button className="mini-btn alt" onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
+            ✎ EDITAR
+          </button>
+        )}
       </div>
 
       {list.length > 0 && (
