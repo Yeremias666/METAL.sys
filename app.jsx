@@ -5999,7 +5999,7 @@ async function fetchNewsSource(src) {
 
   // Strategy 1: rss2json.com — proper API with CORS, returns parsed JSON
   try {
-    const txt = await _fetchWithTimeout(`https://api.rss2json.com/v1/api.json?rss_url=${u}&count=20`, 20000);
+    const txt = await _fetchWithTimeout(`https://api.rss2json.com/v1/api.json?rss_url=${u}`, 20000);
     const d = JSON.parse(txt);
     if (d.status === 'ok' && d.items && d.items.length > 0) {
       console.log(`[news:${src.id}] rss2json OK, ${d.items.length} items`);
