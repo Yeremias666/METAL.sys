@@ -1888,11 +1888,11 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       {showEditArtist && (
         <div className="modal-overlay" onClick={() => setShowEditArtist(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
-            <div className="modal-hd">EDITAR ARTISTA <span style={{color:'#000'}}>{cat}</span></div>
+            <div className="modal-hd">EDITAR ARTISTA <span style={{color:'#fff'}}>{cat}</span></div>
             <div className="modal-body">
               <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'start'}}>
                 <div>
-                  <div className="field-label" style={{marginBottom:6}}>IMAGEN DEL ARTISTA</div>
+                  <div className="field-label" style={{marginBottom:6}}>IMAGEN</div>
                   <div className="thumb-zone" style={{width:120, height:120}} onClick={() => editImgInput.current?.click()}>
                     {(editImage || meta.image)
                       ? <img src={editImage || meta.image} alt={cat} style={{width:'100%',height:'100%',objectFit:'cover'}} />
