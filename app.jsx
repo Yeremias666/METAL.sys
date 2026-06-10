@@ -1925,26 +1925,27 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel">
         <div className="panel-hd">
           <span style={{display:'flex', alignItems:'center', gap:8, minWidth:0, flex:1, overflow:'hidden'}}>
-            <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
-                    onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
             {artistImage && (
               <img src={artistImage} alt={cat} style={{flexShrink:0, width:28, height:28, objectFit:'cover', borderRadius:2, border:'1px solid var(--fg-primary)'}} />
             )}
             <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{cat}</span>
           </span>
-          <span style={{display:'flex', alignItems:'center', gap:6, flexShrink:0}}>
-            <span className="dots" style={{whiteSpace:'nowrap'}}>/// {list.length}</span>
-            <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
-                    onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
-              ✎ EDITAR
-            </button>
-          </span>
+          <span className="dots" style={{whiteSpace:'nowrap'}}>/// {list.length}</span>
         </div>
         {meta.description && (
           <div style={{padding:'6px 14px 10px', color:'var(--fg-secondary)', fontSize:17, borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
             {meta.description}
           </div>
         )}
+      </div>
+
+      <div className="panel" style={{display:'flex', gap:8, alignItems:'center', justifyContent:'space-between', padding:'8px 12px'}}>
+        <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:11, fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}
+                onClick={() => selectedAlbum ? onNav({ page: 'CAT', cat }) : onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
+        <button className="cat-upload-btn" style={{flexShrink:0, width:'auto', padding:'0 8px', fontSize:10, fontFamily:'var(--pixel)'}}
+                onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
+          ✎ EDITAR
+        </button>
       </div>
 
       {list.length > 0 && (
