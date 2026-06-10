@@ -5976,6 +5976,23 @@ function stripHtml(html) {
     .replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").trim();
 }
 
+function extractImgFromHtml(html) {
+  if (!html) return '';
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : '';
+}
+
+function findNewsThumbnail(item) {
+  if (!item) return '';
+  return item.thumbnail
+    || (item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href || ''))
+    || (item.image && (item.image.url || item.image.src || ''))
+    || extractImgFromHtml(item.content)
+    || extractImgFromHtml(item.description)
+    || extractImgFromHtml(item.summary)
+    || '';
+}
+
 async function gtTranslate(text) {
   if (!text) return text;
   const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=es&dt=t&q=${encodeURIComponent(text)}`);
@@ -6010,7 +6027,7 @@ async function fetchNewsSource(src) {
         description: stripHtml(item.description || '').slice(0, 350),
         content: item.content || item.description || '',
         link: item.link || '',
-        thumbnail: item.thumbnail || '',
+        thumbnail: findNewsThumbnail(item),
         pubDate: item.pubDate || '',
         titleEs: null, descEs: null,
       })).filter(i => i.title);
