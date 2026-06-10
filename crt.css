@@ -4260,6 +4260,41 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   margin-left: 4px;
 }
 .track-list-row:hover .track-list-play { opacity: 1; }
+
+/* ── Track table (disc view, desktop columns) ── */
+.track-table { width: 100%; }
+.track-table-header {
+  display: grid;
+  grid-template-columns: 40px 1fr minmax(80px,180px) 48px 100px;
+  gap: 0 12px;
+  padding: 6px 14px;
+  border-bottom: 1px solid rgba(214,31,31,0.25);
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--fg-secondary);
+  letter-spacing: 0.08em;
+}
+.track-table-row {
+  display: grid !important;
+  grid-template-columns: 40px 1fr minmax(80px,180px) 48px 100px;
+  gap: 0 12px;
+}
+.track-table-row .track-list-row-actions { margin-left: 0; justify-content: flex-end; }
+.track-table-row:hover .like-btn,
+.track-table-row:hover .playlist-btn { opacity: 1; }
+.track-table-row:hover .track-list-row-actions .track-list-play { opacity: 1; }
+.tt-num { text-align: right; font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); }
+.tt-name { font-family: var(--mono); font-size: 14px; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-album { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-dur { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); text-align: center; }
+@media (max-width: 640px) {
+  .track-table-header { display: none; }
+  .track-table-row { display: flex !important; }
+  .tt-album, .tt-dur { display: none; }
+  .tt-num { width: 24px; flex-shrink: 0; }
+  .tt-name { flex: 1; min-width: 0; }
+}
+
 .track-list-row-actions {
   display: flex;
   align-items: center;
