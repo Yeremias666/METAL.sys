@@ -4644,60 +4644,56 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
             <div style={{fontSize:13,marginTop:8}}>Añade canciones desde el reproductor → ··· → Añadir a Playlist</div>
           </div></div>
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-            {songs.map((f, i) => {
-              const isNowPlaying = f.id === currentPlayingId;
-              return (
-                <div key={f.id} className="track-list-row" onClick={() => onOpenFile(f.id)}
-                     style={isNowPlaying ? {background:'rgba(214,31,31,0.12)'} : {}}>
-                  <span style={{color: isNowPlaying ? 'var(--fg-primary)' : 'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:10, width:24, flexShrink:0, textAlign:'right'}}>
-                    {isNowPlaying && isPlaying ? '▶' : i+1}
-                  </span>
-                  {f.thumbnail
-                    ? <img src={f.thumbnail} alt="" style={{width:36,height:36,objectFit:'cover',flexShrink:0,borderRadius:2,imageRendering:'pixelated'}} />
-                    : noteIcon}
-                  <div style={{flex:1, minWidth:0}}>
-                    <div className="tl-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</div>
-                    <div style={{fontFamily:'var(--pixel)',fontSize:10,color:'var(--fg-secondary)',letterSpacing:'0.08em'}}>{f.artist||f.category}</div>
-                  </div>
-                  {f.duration > 0 && (
-                    <span style={{fontFamily:'var(--mono)',fontSize:12,color:'var(--fg-dim)',flexShrink:0}}>{fmtTimeSec(f.duration)}</span>
-                  )}
-                  <div className="track-list-row-actions">
-                    <div style={{display:'flex', alignItems:'center', gap:8}}>
-                      {onToggleLike && (
-                        <button className={`like-btn${likedIds && likedIds.has && likedIds.has(f.id) ? ' liked' : ''}`} style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }} title={likedIds && likedIds.has && likedIds.has(f.id) ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}>{likedIds && likedIds.has && likedIds.has(f.id) ? '♥' : '♡'}</button>
-                      )}
-                      {onAddToPlaylist && (
-                        <div style={{position:'relative'}}>
-                          <button className="playlist-btn" onClick={e => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }} title="Añadir a playlist">＋</button>
-                          {openPlaylistFor === f.id && (
-                            <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
-                              <button className="mp-menu-submenu-create" onClick={e => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
-                              {playlists.map(pl => {
-                                const hasTrack = (pl.songIds || []).includes(f.id);
-                                return (
-                                  <button key={pl.id} onClick={e => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
-                                    {hasTrack ? '✓ ' : ''}{pl.name}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }} title="Reproducir">▶</button>
-                      {onRemoveSong && (
-                        <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
-                                title="Quitar de playlist"
-                                style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
-                                onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
-                                onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
-                      )}
+            <div className="track-table">
+              <div className="track-table-header">
+                <span>#</span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
+              </div>
+              {songs.map((f, i) => {
+                const isNowPlaying = f.id === currentPlayingId;
+                const showPlaylistMenu = openPlaylistFor === f.id;
+                return (
+                  <div key={f.id} className="track-list-row track-table-row" style={{position:'relative', ...(isNowPlaying ? {background:'rgba(214,31,31,0.12)'} : {})}} onClick={() => onOpenFile(f.id)}>
+                    <span className="tt-num" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{isNowPlaying && isPlaying ? '▶' : i+1}</span>
+                    <span className="tt-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</span>
+                    <span className="tt-album">{f.album || '—'}</span>
+                    <span className="tt-artist">{f.artist || f.category || '—'}</span>
+                    <DurationCell file={f} />
+                    <div className="track-list-row-actions">
+                      <div style={{display:'flex', alignItems:'center', gap:8}}>
+                        {onToggleLike && (
+                          <button className={`like-btn${likedIds?.has?.(f.id) ? ' liked' : ''}`} style={{flexShrink:0}} onClick={e => { e.stopPropagation(); onToggleLike(f.id); }}>{likedIds?.has?.(f.id) ? '♥' : '♡'}</button>
+                        )}
+                        {onAddToPlaylist && (
+                          <div style={{position:'relative'}}>
+                            <button className="playlist-btn" onClick={e => { e.stopPropagation(); setOpenPlaylistFor(prev => prev === f.id ? null : f.id); }}>＋</button>
+                            {showPlaylistMenu && (
+                              <div ref={menuRef} className="mp-menu-dropdown" style={{top:'100%', bottom:'auto', right:0}}>
+                                <button className="mp-menu-submenu-create" onClick={e => { e.stopPropagation(); onOpenCreatePlaylist?.(f.id); setOpenPlaylistFor(null); }}>＋ NUEVA PLAYLIST</button>
+                                {playlists.map(pl => {
+                                  const hasTrack = (pl.songIds || []).includes(f.id);
+                                  return (
+                                    <button key={pl.id} onClick={e => { e.stopPropagation(); if (!hasTrack) onAddToPlaylist(f.id, pl.id); setOpenPlaylistFor(null); }} style={hasTrack ? {color:'var(--fg-primary)', opacity:0.7, cursor:'default'} : {}}>
+                                      {hasTrack ? '✓ ' : ''}{pl.name}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }}>▶</button>
+                        {onRemoveSong && (
+                          <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
+                                  style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
+                                  onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
+                                  onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div></div></div>
       }
     </div>
