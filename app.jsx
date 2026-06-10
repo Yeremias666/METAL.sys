@@ -5993,22 +5993,44 @@ function extractImageUrlFromHtml(html) {
   return img.src || img.dataset.src || img.dataset.lazySrc || img.dataset.original || img.getAttribute('data-srcset')?.split(',')[0]?.trim().split(' ')[0] || '';
 }
 
-function normalizeImageUrl(url) {
+function normalizeImageUrl(url, baseUrl) {
   if (!url) return '';
-  let trimmed = String(url).trim();
-  if (trimmed.startsWith('//')) trimmed = `https:${trimmed}`;
-  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
-  return trimmed;
+  try {
+    const s = String(url).trim();
+    // protocol-relative
+    if (s.startsWith('//')) return `https:${s}`;
+    // absolute
+    if (/^https?:\/\//i.test(s)) {
+      // If current page is HTTPS and image is HTTP, proxy through a secure image proxy
+      try {
+        if (window && window.location && window.location.protocol === 'https:' && s.toLowerCase().startsWith('http://')) {
+          const hostPath = s.replace(/^https?:\/\//i, '');
+          return `https://images.weserv.nl/?url=${encodeURIComponent(hostPath)}`;
+        }
+      } catch (e) {}
+      return s;
+    }
+    // try resolving relative to feed base if provided
+    if (baseUrl) {
+      try {
+        const resolved = new URL(s, baseUrl);
+        return resolved.href;
+      } catch (e) {
+        // fallthrough
+      }
+    }
+    return s;
+  } catch (e) { return ''; }
 }
 
-function findNewsThumbnail(item) {
+function findNewsThumbnail(item, baseUrl) {
   if (!item) return '';
-  return normalizeImageUrl(item.thumbnail)
-    || normalizeImageUrl(item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href))
-    || normalizeImageUrl(item.image && (item.image.url || item.image.src))
-    || normalizeImageUrl(extractImageUrlFromHtml(item.content))
-    || normalizeImageUrl(extractImageUrlFromHtml(item.description))
-    || normalizeImageUrl(extractImageUrlFromHtml(item.summary))
+  return normalizeImageUrl(item.thumbnail, baseUrl)
+    || normalizeImageUrl(item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href), baseUrl)
+    || normalizeImageUrl(item.image && (item.image.url || item.image.src), baseUrl)
+    || normalizeImageUrl(extractImageUrlFromHtml(item.content), baseUrl)
+    || normalizeImageUrl(extractImageUrlFromHtml(item.description), baseUrl)
+    || normalizeImageUrl(extractImageUrlFromHtml(item.summary), baseUrl)
     || '';
 }
 
@@ -6039,17 +6061,21 @@ async function fetchNewsSource(src) {
     const d = JSON.parse(txt);
     if (d.status === 'ok' && d.items && d.items.length > 0) {
       console.log(`[news:${src.id}] rss2json OK, ${d.items.length} items`);
-      return d.items.map(item => ({
+        const mapped = d.items.map(item => ({
         id: item.guid || item.link,
         source: src.id, sourceName: src.name, lang: src.lang,
         title: item.title || '',
         description: stripHtml(item.description || '').slice(0, 350),
         content: item.content || item.description || '',
         link: item.link || '',
-        thumbnail: findNewsThumbnail(item),
+          thumbnail: findNewsThumbnail(item, src.url),
         pubDate: item.pubDate || '',
         titleEs: null, descEs: null,
-      })).filter(i => i.title);
+        })).filter(i => i.title);
+        try {
+          console.log(`[news:${src.id}] thumbnails:`, mapped.slice(0,5).map(m => m.thumbnail));
+        } catch(e) {}
+        return mapped;
     }
     console.log(`[news:${src.id}] rss2json status=${d.status} msg=${d.message||''}`);
   } catch(e) {
@@ -6096,7 +6122,7 @@ async function fetchNewsSource(src) {
   console.log(`[news:${src.id}] XML parsed: items=${itemNodes.length} entries=${entryNodes.length}`);
   if (!nodes.length) throw new Error('no items');
 
-  return nodes.slice(0, 20).map(node => {
+  const mapped = nodes.slice(0, 20).map(node => {
     const t = tag => {
       const el = node.getElementsByTagName(tag)[0];
       return el ? (el.textContent || '').trim() : '';
@@ -6129,9 +6155,11 @@ async function fetchNewsSource(src) {
     }
 
     return { id: guid, source: src.id, sourceName: src.name, lang: src.lang,
-             title, description: stripHtml(desc).slice(0, 350), content, link,
-             thumbnail, pubDate, titleEs: null, descEs: null };
+         title, description: stripHtml(desc).slice(0, 350), content, link,
+         thumbnail: normalizeImageUrl(thumbnail, src.url), pubDate, titleEs: null, descEs: null };
   }).filter(i => i.title);
+  try { console.log(`[news:${src.id}] xml thumbnails:`, mapped.slice(0,5).map(m => m.thumbnail)); } catch(e) {}
+  return mapped;
 }
 
 function NewsPage() {
