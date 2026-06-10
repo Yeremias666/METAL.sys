@@ -4683,10 +4683,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                         )}
                         <button className="track-list-play" onClick={e => { e.stopPropagation(); onPlayFile(f, playlist.id); }}>▶</button>
                         {onRemoveSong && (
-                          <button onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}
-                                  style={{flexShrink:0, background:'transparent', border:'none', color:'var(--fg-dim)', fontSize:14, cursor:'pointer', padding:'0 6px', lineHeight:1}}
-                                  onMouseEnter={e=>e.currentTarget.style.color='var(--fg-primary)'}
-                                  onMouseLeave={e=>e.currentTarget.style.color='var(--fg-dim)'}>✕</button>
+                          <button className="playlist-remove-btn" onClick={e => { e.stopPropagation(); onRemoveSong(playlist.id, f.id); }}>✕</button>
                         )}
                       </div>
                     </div>
