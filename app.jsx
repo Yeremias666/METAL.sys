@@ -2046,8 +2046,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
         {currentAlbum ? (
           <div className="panel">
             <div className="panel-hd" style={{alignItems:'center'}}>
-              <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap'}}>
-                <span style={{color:'var(--fg-dim)'}}>/{cat}/</span><span style={{color:'var(--fg-primary)'}}>{currentAlbum.name}</span>
+              <span style={{display:'flex', alignItems:'center', gap:12, overflow:'hidden', flex:1, minWidth:0, flexWrap:'wrap', color:'#000'}}>
+                <span>/{cat}/</span><span>{currentAlbum.name}</span>
               </span>
               <span className="dots" style={{flexShrink:0}}>/// DISCO</span>
             </div>
@@ -3205,7 +3205,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
     <div className="detail-page">
       <div className="panel">
         <div className="panel-hd">
-          <span style={{color:'var(--fg-dim)'}}>/{file.artist || file.category}/{file.album || 'SINGLE'}/</span><span style={{color:'var(--fg-primary)'}}>{file.name}</span>
+          <span style={{color:'#000'}}>/{file.artist || file.category}/{file.album || 'SINGLE'}/</span><span style={{color:'#000'}}>{file.name}</span>
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:14, marginBottom: 14, flexWrap:'wrap'}}>

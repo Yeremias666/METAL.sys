@@ -714,19 +714,24 @@ input:not([type=range]), textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: rgba(0,0,0,0.22);
-  border: 1.5px solid rgba(255,255,255,0.25);
-  color: inherit;
+  width: auto;
+  min-width: 72px;
+  padding: 8px 12px;
+  background: var(--fg-primary);
+  border: 1.5px solid var(--fg-primary);
+  color: #fff;
+  font-family: var(--pixel);
+  font-size: 11px;
+  letter-spacing: 0.08em;
   cursor: pointer;
   flex-shrink: 0;
-  padding: 0;
-  transition: background 0.12s, box-shadow 0.12s;
+  transition: transform 0.08s, background 0.12s, box-shadow 0.12s;
+  box-shadow: 0 0 12px rgba(214,31,31,0.35), inset 0 0 6px rgba(255,255,255,0.1);
 }
 .cat-upload-btn:hover {
-  background: rgba(0,0,0,0.5);
-  box-shadow: 0 0 5px rgba(0,0,0,0.4);
+  background: #c90909;
+  box-shadow: 0 0 16px rgba(214,31,31,0.55), 0 0 4px rgba(255,255,255,0.15);
+  transform: translate(-1px, -1px);
 }
 
 /* Hero / welcome */
@@ -1461,7 +1466,7 @@ input:not([type=range]), textarea {
 .album-detail-name {
   font-family: var(--mono);
   font-size: 22px;
-  color: var(--fg-text);
+  color: #000;
   letter-spacing: 0.1em;
   margin-bottom: 8px;
   text-transform: uppercase;
@@ -1469,7 +1474,7 @@ input:not([type=range]), textarea {
 .album-detail-artist {
   font-family: var(--pixel);
   font-size: 12px;
-  color: var(--fg-secondary);
+  color: #000;
   margin-bottom: 4px;
 }
 .album-detail-year {
@@ -1843,7 +1848,7 @@ input:not([type=range]), textarea {
 /* ─── Detail page / player ───────────────────────────────── */
 .detail-page .panel-hd {
   background: linear-gradient(90deg, var(--fg-primary) 0%, #8a0a0a 100%);
-  color: #fff;
+  color: #000;
 }
 
 .player { padding: 8px 0; }
