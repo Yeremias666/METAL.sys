@@ -3574,11 +3574,13 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   transition: opacity 0.15s;
 }
 .lib-artist-row:hover .lib-play,
-.lib-album-row:hover .lib-play { opacity: 1; }
+.lib-album-row:hover .lib-play,
+.lib-song-row:hover .lib-play { opacity: 1; }
 .lib-album-row {
   display: flex;
   align-items: center;
   gap: 4px;
+  justify-content: space-between;
   padding: 4px 8px 4px 22px;
   cursor: pointer;
 }
@@ -3588,16 +3590,17 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   display: flex;
   align-items: center;
   gap: 6px;
+  justify-content: space-between;
   padding: 3px 8px 3px 34px;
   cursor: pointer;
   font-size: 16px;
 }
 .lib-song-row:hover { background: rgba(214,31,31,0.08); color: var(--fg-text); }
 .lib-song-row .lib-play { opacity: 0; }
-.lib-song-row:hover .lib-play { opacity: 1; }
 .lib-song-direct { padding-left: 22px !important; }
+.lib-song-row:hover .lib-play { opacity: 1; }
 .lib-song-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 10px; width: 18px; flex-shrink: 0; text-align: right; }
-.lib-song-name { color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-song-name { flex: 1; min-width: 0; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-empty { padding: 16px 12px; color: var(--fg-dim); font-size: 18px; }
 
 /* ─── Play Queue (right sidebar) ────────────────────────────── */
