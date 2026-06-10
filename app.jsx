@@ -1741,7 +1741,29 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const [editDesc, setEditDesc] = useState('');
   const editImgInput = useRef(null);
   const detailThumbRef = useRef(null);
+  const artistThumbRef = useRef(null);
   const meta = artistMeta[cat] || {};
+
+  const onArtistThumbMove = useCallback((e) => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
+    const el = artistThumbRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const dx = (e.clientX - r.left - r.width * 0.5) / (r.width * 0.5);
+    const dy = (e.clientY - r.top - r.height * 0.5) / (r.height * 0.5);
+    el.style.transition = 'box-shadow 0.06s';
+    el.style.transform = `perspective(600px) rotateX(${(-dy * 8).toFixed(2)}deg) rotateY(${(dx * 8).toFixed(2)}deg) translateY(-10px) scale(1.05)`;
+    el.style.boxShadow = `${-dx * 12}px ${-dy * 10}px 40px rgba(214,31,31,0.65), 0 0 24px rgba(214,31,31,0.35)`;
+  }, []);
+
+  const onArtistThumbLeave = useCallback(() => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
+    const el = artistThumbRef.current;
+    if (!el) return;
+    el.style.transition = 'transform 0.38s cubic-bezier(0.23,1,0.32,1), box-shadow 0.38s';
+    el.style.transform = '';
+    el.style.boxShadow = '';
+  }, []);
 
   useEffect(() => { setSelectedAlbum(prefillAlbum || null); }, [prefillAlbum]);
 
@@ -1953,11 +1975,13 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       <div className="panel" style={{display:'flex', justifyContent:'center', padding:'18px 12px'}}>
         <div style={{textAlign:'center'}}>
           {artistImage ? (
-            <div className="album-detail-thumb artist-thumb" style={{width:160, height:160}}>
+            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160}}
+                 onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
               <img src={artistImage} alt={cat} className="album-detail-cover-img" />
             </div>
           ) : (
-            <div className="album-detail-thumb artist-thumb" style={{width:160, height:160}}>
+            <div ref={artistThumbRef} className="album-detail-thumb artist-thumb" style={{width:160, height:160}}
+                 onMouseMove={onArtistThumbMove} onMouseLeave={onArtistThumbLeave}>
               <div className="album-detail-cover-empty"><IconGlyph iconId="usuario" size={60} /></div>
             </div>
           )}
