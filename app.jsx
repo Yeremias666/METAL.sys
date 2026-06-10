@@ -1888,7 +1888,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
       {showEditArtist && (
         <div className="modal-overlay" onClick={() => setShowEditArtist(false)}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
-            <div className="modal-hd">EDITAR ARTISTA <span style={{color:'var(--fg-primary)'}}>{cat}</span></div>
+            <div className="modal-hd">EDITAR ARTISTA <span style={{color:'#000'}}>{cat}</span></div>
             <div className="modal-body">
               <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'start'}}>
                 <div>
@@ -1907,7 +1907,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   )}
                 </div>
                 <div style={{flex:1}}>
-                  <div className="field-label">DESCRIPCIÓN / BIO</div>
+                  <div className="field-label">DESCRIPCIÓN</div>
                   <textarea className="field-input" style={{width:'100%', height:100, resize:'vertical', marginTop:6}}
                             value={editDesc} onChange={e => setEditDesc(e.target.value)}
                             placeholder="Descripción del artista, género, origen..." />
