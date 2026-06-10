@@ -5976,20 +5976,39 @@ function stripHtml(html) {
     .replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'").trim();
 }
 
-function extractImgFromHtml(html) {
+function decodeHtmlEntities(html) {
   if (!html) return '';
-  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = html;
+  return txt.value;
+}
+
+function extractImageUrlFromHtml(html) {
+  if (!html) return '';
+  const decoded = decodeHtmlEntities(html);
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = decoded;
+  const img = wrapper.querySelector('img');
+  if (!img) return '';
+  return img.src || img.dataset.src || img.dataset.lazySrc || img.dataset.original || img.getAttribute('data-srcset')?.split(',')[0]?.trim().split(' ')[0] || '';
+}
+
+function normalizeImageUrl(url) {
+  if (!url) return '';
+  let trimmed = String(url).trim();
+  if (trimmed.startsWith('//')) trimmed = `https:${trimmed}`;
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+  return trimmed;
 }
 
 function findNewsThumbnail(item) {
   if (!item) return '';
-  return item.thumbnail
-    || (item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href || ''))
-    || (item.image && (item.image.url || item.image.src || ''))
-    || extractImgFromHtml(item.content)
-    || extractImgFromHtml(item.description)
-    || extractImgFromHtml(item.summary)
+  return normalizeImageUrl(item.thumbnail)
+    || normalizeImageUrl(item.enclosure && (item.enclosure.link || item.enclosure.url || item.enclosure.href))
+    || normalizeImageUrl(item.image && (item.image.url || item.image.src))
+    || normalizeImageUrl(extractImageUrlFromHtml(item.content))
+    || normalizeImageUrl(extractImageUrlFromHtml(item.description))
+    || normalizeImageUrl(extractImageUrlFromHtml(item.summary))
     || '';
 }
 
@@ -6273,7 +6292,7 @@ function NewsPage() {
             <div key={item.id} className="news-card" onClick={() => openReader(item)}>
               <div className="news-card-img-wrap">
                 {item.thumbnail
-                  ? <img src={item.thumbnail} alt="" className="news-card-img" />
+                  ? <img src={item.thumbnail} alt="" className="news-card-img" onError={(e) => { e.target.onerror = null; e.target.style.display = 'none'; }} />
                   : <div className="news-card-no-img">◈</div>}
               </div>
               <div className="news-card-body">
