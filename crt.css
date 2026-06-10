@@ -4266,7 +4266,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-table-header {
   display: grid;
   grid-template-columns: 36px 220px 220px 220px 1fr;
-  gap: 0 96px;
+  gap: 0 52px;
   padding: 7px 14px;
   border-bottom: 1px solid rgba(214,31,31,0.25);
   font-family: var(--pixel);
@@ -4277,7 +4277,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-table-row {
   display: grid !important;
   grid-template-columns: 36px 220px 220px 220px 1fr;
-  gap: 0 96px;
+  gap: 0 52px;
   position: relative;
 }
 .track-table-row .track-list-row-actions {
@@ -4298,7 +4298,8 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .tt-num { text-align: right; font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); padding-left: 4px; }
 .tt-name { font-family: var(--mono); font-size: 14px; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tt-album { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tt-artist { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tt-artist { font-family: var(--pixel); font-size: 10px; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 60px; }
+.track-table-header span:nth-child(4) { padding-left: 60px; }
 .tt-dur { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); text-align: right; padding-right: 120px; }
 @media (max-width: 640px) {
   .track-table-header { display: none; }
