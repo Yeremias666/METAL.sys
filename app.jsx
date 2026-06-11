@@ -3778,26 +3778,33 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
           </span>
         </div>
       </div>
-      {/* Lista de cola */}
+      {/* Lista de cola — empieza desde la pista actual */}
       <div className="pq-list">
         {queue.length === 0 && <div className="pq-empty">◇ Inicia la reproducción</div>}
-        {queue.map((f, i) => (
-          <div key={f.id}
-            className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
-            draggable
-            onDragStart={() => handleDragStart(i)}
-            onDragOver={e => handleDragOver(e, i)}
-            onDrop={e => handleDrop(e, i)}
-            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-            onClick={() => handleJump(f, i)}>
-            {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{i+1}</span>}
-            <div className="pq-info">
-              <div className="pq-name">{f.name}</div>
-              <div className="pq-artist">{f.artist||f.category}</div>
-            </div>
-            <span className="pq-drag-handle">⠿</span>
-          </div>
-        ))}
+        {(() => {
+          const curIdx = queue.findIndex(f => f.id === currentId);
+          const startIdx = curIdx >= 0 ? curIdx : 0;
+          return queue.slice(startIdx).map((f, di) => {
+            const i = startIdx + di;
+            return (
+              <div key={f.id}
+                className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
+                draggable
+                onDragStart={() => handleDragStart(i)}
+                onDragOver={e => handleDragOver(e, i)}
+                onDrop={e => handleDrop(e, i)}
+                onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+                onClick={() => handleJump(f, i)}>
+                {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{di}</span>}
+                <div className="pq-info">
+                  <div className="pq-name">{f.name}</div>
+                  <div className="pq-artist">{f.artist||f.category}</div>
+                </div>
+                <span className="pq-drag-handle">⠿</span>
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
