@@ -6896,10 +6896,10 @@ function App() {
   const playScope = (context, shuffle = false) => {
     const queue = getQueueForContext({ ...context, shuffle: false });
     if (queue.length === 0) return;
-    setManualQueue(null); // reset any manual reorder
+    const ordered = shuffle ? shuffleArray(queue) : queue;
+    setManualQueue(shuffle ? ordered : null);
     setPlayContext({ ...context, shuffle });
-    const nextTrack = shuffle ? shuffleArray(queue)[0] : queue[0];
-    startTrack(nextTrack, { ...context, shuffle });
+    startTrack(ordered[0], { ...context, shuffle });
   };
 
   const toggleShuffle = () => {
@@ -7410,7 +7410,7 @@ function App() {
                   onPlayAllShuffle={() => {
                     const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
                     if (likedAudio.length === 0) return;
-                    const shuffled = likedAudio.slice().sort(() => Math.random() - 0.5);
+                    const shuffled = shuffleArray(likedAudio);
                     setManualQueue(shuffled);
                     startTrack(shuffled[0], { type: 'all', shuffle: true });
                   }}
