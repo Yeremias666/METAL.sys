@@ -5527,35 +5527,16 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const dlCount = log.filter(e=>e.kind==='DL').length;
   const delCount = log.filter(e=>e.kind==='DEL').length;
 
-  const normalizeStatArtist = (value) => {
-    const raw = (value || '').trim();
-    if (!raw) return '?';
-    const slashParts = raw.split(/\s*\/\s*/);
-    if (slashParts.length > 1 && slashParts[0].trim()) return slashParts[0].trim();
-    const featParts = raw.split(/\s+feat(?:\.\s*|\s+)/i);
-    if (featParts.length > 1 && featParts[0].trim()) return featParts[0].trim();
-    const ftParts = raw.split(/\s+ft(?:\.\s*|\s+)/i);
-    if (ftParts.length > 1 && ftParts[0].trim()) return ftParts[0].trim();
-    const ampParts = raw.split(/\s+&\s+/);
-    if (ampParts.length > 1 && ampParts[0].trim()) return ampParts[0].trim();
-    const plusParts = raw.split(/\s+\+\s+/);
-    if (plusParts.length > 1 && plusParts[0].trim()) return plusParts[0].trim();
-    return raw;
-  };
-
   // All artists (usar intérprete del álbum cuando esté disponible)
-  const allArtistsList = [...new Set(audioFiles.map(f => normalizeStatArtist(f.artist || f.category)).filter(Boolean))];
+  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category).filter(Boolean))];
   const artistColorMap = {};
   allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
 
-  // Artist plays (por artista normalizado)
+  // Artist plays (por intérprete del álbum)
   const artistPlays = {};
-  audioFiles.forEach(f => {
-    const a = normalizeStatArtist(f.artist || f.category || '?');
-    artistPlays[a] = (artistPlays[a] || 0) + (playCounts[f.id] || 0);
-  });
+  audioFiles.forEach(f => { const a=f.artist||f.category||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
   const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
-  const topArtists = allArtistPlays.slice(0,20);
+  const topArtists = allArtistPlays.slice(0,10);
   const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
 
   // Fav song
@@ -5823,40 +5804,42 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         if (playedArtists.length === 0) return null;
         const maxPA = Math.max(1,...playedArtists.map(([,v])=>v));
         const n = playedArtists.length;
-        const barW = n <= 5 ? 46 : n <= 8 ? 36 : n <= 12 ? 28 : n <= 16 ? 22 : 18;
-        const fontSize = n <= 5 ? 11 : n <= 8 ? 10 : n <= 12 ? 9 : n <= 16 ? 8 : 7;
+        const barW = n <= 3 ? 40 : n <= 6 ? 28 : n <= 10 ? 20 : 14;
+        const labelLen = n <= 4 ? 14 : n <= 7 ? 10 : 7;
+        const fontSize = n <= 4 ? 9 : n <= 7 ? 8 : 7;
         const BAR_H = 90;
-        const gap = n <= 5 ? 14 : n <= 8 ? 12 : n <= 12 ? 10 : n <= 16 ? 8 : 6;
+        const gap = n <= 4 ? 12 : n <= 7 ? 8 : 5;
         return (
           <div className="panel section">
-            <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// TOP {playedArtists.length}</span></div>
+            <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// {playedArtists.length}</span></div>
             <div className="panel-body">
-              <div style={{overflowX:'auto', paddingBottom:6}}>
+              <div style={{overflowX:'auto'}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
                 <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0}}>
                   {playedArtists.map(([artist,plays],i)=>{
-                    const h = Math.max(6, Math.round((plays/maxPA)*BAR_H));
+                    const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,width:barW,flexShrink:0}}>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,width:barW,flexShrink:0}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize,color}}>{plays}</span>
-                        <div style={{width:barW,height:h,background:color,boxShadow:`0 0 6px ${color}44`,borderRadius:4}}/>
+                        <div style={{width:barW,height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
                       </div>
                     );
                   })}
                 </div>
                 {/* Línea base */}
-                <div style={{height:2, background:'rgba(255,255,255,0.12)', margin:'6px 0 4px'}}/>
+                <div style={{height:2, background:'rgba(255,255,255,0.12)', marginBottom:4}}/>
                 {/* Etiquetas: fila separada, siempre debajo de la línea base */}
                 <div style={{display:'flex', gap, alignItems:'flex-start'}}>
                   {playedArtists.map(([artist],i)=>{
+                    const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
                       <div key={artist} style={{width:barW,flexShrink:0,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.8)',
+                          fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.65)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          maxHeight:100, overflow:'hidden', whiteSpace:'nowrap',
-                          letterSpacing:'0.04em', textOverflow:'ellipsis',
+                          maxHeight:80, overflow:'hidden', whiteSpace:'nowrap',
+                          letterSpacing:'0.05em', textOverflow:'ellipsis',
                         }}>
                           {artist}
                         </span>
