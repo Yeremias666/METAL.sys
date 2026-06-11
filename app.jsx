@@ -942,7 +942,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
             <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>{songCount} canción{songCount===1?'':'es'}</p>
             <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
               <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
-              <button className="big-btn" onClick={onPlayAllShuffle}>▶ REPRODUCIR TODO ALEATORIO</button>
+              <button className="big-btn" onClick={onPlayAllShuffle}>▶ ALEATORIO</button>
             </div>
           </div>
         </div>
@@ -6003,7 +6003,7 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
         )}
       </div>
       <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
-      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{display:'inline-block', transform:'translateY(2px)'}}>✂</span> CREAR CLIP</button>
+      <button onClick={() => { onCreateClip(); onClose(); }}>✂ CREAR CLIP</button>
     </div>
   );
 }

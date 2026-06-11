@@ -3286,7 +3286,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .hero .big-btn { width: 100%; justify-content: center; }
 
   /* Player dropdown: submenu inline (no overflow fuera de pantalla) */
-  .mp-menu-dropdown { max-height: 70vh; overflow-y: auto; }
+  .mp-menu-dropdown { max-height: 80vh; overflow-y: auto; }
   .mp-menu-submenu  { position: static !important; box-shadow: none; border: none; border-top: 1px solid rgba(214,31,31,0.2); background: rgba(214,31,31,0.05); max-height: none; animation: none; }
 
   /* Tabs */
@@ -3337,7 +3337,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
   /* Info strip: reduce font so it fits one line */
   .radio-strip-album { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .radio-strip-meta  { font-size: 9px; white-space: nowrap; flex-shrink: 0; }
+  .radio-strip-meta  { font-size: 7px; white-space: nowrap; flex-shrink: 0; max-width: 70px; overflow: hidden; text-overflow: ellipsis; }
   .radio-strip-genre { display: none; }
 
   /* Knobs bar: slightly smaller on narrow screens */
@@ -3880,7 +3880,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   animation: modal-pop 0.12s ease-out;
 }
 .mp-menu-dropdown button {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   width: 100%;
   text-align: left;
   background: transparent;
@@ -3934,7 +3936,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 .mp-menu-submenu button:last-child { border-bottom: none; }
 .mp-menu-submenu button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
-.mp-menu-submenu-create { color: var(--fg-primary) !important; font-weight: bold; }
+.mp-menu-submenu-create { color: var(--fg-primary) !important; font-weight: bold; display: flex; align-items: center; }
 @media (max-width: 700px) {
   .mp-menu-submenu { right: auto; left: calc(100% + 2px); }
 }
@@ -4349,13 +4351,13 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
     grid-template-columns: 44px 1fr auto auto;
     grid-template-rows: auto auto auto;
     gap: 0 8px;
-    align-items: start;
+    align-items: center;
     padding: 8px 10px;
   }
   .tt-thumb  { grid-column: 1; grid-row: 1 / 4; align-self: center; }
-  .tt-name   { grid-column: 2; grid-row: 1; padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tt-album  { grid-column: 2; grid-row: 2; display: block !important; font-size: 10px !important; padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tt-artist { grid-column: 2; grid-row: 3; display: block !important; font-size: 10px !important; color: var(--fg-dim); padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tt-name   { grid-column: 2; grid-row: 1; padding-left: 0 !important; font-size: 10px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
+  .tt-album  { grid-column: 2; grid-row: 2; display: block !important; font-size: 9px !important; padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
+  .tt-artist { grid-column: 2; grid-row: 3; display: block !important; font-size: 9px !important; color: var(--fg-dim); padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: start; }
   .tt-dur    { grid-column: 3; grid-row: 1; display: block !important; align-self: center; }
   .track-table-row .track-list-row-actions {
     grid-column: 4;
