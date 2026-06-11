@@ -5819,14 +5819,14 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             <div className="panel-body">
               <div style={{overflowX:'auto'}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
-                <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0}}>
+                <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0, width:'100%'}}>
                   {playedArtists.map(([artist,plays],i)=>{
                     const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,width:barW,flexShrink:0}}>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flex:`1 1 ${barW}px`,minWidth:barW}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize,color}}>{plays}</span>
-                        <div style={{width:barW,height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
+                        <div style={{width:'100%',height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
                       </div>
                     );
                   })}
@@ -5834,11 +5834,11 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                 {/* Línea base */}
                 <div style={{height:2, background:'rgba(255,255,255,0.12)', marginBottom:4}}/>
                 {/* Etiquetas: fila separada, siempre debajo de la línea base */}
-                <div style={{display:'flex', gap, alignItems:'flex-start'}}>
+                <div style={{display:'flex', gap, alignItems:'flex-start', width:'100%'}}>
                   {playedArtists.map(([artist],i)=>{
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{width:barW,flexShrink:0,display:'flex',justifyContent:'center'}}>
+                      <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
                         <span style={{
                           fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.65)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
