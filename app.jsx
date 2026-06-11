@@ -5532,7 +5532,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   // All artists (usar category o artist según metadata válida)
   const allArtistsList = [...new Set(audioFiles.map(f => getStatArtist(f)).filter(Boolean))];
   const artistColorMap = {};
-  allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
+  [...allArtistsList].sort((a,b) => a.localeCompare(b, 'es', { sensitivity: 'base' })).forEach((a,i) => {
+    artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length];
+  });
 
   // Artist plays (por metadata de archivo válida)
   const artistPlays = {};
