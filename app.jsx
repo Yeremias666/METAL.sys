@@ -5840,9 +5840,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     return (
                       <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize:12, color:'rgba(255,255,255,0.85)',
-                          textAlign:'center', maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis', display:'block',
-                          lineHeight:1.1, wordBreak:'break-word', paddingTop:2
+                          fontFamily:'var(--pixel)', fontSize:22, color:'rgba(255,255,255,0.85)',
+                          writingMode:'vertical-rl', transform:'rotate(180deg)',
+                          maxHeight:220, overflow:'visible', letterSpacing:'0.05em', display:'block'
                         }}>
                           {artist}
                         </span>
