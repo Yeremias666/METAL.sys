@@ -1196,26 +1196,20 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   );
 }
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 25;
 
-function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayAllShuffle, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(0);
-  const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
-  const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
-  const gq = normStr(query.trim());
-  useEffect(() => { setPage(0); }, [gq]);
-  const filtered = useMemo(() => {
-    if (!gq) return sorted;
-    return sorted.filter(f =>
-      normStr(f.name).includes(gq) ||
-      normStr(f.artist || f.category || '').includes(gq) ||
-      normStr(f.album || '').includes(gq)
-    );
-  }, [gq, sorted]);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const visible = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
+function Pagination({ page, totalPages, onPage }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:16, padding:'14px'}}>
+      <button className="mini-btn alt" onClick={() => onPage(page - 1)} disabled={page === 0}>◀ ANT</button>
+      <span style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-primary)', letterSpacing:'0.08em'}}>{page + 1} / {totalPages}</span>
+      <button className="mini-btn alt" onClick={() => onPage(page + 1)} disabled={page >= totalPages - 1}>SIG ▶</button>
+    </div>
+  );
+}
 
+function useDurationProbe(visible) {
   useEffect(() => {
     let cache;
     try { cache = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}'); } catch { cache = {}; }
@@ -1244,6 +1238,26 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
     })();
     return () => { active = false; };
   }, [visible]);
+}
+
+function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayAllShuffle, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
+  const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
+  const gq = normStr(query.trim());
+  useEffect(() => { setPage(0); }, [gq]);
+  const filtered = useMemo(() => {
+    if (!gq) return sorted;
+    return sorted.filter(f =>
+      normStr(f.name).includes(gq) ||
+      normStr(f.artist || f.category || '').includes(gq) ||
+      normStr(f.album || '').includes(gq)
+    );
+  }, [gq, sorted]);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
+  useDurationProbe(visible);
 
   return (
     <div>
@@ -1275,13 +1289,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
                          likedIds={likedIds} onToggleLike={onToggleLike}
                          playlists={playlists} onAddToPlaylist={onAddToPlaylist}
                          onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
-              {totalPages > 1 && (
-                <div style={{display:'flex', alignItems:'center', justifyContent:'center', gap:16, padding:'14px'}}>
-                  <button className="mini-btn" onClick={() => { setPage(p => p - 1); window.scrollTo(0,0); }} disabled={page === 0}>◀ ANT</button>
-                  <span style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-secondary)', letterSpacing:'0.08em'}}>{page + 1} / {totalPages}</span>
-                  <button className="mini-btn" onClick={() => { setPage(p => p + 1); window.scrollTo(0,0); }} disabled={page >= totalPages - 1}>SIG ▶</button>
-                </div>
-              )}
+              <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
             </>
         }
       </div></div></div>
@@ -4605,6 +4613,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
 // ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
 function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
+  const [page, setPage] = useState(0);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -4622,6 +4631,9 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
   const songs = (playlist.songIds || [])
     .map(id => allFiles.find(f => f.id === id))
     .filter(Boolean);
+  const totalPages = Math.max(1, Math.ceil(songs.length / PAGE_SIZE));
+  const visibleSongs = songs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  useDurationProbe(visibleSongs);
 
   const totalDur = songs.reduce((a, f) => a + (f.duration || 0), 0);
   const uniqueArtists = [...new Set(songs.map(f => f.category || f.artist).filter(Boolean))];
@@ -4684,7 +4696,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
               <div className="track-table-header">
                 <span></span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
               </div>
-              {songs.map((f, i) => {
+              {visibleSongs.map((f, i) => {
                 const isNowPlaying = f.id === currentPlayingId;
                 const showPlaylistMenu = openPlaylistFor === f.id;
                 return (
@@ -4729,6 +4741,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
                 );
               })}
             </div>
+            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
           </div></div></div>
       }
     </div>
@@ -4875,8 +4888,12 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
 function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onPlayAllShuffle, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
-  const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
+  const [page, setPage] = useState(0);
+  const liked = useMemo(() => [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f)), [files, localFiles, likedIds]);
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
+  const totalPages = Math.max(1, Math.ceil(liked.length / PAGE_SIZE));
+  const visible = useMemo(() => liked.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [liked, page]);
+  useDurationProbe(visible);
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
@@ -4904,7 +4921,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
       {liked.length === 0
         ? <div className="panel section"><div className="panel-body" style={{textAlign:'center',padding:'40px 0',color:'var(--fg-dim)',fontSize:22}}>◇ No has marcado ninguna canción todavía ◇<br/><span style={{fontSize:18}}>Usa el botón ♡ en el reproductor o en el detalle de canción</span></div></div>
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-            <TrackList files={liked}
+            <TrackList files={visible}
                        onOpen={onOpenFile}
                        onPlay={onPlayFile}
                        likedIds={likedIds}
@@ -4912,6 +4929,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
                        playlists={playlists}
                        onAddToPlaylist={onAddToPlaylist}
                        onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
           </div></div></div>
       }
     </div>
