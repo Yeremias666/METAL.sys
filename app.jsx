@@ -1048,24 +1048,34 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
 
 function DurationCell({ file }) {
   const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  const [dur, setDur] = React.useState(null);
+  const [dur, setDur] = React.useState(() => {
+    if (file.duration && isFinite(file.duration)) return fmtDur(file.duration);
+    if (file.r2Path) {
+      try {
+        const c = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}');
+        return c[file.r2Path] ? fmtDur(c[file.r2Path]) : null;
+      } catch { return null; }
+    }
+    return null;
+  });
   React.useEffect(() => {
     if (file.duration && isFinite(file.duration)) return;
+    if (file.r2Path) {
+      if (dur) return;
+      const handler = (e) => { if (e.detail?.r2Path === file.r2Path) setDur(fmtDur(e.detail.duration)); };
+      window.addEventListener('metalsys-dur-update', handler);
+      return () => window.removeEventListener('metalsys-dur-update', handler);
+    }
     let cancelled = false;
     let audioEl = null;
     (async () => {
       try {
-        let src = file.fileData;
-        if (!src && file.r2Path) {
-          src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
-        }
+        const src = file.fileData;
         if (!src || cancelled) return;
         audioEl = document.createElement('audio');
         audioEl.preload = 'metadata';
         audioEl.addEventListener('loadedmetadata', () => {
-          if (!cancelled && isFinite(audioEl.duration) && audioEl.duration > 0) {
-            setDur(fmtDur(audioEl.duration));
-          }
+          if (!cancelled && isFinite(audioEl.duration) && audioEl.duration > 0) setDur(fmtDur(audioEl.duration));
           audioEl.src = '';
         }, { once: true });
         audioEl.src = src;
@@ -1073,8 +1083,7 @@ function DurationCell({ file }) {
     })();
     return () => { cancelled = true; if (audioEl) audioEl.src = ''; };
   }, [file.id]);
-  const display = (file.duration && isFinite(file.duration)) ? fmtDur(file.duration) : (dur || '—');
-  return <span className="tt-dur">{display}</span>;
+  return <span className="tt-dur">{dur || '—'}</span>;
 }
 
 function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false, albumMode = false }) {
@@ -1187,11 +1196,15 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   );
 }
 
+const PAGE_SIZE = 100;
+
 function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayAllShuffle, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
   const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
   const gq = normStr(query.trim());
+  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [gq]);
   const filtered = useMemo(() => {
     if (!gq) return sorted;
     return sorted.filter(f =>
@@ -1200,6 +1213,37 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
       normStr(f.album || '').includes(gq)
     );
   }, [gq, sorted]);
+  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
+  const hasMore = visibleCount < filtered.length;
+
+  useEffect(() => {
+    let cache;
+    try { cache = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}'); } catch { cache = {}; }
+    const toProbe = visible.filter(f => f.r2Path && !cache[f.r2Path]);
+    if (!toProbe.length) return;
+    let active = true;
+    (async () => {
+      for (let i = 0; i < toProbe.length && active; i += 5) {
+        await Promise.all(toProbe.slice(i, i + 5).map(f => new Promise(resolve => {
+          const a = document.createElement('audio');
+          a.preload = 'metadata';
+          const done = () => { a.src = ''; resolve(); };
+          a.onloadedmetadata = () => {
+            if (active && isFinite(a.duration) && a.duration > 0) {
+              cache[f.r2Path] = a.duration;
+              try { localStorage.setItem('metalsys_durations_v1', JSON.stringify(cache)); } catch {}
+              window.dispatchEvent(new CustomEvent('metalsys-dur-update', { detail: { r2Path: f.r2Path, duration: a.duration } }));
+            }
+            done();
+          };
+          a.onerror = done;
+          a.src = `/api/audio?path=${encodeURIComponent(f.r2Path)}`;
+        })));
+        if (active && i + 5 < toProbe.length) await new Promise(r => setTimeout(r, 200));
+      }
+    })();
+    return () => { active = false; };
+  }, [visible]);
 
   return (
     <div>
@@ -1226,10 +1270,19 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
         {filtered.length === 0
           ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin coincidencias</div>
-          : <TrackList files={filtered} onOpen={onOpenFile} onPlay={onPlayFile}
-                       likedIds={likedIds} onToggleLike={onToggleLike}
-                       playlists={playlists} onAddToPlaylist={onAddToPlaylist}
-                       onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+          : <>
+              <TrackList files={visible} onOpen={onOpenFile} onPlay={onPlayFile}
+                         likedIds={likedIds} onToggleLike={onToggleLike}
+                         playlists={playlists} onAddToPlaylist={onAddToPlaylist}
+                         onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+              {hasMore && (
+                <div style={{padding:'16px 14px', textAlign:'center'}}>
+                  <button className="big-btn" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>
+                    MOSTRAR MÁS <span style={{fontFamily:'var(--pixel)', fontSize:10, opacity:0.7}}>({filtered.length - visibleCount} restantes)</span>
+                  </button>
+                </div>
+              )}
+            </>
         }
       </div></div></div>
     </div>

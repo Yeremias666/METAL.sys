@@ -146,7 +146,8 @@ export async function onRequest({ request, env }) {
     const resHeaders = new Headers();
     resHeaders.set('Access-Control-Allow-Origin', '*');
     resHeaders.set('Accept-Ranges', 'bytes');
-    resHeaders.set('Cache-Control', 'private, max-age=3600');
+    resHeaders.set('Cache-Control', 'no-cache');
+    resHeaders.set('Vary', 'Range');
     resHeaders.set('Content-Type', contentType);
 
     for (const h of ['Content-Length', 'Content-Range', 'ETag', 'Last-Modified']) {
