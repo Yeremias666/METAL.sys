@@ -128,13 +128,28 @@ export async function onRequest({ request, env }) {
 
     const r2Res = await fetch(signedUrl, { headers: fetchHeaders });
 
+    if (!r2Res.ok && r2Res.status !== 206) {
+      const body = await r2Res.text().catch(() => '');
+      console.error('[api/audio] R2 error', r2Res.status, body.slice(0, 200));
+      return errJson(`R2 error ${r2Res.status}`, r2Res.status < 500 ? 502 : 502);
+    }
+
+    // Inferir Content-Type por extensión si R2 devuelve application/octet-stream o nada
+    const EXT_MIME = { mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', flac:'audio/flac',
+      m4a:'audio/mp4', aac:'audio/aac', opus:'audio/ogg; codecs=opus', aiff:'audio/aiff', wma:'audio/x-ms-wma' };
+    const ext = safePath.split('.').pop()?.toLowerCase();
+    const r2ct = r2Res.headers.get('Content-Type') || '';
+    const contentType = (!r2ct || r2ct === 'application/octet-stream')
+      ? (EXT_MIME[ext] || 'audio/mpeg') : r2ct;
+
     // Reenviar headers relevantes al cliente
     const resHeaders = new Headers();
     resHeaders.set('Access-Control-Allow-Origin', '*');
     resHeaders.set('Accept-Ranges', 'bytes');
     resHeaders.set('Cache-Control', 'private, max-age=3600');
+    resHeaders.set('Content-Type', contentType);
 
-    for (const h of ['Content-Type', 'Content-Length', 'Content-Range', 'ETag', 'Last-Modified']) {
+    for (const h of ['Content-Length', 'Content-Range', 'ETag', 'Last-Modified']) {
       const v = r2Res.headers.get(h);
       if (v) resHeaders.set(h, v);
     }
