@@ -3919,8 +3919,11 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .ac-auto-grid[data-count="3"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 .ac-auto-grid[data-count="3"] img:first-child { grid-column: 1 / -1; }
 .ac-auto-grid[data-count="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-.ac-auto-grid img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; image-rendering: -moz-crisp-edges; }
-.album-card:hover .ac-auto-grid { transform: scale(1.06); }
+  .ac-auto-grid img { width: 100%; height: 100%; object-fit: cover; display: block; image-rendering: pixelated; image-rendering: -moz-crisp-edges; }
+
+  /* Evita que la cuadrícula interna escale por separado al hacer hover;
+    de este modo la portada y el cuerpo de la tarjeta se mueven como un bloque. */
+  .album-card:hover .ac-auto-grid { transform: none; }
 
 /* ─── Bookmarks + Clips (DetailPage tabs) ────────────────────── */
 .bm-list, .clip-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
