@@ -3024,33 +3024,7 @@ input:not([type=range]), textarea {
 .music-player .like-btn.liked { background: rgba(214,31,31,0.35); box-shadow: 0 0 10px var(--fg-primary); }
 .mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; color: var(--fg-primary); }
 .mp-volume span { font-size: 16px; color: var(--fg-primary); }
-.mp-volume input[type=range] {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 6px;
-  background: rgba(0,0,0,0.6);
-  border: 1px solid var(--fg-dim);
-  outline: none;
-  cursor: pointer;
-}
-.mp-volume input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px; height: 14px;
-  background: var(--fg-primary);
-  box-shadow: 0 0 6px var(--fg-primary);
-  cursor: pointer;
-}
-.mp-volume input[type=range]::-moz-range-thumb {
-  width: 12px; height: 14px;
-  background: var(--fg-primary);
-  box-shadow: 0 0 6px var(--fg-primary);
-  border: none;
-  cursor: pointer;
-}
-.mp-volume input[type=range]::-webkit-slider-runnable-track { cursor: pointer; }
-.mp-volume input[type=range]::-moz-range-track { cursor: pointer; }
-.mp-volume input[type=range]::-moz-range-progress { cursor: pointer; }
+.mp-volume .mp-bar { flex: 1; }
 .mp-close {
   font-family: var(--mono);
   font-size: 16px;
