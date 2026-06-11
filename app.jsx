@@ -5810,7 +5810,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         const n = playedArtists.length;
         const barW = n <= 3 ? 40 : n <= 6 ? 28 : n <= 10 ? 20 : 14;
         const labelLen = n <= 4 ? 14 : n <= 7 ? 10 : 7;
-        const fontSize = n <= 4 ? 11 : n <= 7 ? 10 : 9;
+        const fontSize = n <= 4 ? 20 : n <= 7 ? 18 : 16;
         const BAR_H = 90;
         const gap = n <= 4 ? 12 : n <= 7 ? 8 : 5;
         return (
