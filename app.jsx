@@ -3826,9 +3826,30 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
 }
 
 // Contador de canciones reproducidas (suma de playCounts)
-function PlaysCounter({ playCounts }) {
+function PlaysCounter({ playCounts, files = [], localFiles = [] }) {
   const total = Object.values(playCounts).reduce((a, v) => a + v, 0);
   const digits = String(total).padStart(7, '0').split('');
+
+  const totalMinutes = useMemo(() => {
+    let durCache = {};
+    try { durCache = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}'); } catch {}
+    const allFiles = [...files, ...localFiles];
+    let secs = 0;
+    for (const [id, count] of Object.entries(playCounts)) {
+      const f = allFiles.find(x => x.id === id);
+      if (!f) continue;
+      const dur = (f.duration && isFinite(f.duration)) ? f.duration : (f.r2Path ? durCache[f.r2Path] : null);
+      if (dur) secs += dur * count;
+    }
+    return Math.round(secs / 60);
+  }, [playCounts, files, localFiles]);
+
+  const fmtMinutes = (m) => {
+    if (m < 60) return `${m} MIN`;
+    const h = Math.floor(m / 60), min = m % 60;
+    return `${h}H ${String(min).padStart(2,'0')}MIN`;
+  };
+
   return (
     <div className="widget">
       <div className="panel">
@@ -3840,6 +3861,11 @@ function PlaysCounter({ playCounts }) {
           <div style={{textAlign:'center', marginTop: 8, fontSize: 17, color: 'var(--fg-dim)'}}>
             {total} ESCUCHA{total===1?'':'S'} EN TOTAL
           </div>
+          {totalMinutes > 0 && (
+            <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
+              {fmtMinutes(totalMinutes)} ESCUCHADOS
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -7544,7 +7570,7 @@ function App() {
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} />
               <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
-              <PlaysCounter playCounts={playCounts} />
+              <PlaysCounter playCounts={playCounts} files={files} localFiles={localFiles} />
               <RecentActivity log={log} />
             </div>
             )}
