@@ -1969,6 +1969,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     else if (sort === 'name-asc') arr.sort((a, b) => normStr(a.name).localeCompare(normStr(b.name)));
     return arr;
   }, [currentSongs, sort]);
+  useDurationProbe(sortedSongs);
 
   const openAlbum = (album) => {
     onNav({ page: 'CAT', cat, album });
@@ -4611,7 +4612,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
 }
 
 // ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
-function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllShuffle, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
   const [page, setPage] = useState(0);
   const menuRef = useRef(null);
@@ -4679,8 +4680,9 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
             </div>
           </div>
           {songs.length > 0 && (
-            <div style={{marginTop:14}}>
+            <div style={{marginTop:14, display:'flex', gap:8, flexWrap:'wrap'}}>
               <button className="big-btn" style={{whiteSpace:'nowrap'}} onClick={() => onPlayAll(playlist.id)}>▶ REPRODUCIR</button>
+              <button className="big-btn" style={{whiteSpace:'nowrap'}} onClick={() => onPlayAllShuffle?.(playlist.id)}>▶ ALEATORIO</button>
             </div>
           )}
         </div>
@@ -7438,6 +7440,7 @@ function App() {
                   allFiles={[...files, ...localFiles]}
                   onBack={() => navigateTo({ page: 'PLAYLIST' })}
                   onPlayAll={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
+                  onPlayAllShuffle={(id) => playScope({ type: 'playlist', playlistId: id }, true)}
                   onPlayFile={(f, plId) => {
                     const ctx = { type: 'playlist', playlistId: plId };
                     setManualQueue(null);
