@@ -5753,7 +5753,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             <div style={{color:'var(--fg-dim)',fontSize:18,padding:'18px 0'}}>◇ Sin datos aún — los datos se acumulan a partir de ahora al escuchar canciones.</div>
           ) : (
             <>
-              <div style={{overflowX:'auto'}}>
+              <div style={{overflowX:'auto', overflowY:'visible'}}>
                 <svg viewBox={`0 0 ${CHART_W} ${CHART_H+24}`} style={{width:'100%',minWidth:320,display:'block',fontFamily:'var(--mono)'}}>
                   {[0,0.25,0.5,0.75,1].map(t=>(
                     <line key={t} x1={0} x2={CHART_W} y1={py(maxBucketVal*t)} y2={py(maxBucketVal*t)}
@@ -5819,7 +5819,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             <div className="panel-body">
               <div style={{overflowX:'auto'}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
-                <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0, width:'100%'}}>
+                <div style={{display:'inline-flex', alignItems:'flex-end', gap, paddingBottom:0, width:'max-content'}}>
                   {playedArtists.map(([artist,plays],i)=>{
                     const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
@@ -5840,10 +5840,10 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     return (
                       <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.85)',
+                          fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.95)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          height: (BAR_H + 22) + 'px', minHeight: (BAR_H + 22) + 'px', display:'flex', alignItems:'center', justifyContent:'center',
-                          overflow:'visible', lineHeight:1, paddingBottom:6, whiteSpace: 'normal'
+                          display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
+                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'normal'
                         }}>
                           {artist}
                         </span>
