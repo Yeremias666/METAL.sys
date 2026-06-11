@@ -3832,6 +3832,7 @@ function PlaysCounter({ playCounts, listenSecs = 0 }) {
 
   const fmtTime = (secs) => {
     const m = Math.floor(secs / 60);
+    if (m === 0) return '< 1 MIN';
     if (m < 60) return `${m} MIN`;
     const h = Math.floor(m / 60), min = m % 60;
     return `${h}H ${String(min).padStart(2, '0')}MIN`;
@@ -3848,7 +3849,7 @@ function PlaysCounter({ playCounts, listenSecs = 0 }) {
           <div style={{textAlign:'center', marginTop: 8, fontSize: 17, color: 'var(--fg-dim)'}}>
             {total} ESCUCHA{total===1?'':'S'} EN TOTAL
           </div>
-          {listenSecs >= 60 && (
+          {listenSecs > 0 && (
             <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
               {fmtTime(listenSecs)} ESCUCHADOS
             </div>
