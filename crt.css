@@ -4361,9 +4361,9 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
     padding: 8px 10px;
   }
   .tt-thumb  { grid-column: 1; grid-row: 1 / 4; align-self: center; }
-  .tt-name   { grid-column: 2; grid-row: 1; padding-left: 0 !important; font-size: 10px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
-  .tt-album  { grid-column: 2; grid-row: 2; display: block !important; font-size: 9px !important; padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
-  .tt-artist { grid-column: 2; grid-row: 3; display: block !important; font-size: 9px !important; color: var(--fg-dim); padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: start; }
+  .tt-name   { grid-column: 2; grid-row: 1; padding-left: 0 !important; font-size: 8px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
+  .tt-album  { grid-column: 2; grid-row: 2; display: block !important; font-size: 7px !important; padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: center; }
+  .tt-artist { grid-column: 2; grid-row: 3; display: block !important; font-size: 7px !important; color: var(--fg-dim); padding-left: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: start; }
   .tt-dur    { grid-column: 3; grid-row: 1; display: block !important; align-self: center; }
   .track-table-row .track-list-row-actions {
     grid-column: 4;
