@@ -181,6 +181,13 @@ function sortByDiscTrack(a, b) {
   if (da !== db) return da - db;
   return (parseInt(a.track) || 999) - (parseInt(b.track) || 999);
 }
+function sortByYearDiscTrack(a, b) {
+  const ya = parseInt(a.year) || 9999, yb = parseInt(b.year) || 9999;
+  if (ya !== yb) return ya - yb;
+  const alA = (a.album || '').toLowerCase(), alB = (b.album || '').toLowerCase();
+  if (alA !== alB) return alA < alB ? -1 : 1;
+  return sortByDiscTrack(a, b);
+}
 
 function fmtBytes(n) {
   if (n < 1024) return n + ' B';
@@ -932,6 +939,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
           <div className="panel-hd">REPRODUCIR TODO <span className="dots">/// GLOBAL</span></div>
           <div className="panel-body">
             <p>Inicia la reproducción de toda la biblioteca en orden, o activa shuffle para escuchar todas las canciones en un recorrido aleatorio.</p>
+            <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>{songCount} canción{songCount===1?'':'es'}</p>
             <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
               <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
               <button className="big-btn" onClick={onPlayAllShuffle}>▶ REPRODUCIR TODO ALEATORIO</button>
@@ -6620,7 +6628,7 @@ function App() {
       } else if (route.page === 'CAT') {
         const artist = route.cat;
         if (route.album) originQueue = allAudio.filter(f => (f.category || f.artist) === artist && (f.album || 'SINGLE') === route.album).sort(sortByDiscTrack);
-        else originQueue = allAudio.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
+        else originQueue = allAudio.filter(f => (f.category || f.artist) === artist).sort(sortByYearDiscTrack);
       } else if (route.page === 'PLAYLIST' && !route.playlistId) {
         // On playlist index page no specific playlist selected — leave null
         originQueue = null;
@@ -6706,7 +6714,7 @@ function App() {
       return (pl.songIds || []).map(id => combined.find(f => f.id === id)).filter(Boolean);
     }
     if (context.type === 'artist' && context.artist) {
-      return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByDiscTrack);
+      return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByYearDiscTrack);
     }
     if (context.type === 'album' && context.artist && context.album) {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
@@ -7282,7 +7290,7 @@ function App() {
     if (currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
-    return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
+    return allF.filter(f => (f.category || f.artist) === artist).sort(sortByYearDiscTrack);
   }, [currentFile, detailOriginQueue, files, localFiles]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
