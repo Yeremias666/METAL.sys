@@ -727,10 +727,10 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
 
 function Banner({ onNav }) {
   return (
-    <div className="banner">
+    <div className="banner" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>
       <pre className="ascii-logo chroma">{ASCII_LOGO}</pre>
       <div>
-        <div className="banner-title glow" onClick={() => onNav({ page: 'INICIO' })} style={{cursor:'pointer'}}>METAL.SYS</div>
+        <div className="banner-title glow">METAL.SYS</div>
         <div className="banner-sub">// Reproductor web by <span style={{color:'var(--fg-primary)'}}>Yeremias</span> \m/</div>
         <div className="banner-sub" style={{fontSize:16, color:'var(--fg-dim)'}}>EST. 27/06/2026 ◆ METAL · HEAVY METAL · TRASH METAL · NU METAL · INDUSTRIAL METAL · ROCK TRANSGRESIVO · ROCK URBANO · ROCK</div>
       </div>
@@ -1086,7 +1086,7 @@ function DurationCell({ file }) {
   return <span className="tt-dur">{dur || '—'}</span>;
 }
 
-function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false, albumMode = false }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false, albumMode = false, onNav }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
@@ -1159,8 +1159,8 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
                 : f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
               }</span>
               <span className="tt-name">{f.name}</span>
-              <span className="tt-album">{f.album || '—'}</span>
-              <span className="tt-artist">{f.category || f.artist || '—'}</span>
+              <span className="tt-album" onClick={f.album && onNav ? (e) => { e.stopPropagation(); onNav({ page: 'CAT', cat: f.category || f.artist, album: f.album }); } : undefined} style={f.album && onNav ? {cursor:'pointer'} : {}}>{f.album || '—'}</span>
+              <span className="tt-artist" onClick={onNav ? (e) => { e.stopPropagation(); onNav({ page: 'CAT', cat: f.category || f.artist }); } : undefined} style={onNav ? {cursor:'pointer'} : {}}>{f.category || f.artist || '—'}</span>
               <DurationCell file={f} />
               {renderActions(f, showPlaylistMenu)}
             </div>
@@ -1288,7 +1288,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
               <TrackList files={visible} onOpen={onOpenFile} onPlay={onPlayFile}
                          likedIds={likedIds} onToggleLike={onToggleLike}
                          playlists={playlists} onAddToPlaylist={onAddToPlaylist}
-                         onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+                         onOpenCreatePlaylist={onOpenCreatePlaylist} onNav={onNav} tableMode />
               <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
             </>
         }
@@ -1494,7 +1494,7 @@ function UploadPage({ allCats, vault, onUpload, onNav, prefillCat, onImportFolde
             <div className="upload-meta-grid" style={{marginBottom:16}}>
               {/* Portada */}
               <div>
-                <div className="field-label" style={{marginBottom:6}}>PORTADA <span style={{color:'var(--fg-dim)'}}>· {thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
+                <div className="field-label" style={{marginBottom:6}}>PORTADA<br/><span style={{color:'var(--fg-dim)', fontSize:'0.85em', letterSpacing:'0.05em'}}>{thumb ? 'DETECTADA' : 'OPCIONAL'}</span></div>
                 <div className="thumb-zone" style={{width:'100%', aspectRatio:'1/1'}} onClick={() => thumbInput.current && thumbInput.current.click()}>
                   {thumb
                     ? <img src={thumb} alt="portada" />
@@ -2191,7 +2191,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   {searchSongs.length > 0 && (
                     <>
                       <div className="field-label" style={{ margin: '24px 0 10px' }}>CANCIONES</div>
-                      <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+                      <TrackList files={searchSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} onNav={onNav} tableMode />
                     </>
                   )}
                   {searchAlbums.length === 0 && searchSongs.length === 0 && (
@@ -2329,7 +2329,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                     SIN CANCIONES
                   </div>
                 ) : (
-                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode albumMode />
+                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} onNav={onNav} tableMode albumMode />
                 )}
               </div>
             </div>
@@ -3149,7 +3149,7 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile }) {
   if (!track) return null;
   const BAR_COUNT = 90;
   const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
@@ -3204,8 +3204,17 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-info-wrap">
         <div key={track.id} className="mp-info mp-track-anim">
-          <div className="mp-title">{(tags && tags.title) || track.name}</div>
-          <div className="mp-artist">{(tags && tags.artist) || track.artist || '—'}{tags && tags.album ? ` · ${tags.album}` : ''}</div>
+          <div className="mp-title" onClick={() => onOpenFile && onOpenFile(track.id)} style={{cursor: onOpenFile ? 'pointer' : 'default'}}>{(tags && tags.title) || track.name}</div>
+          <div className="mp-artist">
+            {(() => {
+              const artist = (tags && tags.artist) || track.artist || '—';
+              const album  = (tags && tags.album)  || track.album  || null;
+              return <>
+                <span onClick={() => { if (artist !== '—' && onNav) onNav({ page: 'CAT', cat: artist }); }} style={{cursor: artist !== '—' && onNav ? 'pointer' : 'default'}}>{artist}</span>
+                {album && <><span> · </span><span onClick={() => { if (onNav) onNav({ page: 'CAT', cat: artist, album }); }} style={{cursor: onNav ? 'pointer' : 'default'}}>{album}</span></>}
+              </>;
+            })()}
+          </div>
         </div>
         <div className="mp-progress">
           <span className="mp-time">{fmtTime(position)}</span>
@@ -3261,7 +3270,8 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       <div className="mp-volume">
         <span style={{lineHeight:0, display:'inline-flex'}}><IconVolume level={volume} /></span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
-               onChange={(e) => onVolume(parseFloat(e.target.value))} />
+               onChange={(e) => onVolume(parseFloat(e.target.value))}
+               style={{cursor:'pointer'}} />
       </div>
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
     </div>
@@ -3532,7 +3542,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
                            hasPrev={hasPrev} hasNext={hasNext}
                            likedIds={likedIds} onToggleLike={onToggleLike}
                            onNavToArtist={(artist) => onNav({ page: 'CAT', cat: artist })}
-                           onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist })}
+                           onNavToAlbum={(artist, album) => onNav({ page: 'CAT', cat: artist, album })}
                            playlists={playlists} onAddToPlaylist={(fileId, playlistId) => {}} 
                            onOpenCreatePlaylist={() => onOpenCreatePlaylist?.(file.id)} />
               </div>
@@ -4626,7 +4636,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
 }
 
 // ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
-function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllShuffle, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllShuffle, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, onNav }) {
   const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
   const [page, setPage] = useState(0);
   const menuRef = useRef(null);
@@ -4721,8 +4731,8 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
                       f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
                     }</span>
                     <span className="tt-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</span>
-                    <span className="tt-album">{f.album || '—'}</span>
-                    <span className="tt-artist">{f.category || f.artist || '—'}</span>
+                    <span className="tt-album" onClick={f.album && onNav ? (e) => { e.stopPropagation(); onNav({ page: 'CAT', cat: f.category || f.artist, album: f.album }); } : undefined} style={f.album && onNav ? {cursor:'pointer'} : {}}>{f.album || '—'}</span>
+                    <span className="tt-artist" onClick={onNav ? (e) => { e.stopPropagation(); onNav({ page: 'CAT', cat: f.category || f.artist }); } : undefined} style={onNav ? {cursor:'pointer'} : {}}>{f.category || f.artist || '—'}</span>
                     <DurationCell file={f} />
                     <div className="track-list-row-actions" style={showPlaylistMenu ? {background:'#0d0508', paddingLeft:20} : {}}>
                       <div style={{display:'flex', alignItems:'center', gap:8}}>
@@ -4765,7 +4775,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
 }
 
 // ─── PLAYLIST PAGE ──────────────────────────────────────────
-function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist, onNav, onOpenFile, allCats = [] }) {
+function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist, onNav, onOpenFile, allCats = [], onOpenCreatePlaylist }) {
   const [sort, setSort] = useState('alpha');
   const [gQuery, setGQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
@@ -4810,6 +4820,11 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
       <div className="panel">
         <div className="panel-hd">PLAYLIST <span className="dots">/// {playlists.length} LISTA{playlists.length === 1 ? '' : 'S'}</span></div>
         <div className="panel-body">
+          {onOpenCreatePlaylist && (
+            <div style={{marginBottom:12}}>
+              <button className="mini-btn alt" onClick={() => onOpenCreatePlaylist()}>＋ CREAR PLAYLIST</button>
+            </div>
+          )}
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
             {SORT_OPTS.map(([key, lbl]) => (
               <button key={key} onClick={() => setSort(key)}
@@ -4944,7 +4959,8 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
                        onToggleLike={onToggleLike}
                        playlists={playlists}
                        onAddToPlaylist={onAddToPlaylist}
-                       onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+                       onOpenCreatePlaylist={onOpenCreatePlaylist}
+                       onNav={onNav} tableMode />
             <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
           </div></div></div>
       }
@@ -7475,7 +7491,8 @@ function App() {
                 <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
                               onOpenPlaylist={(id) => navigateTo({ page: 'PLAYLIST', playlistId: id })}
                               onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
-                              onNav={navigateTo} onOpenFile={openFile} allCats={allCats} />
+                              onNav={navigateTo} onOpenFile={openFile} allCats={allCats}
+                              onOpenCreatePlaylist={() => setShowCreatePlaylistModal(true)} />
               )}
               {route.page === 'PLAYLIST' && route.playlistId && (
                 <PlaylistDetailPage
@@ -7499,6 +7516,7 @@ function App() {
                   playlists={playlists}
                   onAddToPlaylist={addSongToPlaylist}
                   onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
+                  onNav={navigateTo}
                 />
               )}
               {route.page === 'STATS' && (
@@ -7630,7 +7648,8 @@ function App() {
                    currentTrackId={currentTrackId}
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
                    likedIds={likedIds} onToggleLike={toggleLike}
-                   vuEnabled={perf.vuMeter} />
+                   vuEnabled={perf.vuMeter}
+                   onNav={navigateTo} onOpenFile={openFile} />
 
       {showCreateModal && (
         <CreateCategoryModal
