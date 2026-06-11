@@ -3203,13 +3203,13 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   .banner { grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; margin: 10px 0 10px; }
   .banner-title { font-size: clamp(12px, 4vw, 18px); white-space: nowrap; }
   .banner-sub { font-size: 13px; margin-top: 4px; }
-  .nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 10px; padding: 0; }
+  .nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px; margin-bottom: 10px; padding: 0; }
   .nav-system { display: contents; }
   .nav-left { display: none; }
-  .nav .prompt { display: flex; align-items: center; justify-content: center; min-height: 44px; font-size: 11px; }
-  .nav button { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 0.25em 0.3em; white-space: nowrap; font-size: 10px; width: 100%; overflow: hidden; }
-  .nav button svg { width: 12px; height: 12px; flex-shrink: 0; }
-  .nav-more-btn { min-height: 44px; padding: 0.3em 0.75em; }
+  .nav .prompt { display: flex; align-items: center; justify-content: center; height: 28px; font-size: 10px; }
+  .nav button { display: flex; align-items: center; justify-content: center; gap: 3px; height: 28px; padding: 0 4px; white-space: nowrap; font-size: 9px; width: 100%; overflow: hidden; min-height: unset; }
+  .nav button svg { width: 10px; height: 10px; flex-shrink: 0; }
+  .nav-more-btn { height: 28px; padding: 0 4px; }
   .crt-screen { border-radius: 0; }
 
   /* Hero / text */
