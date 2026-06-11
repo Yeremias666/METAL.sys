@@ -3156,6 +3156,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
   const draggingRef = useRef(false);
+  const prevVolumeRef = useRef(volume > 0 ? volume : 1);
   const liked = likedIds ? likedIds.has(track.id) : false;
   const [likePop, setLikePop] = useState(false);
   const prevLiked = useRef(liked);
@@ -3268,9 +3269,12 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         )}
       </div>
       <div className="mp-volume">
-        <span style={{lineHeight:0, display:'inline-flex'}}><IconVolume level={volume} /></span>
+        <span style={{lineHeight:0, display:'inline-flex', cursor:'pointer'}} onClick={() => {
+          if (volume > 0) { prevVolumeRef.current = volume; onVolume(0); }
+          else { onVolume(prevVolumeRef.current); }
+        }}><IconVolume level={volume} /></span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
-               onChange={(e) => onVolume(parseFloat(e.target.value))}
+               onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) prevVolumeRef.current = v; onVolume(v); }}
                style={{cursor:'pointer'}} />
       </div>
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
@@ -4822,7 +4826,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
         <div className="panel-body">
           {onOpenCreatePlaylist && (
             <div style={{marginBottom:12}}>
-              <button className="mini-btn alt" onClick={() => onOpenCreatePlaylist()}>＋ CREAR PLAYLIST</button>
+              <button className="big-btn" onClick={() => onOpenCreatePlaylist()}>＋ CREAR PLAYLIST</button>
             </div>
           )}
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>

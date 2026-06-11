@@ -3041,6 +3041,13 @@ input:not([type=range]), textarea {
   box-shadow: 0 0 6px var(--fg-primary);
   cursor: pointer;
 }
+.mp-volume input[type=range]::-moz-range-thumb {
+  width: 12px; height: 14px;
+  background: var(--fg-primary);
+  box-shadow: 0 0 6px var(--fg-primary);
+  border: none;
+  cursor: pointer;
+}
 .mp-close {
   font-family: var(--mono);
   font-size: 16px;
