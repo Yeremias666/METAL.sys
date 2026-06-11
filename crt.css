@@ -4656,23 +4656,24 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ── Boot / loading screen ─────────────────────────────────── */
 /* ── CMD boot sequence — visible while JS loads; React replaces #root on mount ── */
 .boot-screen {
+  /* overlay completa que cubre la pantalla durante la animación */
   position: fixed;
-  top: 0;
-  left: 0;
-  /* limitar ancho para que aparezca pegado a la esquina superior izquierda */
-  width: auto;
-  max-width: 640px;
+  inset: 0;
   z-index: 9999;
   background: #060408;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  align-items: flex-start; /* mantener el contenido pegado a la izquierda */
   padding: 8px 12px;
   font-family: 'Courier New', Courier, monospace;
   font-size: clamp(10px, 1.6vw, 14px);
   line-height: 1.75;
 }
+
+/* Limitar la anchura visual del bloque de texto sin quitar el overlay */
+.boot-screen > .boot-line, .boot-screen > .boot-cursor { max-width: 640px; }
 .boot-line {
   opacity: 0;
   color: #a8a8a8;
