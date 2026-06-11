@@ -5824,7 +5824,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:`1 1 ${barW}px`,minWidth:barW}}>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flex:`1 1 ${barW}px`,minWidth:barW}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize:22,color}}>{plays}</span>
                         <div style={{width:'100%',height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
                       </div>
@@ -5842,8 +5842,8 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                         <span style={{
                           fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.85)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          height: BAR_H + 'px', display:'flex', alignItems:'center', justifyContent:'center',
-                          overflow:'hidden', lineHeight:1, paddingBottom:2
+                          height: (BAR_H + 22) + 'px', minHeight: (BAR_H + 22) + 'px', display:'flex', alignItems:'center', justifyContent:'center',
+                          overflow:'visible', lineHeight:1, paddingBottom:6, whiteSpace: 'normal'
                         }}>
                           {artist}
                         </span>
