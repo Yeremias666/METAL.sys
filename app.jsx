@@ -4651,14 +4651,16 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
             <div className="track-table">
               <div className="track-table-header">
-                <span>#</span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
+                <span></span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
               </div>
               {songs.map((f, i) => {
                 const isNowPlaying = f.id === currentPlayingId;
                 const showPlaylistMenu = openPlaylistFor === f.id;
                 return (
                   <div key={f.id} className="track-list-row track-table-row" style={{position:'relative', ...(isNowPlaying ? {background:'rgba(214,31,31,0.12)'} : {})}} onClick={() => onOpenFile(f.id)}>
-                    <span className="tt-num" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{isNowPlaying && isPlaying ? '▶' : i+1}</span>
+                    <span className="tt-thumb">{
+                      f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
+                    }</span>
                     <span className="tt-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</span>
                     <span className="tt-album">{f.album || '—'}</span>
                     <span className="tt-artist">{f.category || f.artist || '—'}</span>
