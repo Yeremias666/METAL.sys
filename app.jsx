@@ -832,7 +832,7 @@ function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 })
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, onPlayAllShuffle, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
   const localTotal = localFiles.reduce((a, f) => a + (f.fileSize || 0), 0);
   const localSongCount = localFiles.filter(isAudioFile).length;
@@ -930,8 +930,16 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
       <div className="section">
         <div className="panel">
           <div className="panel-hd">REPRODUCIR TODO <span className="dots">/// GLOBAL</span></div>
-          <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px'}}>
-            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+          <div className="panel-body" style={{display:'flex', flexDirection:'column', alignItems:'center', padding:'28px 14px', gap:14}}>
+            <p style={{color:'var(--fg-dim)', fontSize:16, textAlign:'center', maxWidth:680, margin:0}}>
+              Inicia la reproducción de toda la biblioteca en orden, o activa shuffle para escuchar todas las canciones en un recorrido aleatorio.
+            </p>
+            <div style={{display:'flex', flexWrap:'wrap', gap:10, justifyContent:'center', width:'100%'}}>
+              <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+              <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-primary)', color:'var(--fg-primary)'}} onClick={onPlayAllShuffle}>
+                ▶ REPRODUCIR TODO ALEATORIO
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -7319,6 +7327,7 @@ function App() {
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={navigateTo}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                           onPlayAll={() => playScope({ type: 'all' }, false)}
+                          onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
                           artistMeta={artistMeta} playlists={playlists} />
