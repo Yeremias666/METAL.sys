@@ -932,7 +932,6 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
           <div className="panel-hd">REPRODUCIR TODO <span className="dots">/// GLOBAL</span></div>
           <div className="panel-body">
             <p>Inicia la reproducción de toda la biblioteca en orden, o activa shuffle para escuchar todas las canciones en un recorrido aleatorio.</p>
-            <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>Vault + carpeta local · {songCount} canción{songCount===1?'':'es'}</p>
             <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
               <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
               <button className="big-btn" onClick={onPlayAllShuffle}>▶ REPRODUCIR TODO ALEATORIO</button>
