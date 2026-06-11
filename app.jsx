@@ -3826,28 +3826,15 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
 }
 
 // Contador de canciones reproducidas (suma de playCounts)
-function PlaysCounter({ playCounts, files = [], localFiles = [] }) {
+function PlaysCounter({ playCounts, listenSecs = 0 }) {
   const total = Object.values(playCounts).reduce((a, v) => a + v, 0);
   const digits = String(total).padStart(7, '0').split('');
 
-  const totalMinutes = useMemo(() => {
-    let durCache = {};
-    try { durCache = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}'); } catch {}
-    const allFiles = [...files, ...localFiles];
-    let secs = 0;
-    for (const [id, count] of Object.entries(playCounts)) {
-      const f = allFiles.find(x => x.id === id);
-      if (!f) continue;
-      const dur = (f.duration && isFinite(f.duration)) ? f.duration : (f.r2Path ? durCache[f.r2Path] : null);
-      if (dur) secs += dur * count;
-    }
-    return Math.round(secs / 60);
-  }, [playCounts, files, localFiles]);
-
-  const fmtMinutes = (m) => {
+  const fmtTime = (secs) => {
+    const m = Math.floor(secs / 60);
     if (m < 60) return `${m} MIN`;
     const h = Math.floor(m / 60), min = m % 60;
-    return `${h}H ${String(min).padStart(2,'0')}MIN`;
+    return `${h}H ${String(min).padStart(2, '0')}MIN`;
   };
 
   return (
@@ -3861,9 +3848,9 @@ function PlaysCounter({ playCounts, files = [], localFiles = [] }) {
           <div style={{textAlign:'center', marginTop: 8, fontSize: 17, color: 'var(--fg-dim)'}}>
             {total} ESCUCHA{total===1?'':'S'} EN TOTAL
           </div>
-          {totalMinutes > 0 && (
+          {listenSecs >= 60 && (
             <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
-              {fmtMinutes(totalMinutes)} ESCUCHADOS
+              {fmtTime(listenSecs)} ESCUCHADOS
             </div>
           )}
         </div>
@@ -6278,6 +6265,28 @@ function App() {
   }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
+  const listenStartRef = useRef(null);
+
+  useEffect(() => {
+    const flush = () => {
+      if (listenStartRef.current == null) return;
+      const elapsed = (Date.now() - listenStartRef.current) / 1000;
+      listenStartRef.current = null;
+      if (elapsed < 1) return;
+      try {
+        const prev = parseFloat(localStorage.getItem('metalsys_listen_secs_v1') || '0');
+        const next = prev + elapsed;
+        localStorage.setItem('metalsys_listen_secs_v1', String(next));
+        setListenSecs(next);
+      } catch {}
+    };
+    if (isPlaying) {
+      listenStartRef.current = Date.now();
+    } else {
+      flush();
+    }
+    return flush;
+  }, [isPlaying, currentTrackId]);
 
   const ensureAnalyser = () => {
     if (analyserRef.current) return analyserRef.current;
@@ -6307,6 +6316,7 @@ function App() {
   // ── New feature state ──────────────────────────────────────
   const [likedIds, setLikedIds]     = useState(loadLikes);
   const [playCounts, setPlayCounts] = useState(loadCounts);
+  const [listenSecs, setListenSecs] = useState(() => { try { return parseFloat(localStorage.getItem('metalsys_listen_secs_v1') || '0'); } catch { return 0; } });
   const [playLog,    setPlayLog]    = useState(loadPLog);
   const [bookmarks, setBookmarks]   = useState(loadBookmarks);   // {fileId: [{id,name,time}]}
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
@@ -6435,6 +6445,12 @@ function App() {
           if (d.playLog)    setPlayLog(d.playLog);
           if (d.playlists)  setPlaylists(d.playlists);
           if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
+          if (d.listenSecs != null) {
+            const local = parseFloat(localStorage.getItem('metalsys_listen_secs_v1') || '0');
+            const merged = Math.max(local, d.listenSecs);
+            localStorage.setItem('metalsys_listen_secs_v1', String(merged));
+            setListenSecs(merged);
+          }
         }
       })
       .catch(() => {})
@@ -6992,7 +7008,7 @@ function App() {
     if (!authToken || !syncReadyRef.current) return;
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog, playlists };
+      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog, playlists, listenSecs };
       if (perf.perfGlobal) {
         const { perfGlobal: _, ...cloudPerf } = perf;
         body.perf = cloudPerf;
@@ -7003,9 +7019,9 @@ function App() {
         body: JSON.stringify(body),
       }).catch(() => {});
     }, 2000);
-  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists]);
+  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists, listenSecs]);
 
-  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists]);
+  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists, listenSecs]);
 
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {
@@ -7570,7 +7586,7 @@ function App() {
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} />
               <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
-              <PlaysCounter playCounts={playCounts} files={files} localFiles={localFiles} />
+              <PlaysCounter playCounts={playCounts} listenSecs={listenSecs} />
               <RecentActivity log={log} />
             </div>
             )}
