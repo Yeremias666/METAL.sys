@@ -4612,7 +4612,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap'}}>
-            <div style={{width:100, height:100, flexShrink:0, overflow:'hidden', border:'1px solid rgba(214,31,31,0.3)'}}>
+            <div style={{width:100, height:100, flexShrink:0, overflow:'hidden', border:'1px solid rgba(214,31,31,0.3)', position: 'relative'}}>
               <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />
             </div>
             <div style={{flex:1, minWidth:0}}>
