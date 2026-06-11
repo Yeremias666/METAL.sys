@@ -3156,8 +3156,6 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
   const draggingRef = useRef(false);
-  const volBarRef = useRef(null);
-  const volDraggingRef = useRef(false);
   const prevVolumeRef = useRef(volume > 0 ? volume : 1);
   const liked = likedIds ? likedIds.has(track.id) : false;
   const [likePop, setLikePop] = useState(false);
@@ -3182,24 +3180,10 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
     onSeek(pct * duration);
   }, [duration, onSeek]);
 
-  const volFromClientX = useCallback((clientX) => {
-    if (!volBarRef.current) return;
-    const r = volBarRef.current.getBoundingClientRect();
-    const v = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
-    if (v > 0) prevVolumeRef.current = v;
-    onVolume(v);
-  }, [onVolume]);
-
   useEffect(() => {
-    const onMove  = (e) => {
-      if (draggingRef.current) seekFromClientX(e.clientX);
-      if (volDraggingRef.current) volFromClientX(e.clientX);
-    };
-    const onUp    = () => { draggingRef.current = false; volDraggingRef.current = false; };
-    const onTouch = (e) => {
-      if (draggingRef.current && e.touches[0]) { e.preventDefault(); seekFromClientX(e.touches[0].clientX); }
-      if (volDraggingRef.current && e.touches[0]) { e.preventDefault(); volFromClientX(e.touches[0].clientX); }
-    };
+    const onMove  = (e) => { if (draggingRef.current) seekFromClientX(e.clientX); };
+    const onUp    = () => { draggingRef.current = false; };
+    const onTouch = (e) => { if (draggingRef.current && e.touches[0]) { e.preventDefault(); seekFromClientX(e.touches[0].clientX); } };
     window.addEventListener('mousemove',  onMove);
     window.addEventListener('mouseup',    onUp);
     window.addEventListener('touchmove',  onTouch, { passive: false });
@@ -3210,7 +3194,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       window.removeEventListener('touchmove',  onTouch);
       window.removeEventListener('touchend',   onUp);
     };
-  }, [seekFromClientX, volFromClientX]);
+  }, [seekFromClientX]);
 
   return (
     <div className="music-player">
@@ -3291,13 +3275,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           if (volume > 0) { prevVolumeRef.current = volume; onVolume(0); }
           else { onVolume(prevVolumeRef.current); }
         }}><IconVolume level={volume} /></span>
-        <div className="mp-bar" ref={volBarRef}
-             onMouseDown={(e) => { volDraggingRef.current = true; volFromClientX(e.clientX); }}
-             onTouchStart={(e) => { volDraggingRef.current = true; if (e.touches[0]) volFromClientX(e.touches[0].clientX); }}
-             style={{cursor:'pointer', flex:1}}>
-          <div className="mp-bar-fill" style={{width: (volume * 100) + '%'}}></div>
-          <div className="mp-bar-knob" style={{left: (volume * 100) + '%'}}></div>
-        </div>
+        <input type="range" min="0" max="1" step="0.01" value={volume}
+               onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) prevVolumeRef.current = v; onVolume(v); }}
+               style={{cursor:'pointer'}} />
       </div>
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
     </div>
@@ -6002,8 +5982,6 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
   }, [onClose]);
   return (
     <div ref={ref} className="mp-menu-dropdown">
-      <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
-      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{display:'inline-block', transform:'translateY(2px)'}}>✂</span> CREAR CLIP</button>
       <div className="mp-menu-item--sub">
         <button onClick={() => setShowPlaylistSub(p => !p)}>
           ◈ AÑADIR A PLAYLIST <span style={{opacity:0.55, fontSize:10, marginLeft:4}}>▸</span>
@@ -6024,6 +6002,8 @@ function PlayerMenuDropdown({ onCreateBookmark, onCreateClip, onClose, playlists
           </div>
         )}
       </div>
+      <button onClick={() => { onCreateBookmark(); onClose(); }}>◆ CREAR MARCADOR</button>
+      <button onClick={() => { onCreateClip(); onClose(); }}><span style={{display:'inline-block', transform:'translateY(2px)'}}>✂</span> CREAR CLIP</button>
     </div>
   );
 }
