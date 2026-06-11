@@ -3048,6 +3048,9 @@ input:not([type=range]), textarea {
   border: none;
   cursor: pointer;
 }
+.mp-volume input[type=range]::-webkit-slider-runnable-track { cursor: pointer; }
+.mp-volume input[type=range]::-moz-range-track { cursor: pointer; }
+.mp-volume input[type=range]::-moz-range-progress { cursor: pointer; }
 .mp-close {
   font-family: var(--mono);
   font-size: 16px;
