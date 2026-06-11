@@ -56,7 +56,7 @@ const MARQUEE_LINES = [
   "DRAG · DROP · TAG · SHARE \\m/ ALL FILES STORED ON YOUR LOCAL DECK ◆ DO NOT CLEAR CACHE",
 ];
 
-// ─── ALMACENAMIENTO ────────────────────────────────────────────
+// ──── ALMACENAMIENTO ────────────────────────────────────────────
 // Funciones simples de lectura/escritura de localStorage.
 // Todos los datos del vault, categorías, likes, etc. viven aquí.
 function loadVault() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
