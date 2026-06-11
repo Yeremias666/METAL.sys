@@ -4657,14 +4657,18 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 /* ── CMD boot sequence — visible while JS loads; React replaces #root on mount ── */
 .boot-screen {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  /* limitar ancho para que aparezca pegado a la esquina superior izquierda */
+  width: auto;
+  max-width: 640px;
   z-index: 9999;
   background: #060408;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding: clamp(14px, 3vw, 36px);
+  padding: 8px 12px;
   font-family: 'Courier New', Courier, monospace;
   font-size: clamp(10px, 1.6vw, 14px);
   line-height: 1.75;
