@@ -5834,7 +5834,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                 {/* Línea base */}
                 <div style={{height:2, background:'rgba(255,255,255,0.12)', marginBottom:4}}/>
                 {/* Etiquetas: fila separada, siempre debajo de la línea base */}
-                <div style={{display:'flex', gap, alignItems:'flex-start', width:'100%'}}>
+                <div style={{display:'flex', gap, alignItems:'flex-end', width:'100%'}}>
                   {playedArtists.map(([artist],i)=>{
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
