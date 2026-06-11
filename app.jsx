@@ -291,10 +291,10 @@ function downloadFile(f) {
   const a = document.createElement('a');
   a.download = f.fileName || f.name;
   if (f.r2Path) {
-    fetch(`/api/audio?path=${encodeURIComponent(f.r2Path)}`)
-      .then(r => r.json())
-      .then(({ url }) => { a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); })
-      .catch(() => {});
+    a.href = `/api/audio?path=${encodeURIComponent(f.r2Path)}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     return;
   }
   a.href = f.fileData;
@@ -1057,9 +1057,7 @@ function DurationCell({ file }) {
       try {
         let src = file.fileData;
         if (!src && file.r2Path) {
-          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
-          const d = await r.json();
-          src = d.url;
+          src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
         }
         if (!src || cancelled) return;
         audioEl = document.createElement('audio');
@@ -6695,11 +6693,7 @@ function App() {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
     let src = file.fileData;
     if (file.r2Path) {
-      try {
-        const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
-        const d = await r.json();
-        src = d.url;
-      } catch { return null; }
+      src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
     }
     if (!src) return null;
     const tags = await readID3(src);
@@ -6769,23 +6763,16 @@ function App() {
     requestID3(file);
 
     if (file.r2Path) {
-      // Archivo R2: obtener URL firmada → el navegador hace streaming directo desde R2
       waveformBufRef.current = new Float32Array(300);
       waveformIdRef.current  = file.id;
       waveformFrRef.current  = 0;
-      (async () => {
-        try {
-          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
-          const { url } = await r.json();
-          audio.src = url;
-          if (pendingSeekRef.current !== null) {
-            const _t = pendingSeekRef.current; pendingSeekRef.current = null;
-            const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
-            audio.addEventListener('loadeddata', _seek);
-          }
-          audio.play().catch(() => {});
-        } catch (e) { console.error('[R2] signed URL error:', e); }
-      })();
+      audio.src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
+      if (pendingSeekRef.current !== null) {
+        const _t = pendingSeekRef.current; pendingSeekRef.current = null;
+        const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
+        audio.addEventListener('loadeddata', _seek);
+      }
+      audio.play().catch(() => {});
       return;
     }
 
