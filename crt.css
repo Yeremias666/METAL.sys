@@ -4309,8 +4309,11 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 .track-table-row:hover .like-btn,
 .track-table-row:hover .playlist-btn { opacity: 1; }
 .track-table-row:hover .track-list-row-actions .track-list-play { opacity: 1; }
-.track-table-header span:first-child { text-align: right; }
+.track-table-header span:first-child { text-align: center; }
 .tt-num { text-align: right; font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); padding-left: 4px; }
+.tt-thumb { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.tt-thumb img { width: 36px; height: 36px; object-fit: cover; border-radius: 2px; image-rendering: pixelated; }
+.tt-thumb .note-icon { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; }
 .tt-name { font-family: var(--pixel) !important; font-size: 12px !important; color: var(--fg-text); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tt-album { font-family: var(--pixel) !important; font-size: 12px !important; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tt-artist { font-family: var(--pixel) !important; font-size: 12px !important; color: var(--fg-secondary); letter-spacing: 0.06em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 60px; }
@@ -4564,6 +4567,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -4575,6 +4579,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

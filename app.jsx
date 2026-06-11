@@ -1124,7 +1124,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
     return (
       <div className="track-table">
         <div className="track-table-header">
-          <span>#</span>
+          <span></span>
           <span>TÍTULO</span>
           <span>DISCO</span>
           <span>ARTISTA</span>
@@ -1135,7 +1135,9 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
           const trackNum = f.track ? f.track.split('/')[0] : String(i + 1);
           return (
             <div key={f.id} className="track-list-row track-table-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
-              <span className="tt-num">{trackNum}</span>
+              <span className="tt-thumb">{
+                f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
+              }</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
               <span className="tt-artist">{f.category || f.artist || '—'}</span>
