@@ -1189,92 +1189,46 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   );
 }
 
-function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
+function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayAllShuffle, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
   const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
   const gq = normStr(query.trim());
-  const suggestions = useMemo(() => {
-    if (!gq) return [];
-    const artistHits = allCats.filter(a => normStr(a).includes(gq))
-      .slice(0, 2).map(a => {
-        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
-        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
-      });
-    const albumMap = new Map();
-    allFiles.forEach(f => {
-      if (!f.album) return;
-      const key = `${f.artist||f.category}::${f.album}`;
-      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
-    });
-    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
-    const playlistHits = buildPlaylistHits(playlists, allFiles, gq);
-    const songHits = allFiles.filter(f => normStr(f.name).includes(gq)).slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
-    return [...artistHits, ...albumHits, ...playlistHits, ...songHits].slice(0, 6);
-  }, [gq, allCats, allFiles, playlists]);
+  const filtered = useMemo(() => {
+    if (!gq) return sorted;
+    return sorted.filter(f =>
+      normStr(f.name).includes(gq) ||
+      normStr(f.artist || f.category || '').includes(gq) ||
+      normStr(f.album || '').includes(gq)
+    );
+  }, [gq, sorted]);
 
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
+        <div className="panel-hd">TODO <span className="dots">/// {filtered.length} CANCIÓN{filtered.length===1?'':'ES'}</span></div>
         <div className="panel-body">
-          <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
-        </div>
-      </div>
-      <div className="section">
-        <div className="panel searchbar">
-          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
-          <div className="panel-body searchbar-body">
-            <div className="search-row">
-              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
-                value={query} onChange={e => setQuery(e.target.value)} />
-              {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:12}}>
+            <div>
+              <p>Todas las canciones de la biblioteca ordenadas alfabéticamente.</p>
+              <p style={{color:'var(--fg-dim)', fontSize:14}}>{sorted.length} canción{sorted.length===1?'':'es'} · {fmtBytes([...files,...localFiles].filter(isAudioFile).reduce((a,f)=>a+(f.fileSize||0),0))}</p>
             </div>
-            {gq && (
-              <div className="search-suggestions">
-                {suggestions.length === 0 ? (
-                  <div className="search-suggestion empty">Sin coincidencias.</div>
-                ) : suggestions.map((item, idx) => (
-                  <button key={idx} className="search-suggestion search-suggestion-anim"
-                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
-                    setQuery('');
-                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
-                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
-                    else if (item.type === 'playlist') onNav({ page: 'PLAYLIST', playlistId: item.playlist.id });
-                    else onOpenFile(item.file.id);
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div className="search-suggestion-thumb">
-                        {item.type === 'artist'
-                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
-                          : item.type === 'playlist'
-                            ? (item.thumb ? <img src={item.thumb} alt="" /> : <span style={{fontSize:16,color:'var(--fg-primary)'}}>◈</span>)
-                            : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
-                      </div>
-                      <div style={{ textAlign: 'left' }}>
-                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
-                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
-                          {item.type === 'artist' ? 'ARTISTA'
-                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
-                            : item.type === 'playlist' ? `${(item.playlist.songIds||[]).length} CANCIONES`
-                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="search-item-type" style={item.type==='playlist'?{borderColor:'var(--fg-primary)',color:'var(--fg-primary)'}:{}}>
-                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : item.type === 'playlist' ? 'PLAYLIST' : 'CANCIÓN'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+              <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+              <button className="big-btn" onClick={onPlayAllShuffle}>▶ ALEATORIO</button>
+            </div>
+          </div>
+          <div className="search-row">
+            <input className="field-input" placeholder="◆ FILTRAR POR TÍTULO, ARTISTA O DISCO..."
+              value={query} onChange={e => setQuery(e.target.value)} />
+            {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
           </div>
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {sorted.length === 0
-          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
-          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
+        {filtered.length === 0
+          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin coincidencias</div>
+          : <TrackList files={filtered} onOpen={onOpenFile} onPlay={onPlayFile}
                        likedIds={likedIds} onToggleLike={onToggleLike}
                        playlists={playlists} onAddToPlaylist={onAddToPlaylist}
                        onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
@@ -4869,7 +4823,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
 }
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
-function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onPlayAllShuffle, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
   const noteIcon = (
@@ -4887,7 +4841,12 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
               <p>Tus canciones favoritas marcadas con ♥.</p>
               <p style={{color:'var(--fg-dim)', fontSize:14}}>{liked.length} canción{liked.length===1?'':'es'} · {fmtBytes(total)}</p>
             </div>
-            {liked.length > 0 && <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR ME GUSTA</button>}
+            {liked.length > 0 && (
+              <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
+                <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR ME GUSTA</button>
+                <button className="big-btn" onClick={onPlayAllShuffle}>▶ ALEATORIO</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -5644,11 +5603,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',audioFiles.filter(f=>likedIds.has(f.id)).length],['SUBIDAS',upCount],['DESCARGAS',dlCount],['BORRADAS',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
               <div key={lbl} className="stat-fact"><div className="sf-label">{lbl}</div><div className="sf-val">{val}</div></div>
             ))}
-          </div>
-          <div style={{display:'flex',gap:12,marginTop:14,flexWrap:'wrap'}}>
-            {firstUpload && <div className="stat-fact" style={{flex:1,minWidth:200}}><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:16}}>{fmtLongDate(firstUpload)}</div></div>}
-            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">% PLAYS LIKED</div><div className="sf-val" style={{color:'var(--fg-primary)'}}>{likedRatio}%</div></div>
-            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">RACHA ACTUAL</div><div className="sf-val" style={{color:'var(--fg-accent)'}}>{streak} DÍA{streak===1?'':'S'}</div></div>
+            {firstUpload && <div className="stat-fact"><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:16}}>{fmtLongDate(firstUpload)}</div></div>}
+            <div className="stat-fact"><div className="sf-label">% PLAYS LIKED</div><div className="sf-val" style={{color:'var(--fg-primary)'}}>{likedRatio}%</div></div>
+            <div className="stat-fact"><div className="sf-label">RACHA ACTUAL</div><div className="sf-val" style={{color:'var(--fg-accent)'}}>{streak} DÍA{streak===1?'':'S'}</div></div>
           </div>
         </div>
       </div>
@@ -7356,6 +7313,7 @@ function App() {
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
+                              onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                               onPlayFile={(f) => {
                                 const allSorted = [...files, ...localFiles].filter(isAudioFile)
                                   .sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
@@ -7379,6 +7337,13 @@ function App() {
                     if (likedAudio.length === 0) return;
                     setManualQueue(likedAudio);
                     startTrack(likedAudio[0], { type: 'all', shuffle: false });
+                  }}
+                  onPlayAllShuffle={() => {
+                    const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
+                    if (likedAudio.length === 0) return;
+                    const shuffled = likedAudio.slice().sort(() => Math.random() - 0.5);
+                    setManualQueue(shuffled);
+                    startTrack(shuffled[0], { type: 'all', shuffle: true });
                   }}
                   onToggleLike={toggleLike}
                   onPlayFile={f => {
