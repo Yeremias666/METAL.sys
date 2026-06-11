@@ -5531,23 +5531,22 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
     const raw = (value || '').trim();
     if (!raw) return '?';
     const slashParts = raw.split(/\s*\/\s*/);
-    if (slashParts.length > 1 && slashParts.some(p => /[a-záéíóúüñ]/.test(p))) {
-      return slashParts[0].trim();
-    }
+    if (slashParts.length > 1 && slashParts[0].trim()) return slashParts[0].trim();
     const featParts = raw.split(/\s+feat(?:\.\s*|\s+)/i);
-    if (featParts.length > 1) return featParts[0].trim();
+    if (featParts.length > 1 && featParts[0].trim()) return featParts[0].trim();
     const ftParts = raw.split(/\s+ft(?:\.\s*|\s+)/i);
-    if (ftParts.length > 1) return ftParts[0].trim();
+    if (ftParts.length > 1 && ftParts[0].trim()) return ftParts[0].trim();
     const ampParts = raw.split(/\s+&\s+/);
-    if (ampParts.length > 1) return ampParts[0].trim();
+    if (ampParts.length > 1 && ampParts[0].trim()) return ampParts[0].trim();
     const plusParts = raw.split(/\s+\+\s+/);
-    if (plusParts.length > 1) return plusParts[0].trim();
+    if (plusParts.length > 1 && plusParts[0].trim()) return plusParts[0].trim();
     return raw;
   };
 
+  // All artists (usar intérprete del álbum cuando esté disponible)
   const allArtistsList = [...new Set(audioFiles.map(f => normalizeStatArtist(f.artist || f.category)).filter(Boolean))];
   const artistColorMap = {};
-  allArtistsList.forEach((a, i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
+  allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
 
   // Artist plays (por artista normalizado)
   const artistPlays = {};
@@ -5557,7 +5556,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   });
   const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
   const topArtists = allArtistPlays.slice(0,20);
-  const maxAP = Math.max(1, ...topArtists.map(([,v])=>v));
+  const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
 
   // Fav song
   const mostPlayed = [...audioFiles].sort((a,b)=>(playCounts[b.id]||0)-(playCounts[a.id]||0))[0];
@@ -5824,14 +5823,13 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         if (playedArtists.length === 0) return null;
         const maxPA = Math.max(1,...playedArtists.map(([,v])=>v));
         const n = playedArtists.length;
-        const truncated = allArtistPlays.length > 20;
-        const barW = n <= 4 ? 44 : n <= 8 ? 32 : n <= 12 ? 24 : n <= 16 ? 18 : 14;
-        const fontSize = n <= 4 ? 10 : n <= 8 ? 9 : n <= 12 ? 8 : n <= 16 ? 7 : 6;
+        const barW = n <= 5 ? 46 : n <= 8 ? 36 : n <= 12 ? 28 : n <= 16 ? 22 : 18;
+        const fontSize = n <= 5 ? 11 : n <= 8 ? 10 : n <= 12 ? 9 : n <= 16 ? 8 : 7;
         const BAR_H = 90;
-        const gap = n <= 4 ? 12 : n <= 8 ? 10 : n <= 12 ? 8 : n <= 16 ? 6 : 4;
+        const gap = n <= 5 ? 14 : n <= 8 ? 12 : n <= 12 ? 10 : n <= 16 ? 8 : 6;
         return (
           <div className="panel section">
-            <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// TOP {Math.min(20, allArtistPlays.length)}{truncated ? ' / MÁS' : ''}</span></div>
+            <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// TOP {playedArtists.length}</span></div>
             <div className="panel-body">
               <div style={{overflowX:'auto', paddingBottom:6}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
@@ -5840,7 +5838,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     const h = Math.max(6, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4,width:barW,flexShrink:0}}>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,width:barW,flexShrink:0}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize,color}}>{plays}</span>
                         <div style={{width:barW,height:h,background:color,boxShadow:`0 0 6px ${color}44`,borderRadius:4}}/>
                       </div>
@@ -5855,9 +5853,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     return (
                       <div key={artist} style={{width:barW,flexShrink:0,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.75)',
+                          fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.8)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          maxHeight:84, overflow:'hidden', whiteSpace:'nowrap',
+                          maxHeight:100, overflow:'hidden', whiteSpace:'nowrap',
                           letterSpacing:'0.04em', textOverflow:'ellipsis',
                         }}>
                           {artist}
