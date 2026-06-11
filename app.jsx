@@ -1973,7 +1973,6 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
   const openAlbum = (album) => {
     onNav({ page: 'CAT', cat, album });
-    setSelAlbums(new Set());
     setShowResults(false);
     setQuery('');
   };
@@ -7292,6 +7291,21 @@ function App() {
       if (f) addToLog({ kind: 'PAUSE', name: f.name, artist: f.category || f.artist || '' });
     }
   };
+  const smartPlayArtist = (artist) => {
+    if (isPlaying && playContext && playContext.type === 'artist' && playContext.artist === artist) {
+      playPause();
+    } else {
+      playScope({ type: 'artist', artist }, false);
+    }
+  };
+  const smartPlayAlbum = (artist, album) => {
+    if (isPlaying && playContext && playContext.type === 'album' && playContext.artist === artist && playContext.album === album) {
+      playPause();
+    } else {
+      playScope({ type: 'album', artist, album }, false);
+    }
+  };
+
   const playNext = (wrap = true, { autoAdvance = false } = {}) => {
     // Prefer a detail-origin queue when viewing DETAIL (navegación desde playlists/TODO/ME GUSTA)
     const queue = (route.page === 'DETAIL' && detailOriginQueue && detailOriginQueue.length) ? detailOriginQueue : effectiveQueue;
@@ -7459,7 +7473,7 @@ function App() {
                 <BandasPage artists={allArtists} files={files} localFiles={localFiles}
                             onNav={navigateTo} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
-                            onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                            onPlayArtist={smartPlayArtist}
                             artistMeta={artistMeta} playlists={playlists} />
               )}
               {route.page === 'MESGUSTA' && (
@@ -7555,8 +7569,8 @@ function App() {
                               likedIds={likedIds} onToggleLike={toggleLike}
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
-                              onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
-                              onPlayAlbum={(artist, album) => playScope({ type: 'album', artist, album }, false)}
+                              onPlayArtist={smartPlayArtist}
+                              onPlayAlbum={smartPlayAlbum}
                               onPlayFile={(f) => {
                                 const artist = f.category || f.artist;
                                 const ctx = f.album
