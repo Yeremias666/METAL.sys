@@ -5824,26 +5824,15 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flex:`1 1 ${barW}px`,minWidth:barW}}>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:6,flex:`1 1 ${barW}px`,minWidth:barW}}>
                         <span style={{fontFamily:'var(--pixel)',fontSize:22,color}}>{plays}</span>
                         <div style={{width:'100%',height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
-                      </div>
-                    );
-                  })}
-                </div>
-                {/* Línea base */}
-                <div style={{height:2, background:'rgba(255,255,255,0.12)', marginBottom:4}}/>
-                {/* Etiquetas: fila separada, siempre debajo de la línea base */}
-                <div style={{display:'flex', gap, alignItems:'flex-start', width:'100%'}}>
-                  {playedArtists.map(([artist],i)=>{
-                    const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
-                    return (
-                      <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
+                        <div style={{height:2,width:'100%',background:'rgba(255,255,255,0.12)'}}/>
                         <span style={{
                           fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.95)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
-                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'normal'
+                          display:'block', paddingTop:6, lineHeight:1, textAlign:'center',
+                          maxWidth: `${barW}px`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'normal'
                         }}>
                           {artist}
                         </span>
