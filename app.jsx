@@ -6176,7 +6176,6 @@ function App() {
   const audioRef = useRef(null);
   if (!audioRef.current) {
     audioRef.current = new Audio();
-    audioRef.current.crossOrigin = 'anonymous'; // necesario para Web Audio API con URLs de R2
   }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
@@ -6715,7 +6714,10 @@ function App() {
   // skipLog: true cuando el llamador (playNext/playPrev) ya ha añadido su propia entrada al log
   const doPlay = (audio) => {
     const ctx = audioCtxRef.current;
-    const go = () => audio.play().catch(e => console.error('[play]', e?.name, e?.message));
+    const go = () => {
+      console.log('[doPlay] src:', audio.src.slice(0,80), '| readyState:', audio.readyState, '| ctx:', ctx?.state);
+      audio.play().catch(e => console.error('[play]', e?.name, e?.message));
+    };
     if (ctx && ctx.state === 'suspended') {
       ctx.resume().then(go).catch(go);
     } else {
