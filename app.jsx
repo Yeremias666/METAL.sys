@@ -3208,11 +3208,13 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           <div className="mp-title" onClick={() => onOpenFile && onOpenFile(track.id)} style={{cursor: onOpenFile ? 'pointer' : 'default'}}>{(tags && tags.title) || track.name}</div>
           <div className="mp-artist">
             {(() => {
-              const artist = (tags && tags.artist) || track.artist || '—';
-              const album  = (tags && tags.album)  || track.album  || null;
+              const displayArtist = (tags && tags.artist) || track.artist || '—';
+              const displayAlbum  = (tags && tags.album)  || track.album  || null;
+              const navArtist = track.category || track.artist;
+              const navAlbum  = track.album;
               return <>
-                <span onClick={() => { if (artist !== '—' && onNav) onNav({ page: 'CAT', cat: artist }); }} style={{cursor: artist !== '—' && onNav ? 'pointer' : 'default'}}>{artist}</span>
-                {album && <><span> · </span><span onClick={() => { if (onNav) onNav({ page: 'CAT', cat: artist, album }); }} style={{cursor: onNav ? 'pointer' : 'default'}}>{album}</span></>}
+                <span onClick={() => { if (navArtist && onNav) onNav({ page: 'CAT', cat: navArtist }); }} style={{cursor: navArtist && onNav ? 'pointer' : 'default'}}>{displayArtist}</span>
+                {displayAlbum && <><span> · </span><span onClick={() => { if (navArtist && navAlbum && onNav) onNav({ page: 'CAT', cat: navArtist, album: navAlbum }); }} style={{cursor: navArtist && navAlbum && onNav ? 'pointer' : 'default'}}>{displayAlbum}</span></>}
               </>;
             })()}
           </div>
@@ -4826,7 +4828,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
         <div className="panel-body">
           {onOpenCreatePlaylist && (
             <div style={{marginBottom:12}}>
-              <button className="big-btn" onClick={() => onOpenCreatePlaylist()}>＋ CREAR PLAYLIST</button>
+              <button className="big-btn" onClick={() => onOpenCreatePlaylist()}><span style={{fontSize:'1.6em', lineHeight:1, verticalAlign:'middle', marginRight:4}}>＋</span> CREAR PLAYLIST</button>
             </div>
           )}
           <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
