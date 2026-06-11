@@ -6429,7 +6429,7 @@ function App() {
       playStartRef.current = null; // prevent double-count in startTrack
       if (repeatMode === 'one') {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        doPlay(audio);
         playStartRef.current = Date.now();
         return;
       }
@@ -6713,17 +6713,24 @@ function App() {
   };
 
   // skipLog: true cuando el llamador (playNext/playPrev) ya ha añadido su propia entrada al log
+  const doPlay = (audio) => {
+    const ctx = audioCtxRef.current;
+    const go = () => audio.play().catch(e => console.error('[play]', e?.name, e?.message));
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().then(go).catch(go);
+    } else {
+      go();
+    }
+  };
+
   const startTrack = (file, nextContext, { skipLog = false } = {}) => {
     if (!file) return;
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
     msTransitionRef.current = true;
     ensureAnalyser();
-    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
-      audioCtxRef.current.resume().catch(() => {});
-    }
     if (currentTrackId === file.id) {
-      audio.play().catch(() => {});
+      doPlay(audio);
       return;
     }
     if (!skipLog) addToLog({ kind: 'PLAY', name: file.name, artist: file.category || file.artist || '' });
@@ -6748,7 +6755,7 @@ function App() {
             const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
             audio.addEventListener('loadeddata', _seek);
           }
-          audio.play().catch(() => {});
+          doPlay(audio);
         } catch (e) { console.error('Local file read error:', e); }
       })();
       setCurrentTrackId(file.id);
@@ -6772,7 +6779,7 @@ function App() {
         const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
         audio.addEventListener('loadeddata', _seek);
       }
-      audio.play().catch(() => {});
+      doPlay(audio);
       return;
     }
 
@@ -6782,7 +6789,7 @@ function App() {
       const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
       audio.addEventListener('loadeddata', _seek);
     }
-    audio.play().catch(() => {});
+    doPlay(audio);
 
     if (!waveforms[file.id]) {
       const calcWaveform = async () => {
@@ -6925,7 +6932,7 @@ function App() {
     if (currentTrackId === file.id) {
       setActiveClip(clip);
       audio.currentTime = clip.start;
-      audio.play().catch(() => {});
+      doPlay(audio);
     } else {
       pendingSeekRef.current = clip.start;   // set BEFORE startTrack changes audio.src
       setManualQueue([file]);
@@ -6940,7 +6947,7 @@ function App() {
     if (currentTrackId === file.id) {
       audio.currentTime = time;
       setPosition(time);
-      audio.play().catch(() => {});
+      doPlay(audio);
     } else {
       pendingSeekRef.current = time;         // set BEFORE startTrack changes audio.src
       setManualQueue([file]);                // single-file queue keeps prev/next sane
@@ -6968,7 +6975,7 @@ function App() {
     } else {
       pendingSeekRef.current = clip.start;
     }
-    audio.play().catch(() => {});
+    doPlay(audio);
   };
   const stopClip = () => setActiveClip(null);
 
@@ -7122,7 +7129,7 @@ function App() {
   const playTrack = (file) => {
     if (currentTrackId === file.id) {
       const audio = audioRef.current;
-      if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+      if (audio.paused) doPlay(audio); else audio.pause();
       return;
     }
     const artist = file.category || file.artist;
@@ -7136,7 +7143,7 @@ function App() {
   const playPause = () => {
     const audio = audioRef.current;
     if (audio.paused) {
-      audio.play().catch(() => {});
+      doPlay(audio);
       const f = currentTrack;
       if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.category || f.artist || '' });
     } else {
@@ -7198,7 +7205,7 @@ function App() {
       album:  track.album  || '',
       artwork,
     });
-    navigator.mediaSession.setActionHandler('play',          () => audioRef.current?.play().catch(()=>{}));
+    navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
     navigator.mediaSession.setActionHandler('nexttrack',     () => playNext());
