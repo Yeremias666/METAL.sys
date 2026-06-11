@@ -4599,6 +4599,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
     .filter(Boolean);
 
   const totalDur = songs.reduce((a, f) => a + (f.duration || 0), 0);
+  const uniqueArtists = [...new Set(songs.map(f => f.category || f.artist).filter(Boolean))];
   const noteIcon = (
     <div style={{width:36,height:36,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(214,31,31,0.08)',borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
@@ -4631,6 +4632,11 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
               {playlist.createdAt && (
                 <p style={{color:'var(--fg-dim)', fontSize:12, fontFamily:'var(--pixel)', letterSpacing:'0.06em', margin:'3px 0 0'}}>
                   {new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}
+                </p>
+              )}
+              {uniqueArtists.length > 0 && (
+                <p style={{color:'var(--fg-dim)', fontSize:12, fontFamily:'var(--pixel)', letterSpacing:'0.06em', margin:'8px 0 0', lineHeight:1.4}}>
+                  {uniqueArtists.join(', ')}
                 </p>
               )}
             </div>
