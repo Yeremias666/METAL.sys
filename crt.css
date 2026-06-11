@@ -1566,6 +1566,19 @@ input:not([type=range]), textarea {
   letter-spacing: 0.1em;
   color: var(--fg-secondary);
 }
+
+.album-card-count { /* mantiene la apariencia existente para la cantidad de canciones */
+  color: var(--fg-secondary);
+  font-family: var(--pixel);
+  font-size: 11px;
+}
+
+.album-card-date {
+  color: var(--fg-dim);
+  font-family: var(--pixel);
+  font-size: 10px;
+  margin-top: 6px;
+}
 /* ─── Parallax helpers ───────────────────────────────────────── */
 .ac-img {
   width: 100%;

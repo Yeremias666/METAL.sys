@@ -4566,7 +4566,10 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
       </div>
       <div className="album-card-body">
         <div className="album-card-title">{playlist.name}</div>
-        <div className="album-card-sub">{songCount} canción{songCount === 1 ? '' : 'es'}{createdStr ? ` · ${createdStr}` : ''}</div>
+        <div className="album-card-sub">
+          <div className="album-card-count">{songCount} canción{songCount === 1 ? '' : 'es'}</div>
+          {createdStr && <div className="album-card-date">{createdStr}</div>}
+        </div>
       </div>
     </div>
   );
