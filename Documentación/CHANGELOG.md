@@ -5,29 +5,6 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
-## 2026-06-11 — Fix reproducción R2: proxy streaming en lugar de URL presignada
-
-**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
-**Archivos modificados:** `functions/api/audio.js`, `app.jsx`
-
-### Problema
-Las canciones tardaban minutos en arrancar o no arrancaban nunca. El elemento `<audio>` tiene `crossOrigin = 'anonymous'` (necesario para el VU meter via Web Audio API). Esto hacía que el navegador enviara peticiones CORS directamente a R2, que no devolvía cabeceras `Access-Control-Allow-Origin` → petición bloqueada → audio nunca cargaba.
-
-### Solución
-`audio.js` ya no devuelve `{ url }` JSON. Ahora genera la URL presignada en el servidor (Worker→R2, sin CORS), hace el fetch desde el Worker y devuelve el stream directamente al navegador con soporte de cabecera `Range` para seeking. El navegador solo habla con el mismo origen (`/api/audio?path=...`), eliminando el problema de CORS por completo.
-
-### Cambios en `functions/api/audio.js`
-- Handler cambiado: en lugar de `return jsonResponse({ url: signedUrl })`, genera la URL presignada, hace `fetch(signedUrl, { Range? })` desde el Worker y devuelve `r2Res.body` con los headers relevantes (`Content-Type`, `Content-Length`, `Content-Range`, `Accept-Ranges: bytes`, `Cache-Control`).
-- Soporte de método `HEAD` añadido.
-
-### Cambios en `app.jsx`
-- `downloadFile`: eliminado `fetch(...).then(r.json()).then({url})` — ahora `a.href = '/api/audio?path=...'` directo.
-- Probe de duración (waveform): `src = '/api/audio?path=...'` en lugar de fetch JSON.
-- `requestID3`: `src = '/api/audio?path=...'` en lugar de fetch JSON.
-- `startTrack` (rama R2): eliminado bloque `async () => { fetch... }` — `audio.src = '/api/audio?path=...'` directo, sin espera previa. El audio arranca inmediatamente.
-
----
-
 ## 2026-06-09 — Fix RSS parsing en página NOTICIAS
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  

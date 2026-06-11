@@ -181,13 +181,6 @@ function sortByDiscTrack(a, b) {
   if (da !== db) return da - db;
   return (parseInt(a.track) || 999) - (parseInt(b.track) || 999);
 }
-function sortByYearDiscTrack(a, b) {
-  const ya = parseInt(a.year) || 9999, yb = parseInt(b.year) || 9999;
-  if (ya !== yb) return ya - yb;
-  const alA = (a.album || '').toLowerCase(), alB = (b.album || '').toLowerCase();
-  if (alA !== alB) return alA < alB ? -1 : 1;
-  return sortByDiscTrack(a, b);
-}
 
 function fmtBytes(n) {
   if (n < 1024) return n + ' B';
@@ -291,10 +284,10 @@ function downloadFile(f) {
   const a = document.createElement('a');
   a.download = f.fileName || f.name;
   if (f.r2Path) {
-    a.href = `/api/audio?path=${encodeURIComponent(f.r2Path)}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    fetch(`/api/audio?path=${encodeURIComponent(f.r2Path)}`)
+      .then(r => r.json())
+      .then(({ url }) => { a.href = url; document.body.appendChild(a); a.click(); document.body.removeChild(a); })
+      .catch(() => {});
     return;
   }
   a.href = f.fileData;
@@ -839,7 +832,7 @@ function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 })
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, onPlayAllShuffle, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
   const localTotal = localFiles.reduce((a, f) => a + (f.fileSize || 0), 0);
   const localSongCount = localFiles.filter(isAudioFile).length;
@@ -937,13 +930,8 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
       <div className="section">
         <div className="panel">
           <div className="panel-hd">REPRODUCIR TODO <span className="dots">/// GLOBAL</span></div>
-          <div className="panel-body">
-            <p>Inicia la reproducción de toda la biblioteca en orden, o activa shuffle para escuchar todas las canciones en un recorrido aleatorio.</p>
-            <p style={{color:'var(--fg-dim)', fontSize:18, marginTop:6}}>{songCount} canción{songCount===1?'':'es'}</p>
-            <div style={{display:'flex', gap:8, marginTop:14, flexWrap:'wrap'}}>
-              <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
-              <button className="big-btn" onClick={onPlayAllShuffle}>▶ REPRODUCIR TODO ALEATORIO</button>
-            </div>
+          <div className="panel-body" style={{display:'flex', justifyContent:'center', padding:'28px 14px'}}>
+            <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
           </div>
         </div>
       </div>
@@ -1048,34 +1036,26 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
 
 function DurationCell({ file }) {
   const fmtDur = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-  const [dur, setDur] = React.useState(() => {
-    if (file.duration && isFinite(file.duration)) return fmtDur(file.duration);
-    if (file.r2Path) {
-      try {
-        const c = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}');
-        return c[file.r2Path] ? fmtDur(c[file.r2Path]) : null;
-      } catch { return null; }
-    }
-    return null;
-  });
+  const [dur, setDur] = React.useState(null);
   React.useEffect(() => {
     if (file.duration && isFinite(file.duration)) return;
-    if (file.r2Path) {
-      if (dur) return;
-      const handler = (e) => { if (e.detail?.r2Path === file.r2Path) setDur(fmtDur(e.detail.duration)); };
-      window.addEventListener('metalsys-dur-update', handler);
-      return () => window.removeEventListener('metalsys-dur-update', handler);
-    }
     let cancelled = false;
     let audioEl = null;
     (async () => {
       try {
-        const src = file.fileData;
+        let src = file.fileData;
+        if (!src && file.r2Path) {
+          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
+          const d = await r.json();
+          src = d.url;
+        }
         if (!src || cancelled) return;
         audioEl = document.createElement('audio');
         audioEl.preload = 'metadata';
         audioEl.addEventListener('loadedmetadata', () => {
-          if (!cancelled && isFinite(audioEl.duration) && audioEl.duration > 0) setDur(fmtDur(audioEl.duration));
+          if (!cancelled && isFinite(audioEl.duration) && audioEl.duration > 0) {
+            setDur(fmtDur(audioEl.duration));
+          }
           audioEl.src = '';
         }, { once: true });
         audioEl.src = src;
@@ -1083,10 +1063,11 @@ function DurationCell({ file }) {
     })();
     return () => { cancelled = true; if (audioEl) audioEl.src = ''; };
   }, [file.id]);
-  return <span className="tt-dur">{dur || '—'}</span>;
+  const display = (file.duration && isFinite(file.duration)) ? fmtDur(file.duration) : (dur || '—');
+  return <span className="tt-dur">{display}</span>;
 }
 
-function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false, albumMode = false }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
@@ -1143,7 +1124,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
     return (
       <div className="track-table">
         <div className="track-table-header">
-          <span>{albumMode ? '#' : ''}</span>
+          <span>#</span>
           <span>TÍTULO</span>
           <span>DISCO</span>
           <span>ARTISTA</span>
@@ -1154,10 +1135,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
           const trackNum = f.track ? f.track.split('/')[0] : String(i + 1);
           return (
             <div key={f.id} className="track-list-row track-table-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
-              <span className="tt-thumb">{albumMode
-                ? <span style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-dim)', minWidth:36, textAlign:'center', display:'block'}}>{trackNum}</span>
-                : f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
-              }</span>
+              <span className="tt-num">{trackNum}</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
               <span className="tt-artist">{f.category || f.artist || '—'}</span>
@@ -1196,93 +1174,95 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   );
 }
 
-const PAGE_SIZE = 100;
-
-function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayAllShuffle, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
+function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlayAll, onPlayFile, onNav, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const [query, setQuery] = useState('');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
   const sorted = useMemo(() => [...allFiles].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' })), [allFiles]);
   const gq = normStr(query.trim());
-  useEffect(() => { setVisibleCount(PAGE_SIZE); }, [gq]);
-  const filtered = useMemo(() => {
-    if (!gq) return sorted;
-    return sorted.filter(f =>
-      normStr(f.name).includes(gq) ||
-      normStr(f.artist || f.category || '').includes(gq) ||
-      normStr(f.album || '').includes(gq)
-    );
-  }, [gq, sorted]);
-  const visible = useMemo(() => filtered.slice(0, visibleCount), [filtered, visibleCount]);
-  const hasMore = visibleCount < filtered.length;
-
-  useEffect(() => {
-    let cache;
-    try { cache = JSON.parse(localStorage.getItem('metalsys_durations_v1') || '{}'); } catch { cache = {}; }
-    const toProbe = visible.filter(f => f.r2Path && !cache[f.r2Path]);
-    if (!toProbe.length) return;
-    let active = true;
-    (async () => {
-      for (let i = 0; i < toProbe.length && active; i += 5) {
-        await Promise.all(toProbe.slice(i, i + 5).map(f => new Promise(resolve => {
-          const a = document.createElement('audio');
-          a.preload = 'metadata';
-          const done = () => { a.src = ''; resolve(); };
-          a.onloadedmetadata = () => {
-            if (active && isFinite(a.duration) && a.duration > 0) {
-              cache[f.r2Path] = a.duration;
-              try { localStorage.setItem('metalsys_durations_v1', JSON.stringify(cache)); } catch {}
-              window.dispatchEvent(new CustomEvent('metalsys-dur-update', { detail: { r2Path: f.r2Path, duration: a.duration } }));
-            }
-            done();
-          };
-          a.onerror = done;
-          a.src = `/api/audio?path=${encodeURIComponent(f.r2Path)}`;
-        })));
-        if (active && i + 5 < toProbe.length) await new Promise(r => setTimeout(r, 200));
-      }
-    })();
-    return () => { active = false; };
-  }, [visible]);
+  const suggestions = useMemo(() => {
+    if (!gq) return [];
+    const artistHits = allCats.filter(a => normStr(a).includes(gq))
+      .slice(0, 2).map(a => {
+        const cover = allFiles.find(f => (f.category || f.artist) === a && f.thumbnail);
+        return { type: 'artist', label: a, thumb: cover?.thumbnail || null };
+      });
+    const albumMap = new Map();
+    allFiles.forEach(f => {
+      if (!f.album) return;
+      const key = `${f.artist||f.category}::${f.album}`;
+      if (!albumMap.has(key) && normStr(f.album).includes(gq)) albumMap.set(key, f);
+    });
+    const albumHits = [...albumMap.values()].slice(0, 2).map(f => ({ type: 'album', label: f.album, file: f }));
+    const playlistHits = buildPlaylistHits(playlists, allFiles, gq);
+    const songHits = allFiles.filter(f => normStr(f.name).includes(gq)).slice(0, 3).map(f => ({ type: 'song', label: f.name, file: f }));
+    return [...artistHits, ...albumHits, ...playlistHits, ...songHits].slice(0, 6);
+  }, [gq, allCats, allFiles, playlists]);
 
   return (
     <div>
       <div className="panel">
-        <div className="panel-hd">TODO <span className="dots">/// {filtered.length} CANCIÓN{filtered.length===1?'':'ES'}</span></div>
+        <div className="panel-hd">TODO <span className="dots">/// {sorted.length} CANCIÓN{sorted.length===1?'':'ES'}</span></div>
         <div className="panel-body">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:12, marginBottom:12}}>
-            <div>
-              <p>Todas las canciones de la biblioteca ordenadas alfabéticamente.</p>
-              <p style={{color:'var(--fg-dim)', fontSize:14}}>{sorted.length} canción{sorted.length===1?'':'es'} · {fmtBytes([...files,...localFiles].filter(isAudioFile).reduce((a,f)=>a+(f.fileSize||0),0))}</p>
+          <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+        </div>
+      </div>
+      <div className="section">
+        <div className="panel searchbar">
+          <div className="panel-hd">BUSCADOR <span className="dots">/// GLOBAL</span></div>
+          <div className="panel-body searchbar-body">
+            <div className="search-row">
+              <input className="field-input" placeholder="◆ BUSCAR ARTISTAS, DISCOS O CANCIONES..."
+                value={query} onChange={e => setQuery(e.target.value)} />
+              {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
             </div>
-            <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-              <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
-              <button className="big-btn" onClick={onPlayAllShuffle}>▶ ALEATORIO</button>
-            </div>
-          </div>
-          <div className="search-row">
-            <input className="field-input" placeholder="◆ FILTRAR POR TÍTULO, ARTISTA O DISCO..."
-              value={query} onChange={e => setQuery(e.target.value)} />
-            {query && <button className="mini-btn alt" onClick={() => setQuery('')}>✕</button>}
+            {gq && (
+              <div className="search-suggestions">
+                {suggestions.length === 0 ? (
+                  <div className="search-suggestion empty">Sin coincidencias.</div>
+                ) : suggestions.map((item, idx) => (
+                  <button key={idx} className="search-suggestion search-suggestion-anim"
+                          style={{ animationDelay: `${idx * 30}ms` }} onClick={() => {
+                    setQuery('');
+                    if (item.type === 'artist') onNav({ page: 'CAT', cat: item.label });
+                    else if (item.type === 'album') onNav({ page: 'CAT', cat: item.file.artist || item.file.category, album: item.file.album });
+                    else if (item.type === 'playlist') onNav({ page: 'PLAYLIST', playlistId: item.playlist.id });
+                    else onOpenFile(item.file.id);
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="search-suggestion-thumb">
+                        {item.type === 'artist'
+                          ? (item.thumb ? <img src={item.thumb} alt={item.label} /> : <IconGlyph iconId="nota" size={24} />)
+                          : item.type === 'playlist'
+                            ? (item.thumb ? <img src={item.thumb} alt="" /> : <span style={{fontSize:16,color:'var(--fg-primary)'}}>◈</span>)
+                            : (item.file.thumbnail ? <img src={item.file.thumbnail} alt="" /> : <IconGlyph iconId={item.type === 'album' ? 'disco' : 'nota'} size={24} />)}
+                      </div>
+                      <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--fg-text)' }}>{item.label}</div>
+                        <div style={{ fontFamily: 'var(--pixel)', fontSize: 10, color: 'var(--fg-secondary)', letterSpacing: '0.08em' }}>
+                          {item.type === 'artist' ? 'ARTISTA'
+                            : item.type === 'album' ? `DISCO · ${item.file.artist || item.file.category || ''}`
+                            : item.type === 'playlist' ? `${(item.playlist.songIds||[]).length} CANCIONES`
+                            : `CANCIÓN · ${item.file.artist || item.file.category || ''}`}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="search-item-type" style={item.type==='playlist'?{borderColor:'var(--fg-primary)',color:'var(--fg-primary)'}:{}}>
+                      {item.type === 'artist' ? 'ARTISTA' : item.type === 'album' ? 'DISCO' : item.type === 'playlist' ? 'PLAYLIST' : 'CANCIÓN'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
       <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
-        {filtered.length === 0
-          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin coincidencias</div>
-          : <>
-              <TrackList files={visible} onOpen={onOpenFile} onPlay={onPlayFile}
-                         likedIds={likedIds} onToggleLike={onToggleLike}
-                         playlists={playlists} onAddToPlaylist={onAddToPlaylist}
-                         onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
-              {hasMore && (
-                <div style={{padding:'16px 14px', textAlign:'center'}}>
-                  <button className="big-btn" onClick={() => setVisibleCount(c => c + PAGE_SIZE)}>
-                    MOSTRAR MÁS <span style={{fontFamily:'var(--pixel)', fontSize:10, opacity:0.7}}>({filtered.length - visibleCount} restantes)</span>
-                  </button>
-                </div>
-              )}
-            </>
+        {sorted.length === 0
+          ? <div style={{padding:'40px 0', textAlign:'center', color:'var(--fg-dim)', fontSize:22}}>◇ Sin canciones todavía</div>
+          : <TrackList files={sorted} onOpen={onOpenFile} onPlay={onPlayFile}
+                       likedIds={likedIds} onToggleLike={onToggleLike}
+                       playlists={playlists} onAddToPlaylist={onAddToPlaylist}
+                       onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
         }
       </div></div></div>
     </div>
@@ -2320,7 +2300,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                     SIN CANCIONES
                   </div>
                 ) : (
-                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode albumMode />
+                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
                 )}
               </div>
             </div>
@@ -3784,33 +3764,26 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
           </span>
         </div>
       </div>
-      {/* Lista de cola — empieza desde la pista actual */}
+      {/* Lista de cola */}
       <div className="pq-list">
         {queue.length === 0 && <div className="pq-empty">◇ Inicia la reproducción</div>}
-        {(() => {
-          const curIdx = queue.findIndex(f => f.id === currentId);
-          const startIdx = curIdx >= 0 ? curIdx : 0;
-          return queue.slice(startIdx).map((f, di) => {
-            const i = startIdx + di;
-            return (
-              <div key={f.id}
-                className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
-                draggable
-                onDragStart={() => handleDragStart(i)}
-                onDragOver={e => handleDragOver(e, i)}
-                onDrop={e => handleDrop(e, i)}
-                onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-                onClick={() => handleJump(f, i)}>
-                {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{di}</span>}
-                <div className="pq-info">
-                  <div className="pq-name">{f.name}</div>
-                  <div className="pq-artist">{f.artist||f.category}</div>
-                </div>
-                <span className="pq-drag-handle">⠿</span>
-              </div>
-            );
-          });
-        })()}
+        {queue.map((f, i) => (
+          <div key={f.id}
+            className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
+            draggable
+            onDragStart={() => handleDragStart(i)}
+            onDragOver={e => handleDragOver(e, i)}
+            onDrop={e => handleDrop(e, i)}
+            onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
+            onClick={() => handleJump(f, i)}>
+            {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{i+1}</span>}
+            <div className="pq-info">
+              <div className="pq-name">{f.name}</div>
+              <div className="pq-artist">{f.artist||f.category}</div>
+            </div>
+            <span className="pq-drag-handle">⠿</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -4593,10 +4566,7 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
       </div>
       <div className="album-card-body">
         <div className="album-card-title">{playlist.name}</div>
-        <div className="album-card-sub">
-          <div className="album-card-count">{songCount} canción{songCount === 1 ? '' : 'es'}</div>
-          {createdStr && <div className="album-card-date">{createdStr}</div>}
-        </div>
+        <div className="album-card-sub">{songCount} canción{songCount === 1 ? '' : 'es'}{createdStr ? ` · ${createdStr}` : ''}</div>
       </div>
     </div>
   );
@@ -4624,7 +4594,6 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
     .filter(Boolean);
 
   const totalDur = songs.reduce((a, f) => a + (f.duration || 0), 0);
-  const uniqueArtists = [...new Set(songs.map(f => f.category || f.artist).filter(Boolean))];
   const noteIcon = (
     <div style={{width:36,height:36,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(214,31,31,0.08)',borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}><ellipse cx="8" cy="18" rx="4" ry="2.5" transform="rotate(-8 8 18)"/><ellipse cx="17" cy="15" rx="4" ry="2.5" transform="rotate(-8 17 15)"/><line x1="11" y1="17" x2="11" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="20" y1="14" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/><line x1="11" y1="6" x2="20" y2="3" stroke="currentColor" strokeWidth="1.5"/></svg>
@@ -4640,7 +4609,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap'}}>
-            <div style={{width:100, height:100, flexShrink:0, overflow:'hidden', border:'1px solid rgba(214,31,31,0.3)', position: 'relative'}}>
+            <div style={{width:100, height:100, flexShrink:0, overflow:'hidden', border:'1px solid rgba(214,31,31,0.3)'}}>
               <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />
             </div>
             <div style={{flex:1, minWidth:0}}>
@@ -4657,11 +4626,6 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
               {playlist.createdAt && (
                 <p style={{color:'var(--fg-dim)', fontSize:12, fontFamily:'var(--pixel)', letterSpacing:'0.06em', margin:'3px 0 0'}}>
                   {new Date(playlist.createdAt).toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'numeric'})}
-                </p>
-              )}
-              {uniqueArtists.length > 0 && (
-                <p style={{color:'var(--fg-dim)', fontSize:12, fontFamily:'var(--pixel)', letterSpacing:'0.06em', margin:'8px 0 0', lineHeight:1.4}}>
-                  {uniqueArtists.join(', ')}
                 </p>
               )}
             </div>
@@ -4682,16 +4646,14 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayFile,
         : <div className="section"><div className="panel"><div className="panel-body" style={{padding:0}}>
             <div className="track-table">
               <div className="track-table-header">
-                <span></span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
+                <span>#</span><span>TÍTULO</span><span>DISCO</span><span>ARTISTA</span><span>DUR.</span>
               </div>
               {songs.map((f, i) => {
                 const isNowPlaying = f.id === currentPlayingId;
                 const showPlaylistMenu = openPlaylistFor === f.id;
                 return (
                   <div key={f.id} className="track-list-row track-table-row" style={{position:'relative', ...(isNowPlaying ? {background:'rgba(214,31,31,0.12)'} : {})}} onClick={() => onOpenFile(f.id)}>
-                    <span className="tt-thumb">{
-                      f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
-                    }</span>
+                    <span className="tt-num" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{isNowPlaying && isPlaying ? '▶' : i+1}</span>
                     <span className="tt-name" style={isNowPlaying ? {color:'var(--fg-primary)'} : {}}>{f.name}</span>
                     <span className="tt-album">{f.album || '—'}</span>
                     <span className="tt-artist">{f.category || f.artist || '—'}</span>
@@ -4874,7 +4836,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
 }
 
 // ─── ME GUSTA PAGE ──────────────────────────────────────────
-function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onPlayAllShuffle, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
+function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPlayAll, onToggleLike, onPlayFile, playlists = [], onAddToPlaylist, onOpenCreatePlaylist }) {
   const liked = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
   const total = liked.reduce((a, f) => a + f.fileSize, 0);
   const noteIcon = (
@@ -4892,12 +4854,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
               <p>Tus canciones favoritas marcadas con ♥.</p>
               <p style={{color:'var(--fg-dim)', fontSize:14}}>{liked.length} canción{liked.length===1?'':'es'} · {fmtBytes(total)}</p>
             </div>
-            {liked.length > 0 && (
-              <div style={{display:'flex', gap:8, flexWrap:'wrap'}}>
-                <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR ME GUSTA</button>
-                <button className="big-btn" onClick={onPlayAllShuffle}>▶ ALEATORIO</button>
-              </div>
-            )}
+            {liked.length > 0 && <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR ME GUSTA</button>}
           </div>
         </div>
       </div>
@@ -5549,18 +5506,14 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const dlCount = log.filter(e=>e.kind==='DL').length;
   const delCount = log.filter(e=>e.kind==='DEL').length;
 
-  const getStatArtist = (f) => f.category || f.artist || '?';
-
-  // All artists (usar category o artist según metadata válida)
-  const allArtistsList = [...new Set(audioFiles.map(f => getStatArtist(f)).filter(Boolean))];
+  // All artists (usar intérprete del álbum cuando esté disponible)
+  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category).filter(Boolean))];
   const artistColorMap = {};
-  [...allArtistsList].sort((a,b) => a.localeCompare(b, 'es', { sensitivity: 'base' })).forEach((a,i) => {
-    artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length];
-  });
+  allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
 
-  // Artist plays (por metadata de archivo válida)
+  // Artist plays (por intérprete del álbum)
   const artistPlays = {};
-  audioFiles.forEach(f => { const a = getStatArtist(f); artistPlays[a] = (artistPlays[a] || 0) + (playCounts[f.id] || 0); });
+  audioFiles.forEach(f => { const a=f.artist||f.category||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
   const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
   const topArtists = allArtistPlays.slice(0,10);
   const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
@@ -5654,9 +5607,11 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             {[['CANCIONES',audioFiles.length],['ARTISTAS',allArtistsList.length],['REPRODUCCIONES',totalPlays],['ME GUSTA',audioFiles.filter(f=>likedIds.has(f.id)).length],['SUBIDAS',upCount],['DESCARGAS',dlCount],['BORRADAS',delCount],['TAMAÑO MEDIO',fmtBytes(Math.round(avgSize))]].map(([lbl,val])=>(
               <div key={lbl} className="stat-fact"><div className="sf-label">{lbl}</div><div className="sf-val">{val}</div></div>
             ))}
-            {firstUpload && <div className="stat-fact"><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:16}}>{fmtLongDate(firstUpload)}</div></div>}
-            <div className="stat-fact"><div className="sf-label">% PLAYS LIKED</div><div className="sf-val" style={{color:'var(--fg-primary)'}}>{likedRatio}%</div></div>
-            <div className="stat-fact"><div className="sf-label">RACHA ACTUAL</div><div className="sf-val" style={{color:'var(--fg-accent)'}}>{streak} DÍA{streak===1?'':'S'}</div></div>
+          </div>
+          <div style={{display:'flex',gap:12,marginTop:14,flexWrap:'wrap'}}>
+            {firstUpload && <div className="stat-fact" style={{flex:1,minWidth:200}}><div className="sf-label">PRIMERA SUBIDA</div><div className="sf-val" style={{fontSize:16}}>{fmtLongDate(firstUpload)}</div></div>}
+            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">% PLAYS LIKED</div><div className="sf-val" style={{color:'var(--fg-primary)'}}>{likedRatio}%</div></div>
+            <div className="stat-fact" style={{flex:1,minWidth:120}}><div className="sf-label">RACHA ACTUAL</div><div className="sf-val" style={{color:'var(--fg-accent)'}}>{streak} DÍA{streak===1?'':'S'}</div></div>
           </div>
         </div>
       </div>
@@ -5830,7 +5785,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         const n = playedArtists.length;
         const barW = n <= 3 ? 40 : n <= 6 ? 28 : n <= 10 ? 20 : 14;
         const labelLen = n <= 4 ? 14 : n <= 7 ? 10 : 7;
-        const fontSize = n <= 4 ? 20 : n <= 7 ? 18 : 16;
+        const fontSize = n <= 4 ? 9 : n <= 7 ? 8 : 7;
         const BAR_H = 90;
         const gap = n <= 4 ? 12 : n <= 7 ? 8 : 5;
         return (
@@ -5839,14 +5794,14 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
             <div className="panel-body">
               <div style={{overflowX:'auto'}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
-                <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0, width:'100%'}}>
+                <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0}}>
                   {playedArtists.map(([artist,plays],i)=>{
                     const h = Math.max(4, Math.round((plays/maxPA)*BAR_H));
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flex:`1 1 ${barW}px`,minWidth:barW}}>
-                        <span style={{fontFamily:'var(--pixel)',fontSize:22,color}}>{plays}</span>
-                        <div style={{width:'100%',height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
+                      <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,width:barW,flexShrink:0}}>
+                        <span style={{fontFamily:'var(--pixel)',fontSize,color}}>{plays}</span>
+                        <div style={{width:barW,height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
                       </div>
                     );
                   })}
@@ -5854,16 +5809,16 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                 {/* Línea base */}
                 <div style={{height:2, background:'rgba(255,255,255,0.12)', marginBottom:4}}/>
                 {/* Etiquetas: fila separada, siempre debajo de la línea base */}
-                <div style={{display:'flex', gap, alignItems:'flex-start', width:'100%'}}>
+                <div style={{display:'flex', gap, alignItems:'flex-start'}}>
                   {playedArtists.map(([artist],i)=>{
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
-                      <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
+                      <div key={artist} style={{width:barW,flexShrink:0,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.95)',
+                          fontFamily:'var(--pixel)', fontSize, color:'rgba(255,255,255,0.65)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
-                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'normal'
+                          maxHeight:80, overflow:'hidden', whiteSpace:'nowrap',
+                          letterSpacing:'0.05em', textOverflow:'ellipsis',
                         }}>
                           {artist}
                         </span>
@@ -6168,7 +6123,6 @@ function routeToHash(r) {
     return r.album ? base + '/' + encodeURIComponent(r.album) : base;
   }
   if (r.page === 'DETAIL') return '#detail/' + encodeURIComponent(r.fileId || '');
-  if (r.page === 'PLAYLIST') return '#playlist/' + encodeURIComponent(r.playlistId || '');
   return '#' + r.page.toLowerCase();
 }
 function hashToRoute(hash) {
@@ -6181,7 +6135,6 @@ function hashToRoute(hash) {
     return album ? { page: 'CAT', cat, album } : { page: 'CAT', cat };
   }
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
-  if (h.startsWith('playlist/')) return { page: 'PLAYLIST', playlistId: decodeURIComponent(h.slice(9)) };
   const page = h.toUpperCase();
   const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
   return valid.includes(page) ? { page } : { page: 'INICIO' };
@@ -6229,6 +6182,7 @@ function App() {
   const audioRef = useRef(null);
   if (!audioRef.current) {
     audioRef.current = new Audio();
+    audioRef.current.crossOrigin = 'anonymous'; // necesario para Web Audio API con URLs de R2
   }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
@@ -6481,7 +6435,7 @@ function App() {
       playStartRef.current = null; // prevent double-count in startTrack
       if (repeatMode === 'one') {
         audio.currentTime = 0;
-        doPlay(audio);
+        audio.play().catch(() => {});
         playStartRef.current = Date.now();
         return;
       }
@@ -6643,7 +6597,7 @@ function App() {
       } else if (route.page === 'CAT') {
         const artist = route.cat;
         if (route.album) originQueue = allAudio.filter(f => (f.category || f.artist) === artist && (f.album || 'SINGLE') === route.album).sort(sortByDiscTrack);
-        else originQueue = allAudio.filter(f => (f.category || f.artist) === artist).sort(sortByYearDiscTrack);
+        else originQueue = allAudio.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
       } else if (route.page === 'PLAYLIST' && !route.playlistId) {
         // On playlist index page no specific playlist selected — leave null
         originQueue = null;
@@ -6729,7 +6683,7 @@ function App() {
       return (pl.songIds || []).map(id => combined.find(f => f.id === id)).filter(Boolean);
     }
     if (context.type === 'artist' && context.artist) {
-      return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByYearDiscTrack);
+      return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByDiscTrack);
     }
     if (context.type === 'album' && context.artist && context.album) {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
@@ -6745,7 +6699,11 @@ function App() {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
     let src = file.fileData;
     if (file.r2Path) {
-      src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
+      try {
+        const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
+        const d = await r.json();
+        src = d.url;
+      } catch { return null; }
     }
     if (!src) return null;
     const tags = await readID3(src);
@@ -6765,27 +6723,17 @@ function App() {
   };
 
   // skipLog: true cuando el llamador (playNext/playPrev) ya ha añadido su propia entrada al log
-  const doPlay = (audio) => {
-    const ctx = audioCtxRef.current;
-    const go = () => {
-      console.log('[doPlay] src:', audio.src.slice(0,80), '| readyState:', audio.readyState, '| ctx:', ctx?.state);
-      audio.play().catch(e => console.error('[play]', e?.name, e?.message));
-    };
-    if (ctx && ctx.state === 'suspended') {
-      ctx.resume().then(go).catch(go);
-    } else {
-      go();
-    }
-  };
-
   const startTrack = (file, nextContext, { skipLog = false } = {}) => {
     if (!file) return;
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
     msTransitionRef.current = true;
     ensureAnalyser();
+    if (audioCtxRef.current && audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume().catch(() => {});
+    }
     if (currentTrackId === file.id) {
-      doPlay(audio);
+      audio.play().catch(() => {});
       return;
     }
     if (!skipLog) addToLog({ kind: 'PLAY', name: file.name, artist: file.category || file.artist || '' });
@@ -6810,7 +6758,7 @@ function App() {
             const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
             audio.addEventListener('loadeddata', _seek);
           }
-          doPlay(audio);
+          audio.play().catch(() => {});
         } catch (e) { console.error('Local file read error:', e); }
       })();
       setCurrentTrackId(file.id);
@@ -6825,16 +6773,23 @@ function App() {
     requestID3(file);
 
     if (file.r2Path) {
+      // Archivo R2: obtener URL firmada → el navegador hace streaming directo desde R2
       waveformBufRef.current = new Float32Array(300);
       waveformIdRef.current  = file.id;
       waveformFrRef.current  = 0;
-      audio.src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
-      if (pendingSeekRef.current !== null) {
-        const _t = pendingSeekRef.current; pendingSeekRef.current = null;
-        const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
-        audio.addEventListener('loadeddata', _seek);
-      }
-      doPlay(audio);
+      (async () => {
+        try {
+          const r = await fetch(`/api/audio?path=${encodeURIComponent(file.r2Path)}`);
+          const { url } = await r.json();
+          audio.src = url;
+          if (pendingSeekRef.current !== null) {
+            const _t = pendingSeekRef.current; pendingSeekRef.current = null;
+            const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
+            audio.addEventListener('loadeddata', _seek);
+          }
+          audio.play().catch(() => {});
+        } catch (e) { console.error('[R2] signed URL error:', e); }
+      })();
       return;
     }
 
@@ -6844,7 +6799,7 @@ function App() {
       const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
       audio.addEventListener('loadeddata', _seek);
     }
-    doPlay(audio);
+    audio.play().catch(() => {});
 
     if (!waveforms[file.id]) {
       const calcWaveform = async () => {
@@ -6987,7 +6942,7 @@ function App() {
     if (currentTrackId === file.id) {
       setActiveClip(clip);
       audio.currentTime = clip.start;
-      doPlay(audio);
+      audio.play().catch(() => {});
     } else {
       pendingSeekRef.current = clip.start;   // set BEFORE startTrack changes audio.src
       setManualQueue([file]);
@@ -7002,7 +6957,7 @@ function App() {
     if (currentTrackId === file.id) {
       audio.currentTime = time;
       setPosition(time);
-      doPlay(audio);
+      audio.play().catch(() => {});
     } else {
       pendingSeekRef.current = time;         // set BEFORE startTrack changes audio.src
       setManualQueue([file]);                // single-file queue keeps prev/next sane
@@ -7030,7 +6985,7 @@ function App() {
     } else {
       pendingSeekRef.current = clip.start;
     }
-    doPlay(audio);
+    audio.play().catch(() => {});
   };
   const stopClip = () => setActiveClip(null);
 
@@ -7184,7 +7139,7 @@ function App() {
   const playTrack = (file) => {
     if (currentTrackId === file.id) {
       const audio = audioRef.current;
-      if (audio.paused) doPlay(audio); else audio.pause();
+      if (audio.paused) audio.play().catch(() => {}); else audio.pause();
       return;
     }
     const artist = file.category || file.artist;
@@ -7198,7 +7153,7 @@ function App() {
   const playPause = () => {
     const audio = audioRef.current;
     if (audio.paused) {
-      doPlay(audio);
+      audio.play().catch(() => {});
       const f = currentTrack;
       if (f) addToLog({ kind: 'PLAY', name: f.name, artist: f.category || f.artist || '' });
     } else {
@@ -7260,7 +7215,7 @@ function App() {
       album:  track.album  || '',
       artwork,
     });
-    navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
+    navigator.mediaSession.setActionHandler('play',          () => audioRef.current?.play().catch(()=>{}));
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
     navigator.mediaSession.setActionHandler('nexttrack',     () => playNext());
@@ -7304,7 +7259,7 @@ function App() {
     if (currentFile.album) {
       return allF.filter(f => (f.category || f.artist) === artist && (f.album||'SINGLE') === (currentFile.album||'SINGLE')).sort(sortByDiscTrack);
     }
-    return allF.filter(f => (f.category || f.artist) === artist).sort(sortByYearDiscTrack);
+    return allF.filter(f => (f.category || f.artist) === artist).sort(sortByDiscTrack);
   }, [currentFile, detailOriginQueue, files, localFiles]);
 
   const detailNavIdx  = currentFile ? detailNavQueue.findIndex(f => f.id === currentFile.id) : -1;
@@ -7349,7 +7304,6 @@ function App() {
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={navigateTo}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
                           onPlayAll={() => playScope({ type: 'all' }, false)}
-                          onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
                           artistMeta={artistMeta} playlists={playlists} />
@@ -7362,7 +7316,6 @@ function App() {
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
-                              onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                               onPlayFile={(f) => {
                                 const allSorted = [...files, ...localFiles].filter(isAudioFile)
                                   .sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
@@ -7386,13 +7339,6 @@ function App() {
                     if (likedAudio.length === 0) return;
                     setManualQueue(likedAudio);
                     startTrack(likedAudio[0], { type: 'all', shuffle: false });
-                  }}
-                  onPlayAllShuffle={() => {
-                    const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
-                    if (likedAudio.length === 0) return;
-                    const shuffled = likedAudio.slice().sort(() => Math.random() - 0.5);
-                    setManualQueue(shuffled);
-                    startTrack(shuffled[0], { type: 'all', shuffle: true });
                   }}
                   onToggleLike={toggleLike}
                   onPlayFile={f => {

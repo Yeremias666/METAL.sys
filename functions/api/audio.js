@@ -1,9 +1,6 @@
-// functions/api/audio.js — Proxy streaming de Cloudflare R2 (Cloudflare Pages Function)
+// functions/api/audio.js — URL presignada de Cloudflare R2 (Cloudflare Pages Function)
 // GET /api/audio?path=Artista/Album/01%20-%20Titulo.mp3
-// → stream de audio directo desde R2, con soporte Range para seeking
-//
-// El Worker firma la petición server-side (no hay URL presignada expuesta al navegador),
-// por lo que no hay problemas de CORS: el navegador solo habla con el mismo origen.
+// → { url: "https://...r2.cloudflarestorage.com/metalsys/...?X-Amz-Signature=..." }
 //
 // Variables de entorno (Pages → Settings → Variables):
 //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY
@@ -11,9 +8,9 @@
 const BUCKET   = 'metalsys';
 const ENDPOINT = 'https://97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com';
 const REGION   = 'auto';
-const TTL      = 3600;
+const TTL      = 3600; // URL válida 1 hora
 
-// ── Web Crypto helpers ────────────────────────────────────────────────────────
+// ── Web Crypto helpers (no existe require('crypto') en Workers) ───────────────
 
 const te = new TextEncoder();
 
@@ -45,8 +42,8 @@ async function sha256Hex(str) {
 
 async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
   const now      = new Date();
-  const date     = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const datetime = now.toISOString().replace(/[:\-]/g, '').slice(0, 15) + 'Z';
+  const date     = now.toISOString().slice(0, 10).replace(/-/g, '');        // YYYYMMDD
+  const datetime = now.toISOString().replace(/[:\-]/g, '').slice(0, 15) + 'Z'; // YYYYMMDDTHHmmssZ
 
   const host    = new URL(ENDPOINT).host;
   const service = 's3';
@@ -54,6 +51,7 @@ async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
 
   const encodedKey = objectKey.split('/').map(awsEncode).join('/');
 
+  // Parámetros de la firma, ordenados lexicográficamente por clave (requerido por AWS)
   const sigParams = [
     ['X-Amz-Algorithm',     'AWS4-HMAC-SHA256'],
     ['X-Amz-Credential',    `${accessKey}/${scope}`],
@@ -66,6 +64,7 @@ async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join('&');
 
+  // CanonicalHeaders termina con \n; el join('\n') siguiente añade otro \n antes de SignedHeaders
   const canonicalRequest = [
     'GET',
     `/${BUCKET}/${encodedKey}`,
@@ -82,6 +81,7 @@ async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
     await sha256Hex(canonicalRequest),
   ].join('\n');
 
+  // Signing key: cadena de HMAC sobre secretKey → date → region → service → "aws4_request"
   const k1  = await hmac(te.encode('AWS4' + secretKey), date);
   const k2  = await hmac(k1, REGION);
   const k3  = await hmac(k2, service);
@@ -93,74 +93,41 @@ async function presignedGet(accessKey, secretKey, objectKey, ttlSeconds) {
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
-function errJson(msg, status) {
-  return new Response(JSON.stringify({ error: msg }), {
+function jsonResponse(body, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
 }
 
 export async function onRequest({ request, env }) {
-  const method = request.method;
-  if (method !== 'GET' && method !== 'HEAD') return new Response(null, { status: 405 });
+  if (request.method !== 'GET') {
+    return new Response(null, { status: 405 });
+  }
 
   const url  = new URL(request.url);
   const path = url.searchParams.get('path');
-  if (!path) return errJson('Falta ?path=', 400);
+  if (!path) return jsonResponse({ error: 'Falta ?path=' }, 400);
 
   const safePath = decodeURIComponent(path)
     .split('/')
     .filter(s => s && s !== '..' && s !== '.')
     .join('/');
-  if (!safePath) return errJson('Path inválido', 400);
+  if (!safePath) return jsonResponse({ error: 'Path inválido' }, 400);
 
   const accessKey = env.R2_ACCESS_KEY_ID;
   const secretKey = env.R2_SECRET_ACCESS_KEY;
-  if (!accessKey || !secretKey) return errJson('Credenciales R2 no configuradas', 500);
+  if (!accessKey || !secretKey) {
+    return jsonResponse({ error: 'Credenciales R2 no configuradas' }, 500);
+  }
 
   try {
-    // Generar URL presignada y hacer la petición desde el Worker (server-side, sin CORS)
     const signedUrl = await presignedGet(accessKey, secretKey, safePath, TTL);
-
-    const fetchHeaders = {};
-    const rangeHeader = request.headers.get('Range');
-    if (rangeHeader) fetchHeaders['Range'] = rangeHeader;
-
-    const r2Res = await fetch(signedUrl, { headers: fetchHeaders });
-
-    if (!r2Res.ok && r2Res.status !== 206) {
-      const body = await r2Res.text().catch(() => '');
-      console.error('[api/audio] R2 error', r2Res.status, body.slice(0, 200));
-      return errJson(`R2 error ${r2Res.status}`, r2Res.status < 500 ? 502 : 502);
-    }
-
-    // Inferir Content-Type por extensión si R2 devuelve application/octet-stream o nada
-    const EXT_MIME = { mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', flac:'audio/flac',
-      m4a:'audio/mp4', aac:'audio/aac', opus:'audio/ogg; codecs=opus', aiff:'audio/aiff', wma:'audio/x-ms-wma' };
-    const ext = safePath.split('.').pop()?.toLowerCase();
-    const r2ct = r2Res.headers.get('Content-Type') || '';
-    const contentType = (!r2ct || r2ct === 'application/octet-stream')
-      ? (EXT_MIME[ext] || 'audio/mpeg') : r2ct;
-
-    // Reenviar headers relevantes al cliente
-    const resHeaders = new Headers();
-    resHeaders.set('Access-Control-Allow-Origin', '*');
-    resHeaders.set('Accept-Ranges', 'bytes');
-    resHeaders.set('Cache-Control', 'no-cache');
-    resHeaders.set('Vary', 'Range');
-    resHeaders.set('Content-Type', contentType);
-
-    for (const h of ['Content-Length', 'Content-Range', 'ETag', 'Last-Modified']) {
-      const v = r2Res.headers.get(h);
-      if (v) resHeaders.set(h, v);
-    }
-
-    return new Response(method === 'HEAD' ? null : r2Res.body, {
-      status: r2Res.status,
-      headers: resHeaders,
+    return jsonResponse({ url: signedUrl }, 200, {
+      'Cache-Control': `public, max-age=${TTL - 600}`,
     });
   } catch (err) {
     console.error('[api/audio]', err);
-    return errJson(err.message, 500);
+    return jsonResponse({ error: err.message }, 500);
   }
 }
