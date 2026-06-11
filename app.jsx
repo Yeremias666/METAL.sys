@@ -1079,7 +1079,7 @@ function DurationCell({ file }) {
   return <span className="tt-dur">{display}</span>;
 }
 
-function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false }) {
+function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, tableMode = false, albumMode = false }) {
   const noteIcon = (
     <div style={{width:36, height:36, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(214,31,31,0.08)', borderRadius:2}}>
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style={{color:'var(--fg-dim)'}}>
@@ -1136,7 +1136,7 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
     return (
       <div className="track-table">
         <div className="track-table-header">
-          <span></span>
+          <span>{albumMode ? '#' : ''}</span>
           <span>TÍTULO</span>
           <span>DISCO</span>
           <span>ARTISTA</span>
@@ -1147,8 +1147,9 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
           const trackNum = f.track ? f.track.split('/')[0] : String(i + 1);
           return (
             <div key={f.id} className="track-list-row track-table-row" style={{position:'relative'}} onClick={() => onOpen(f.id)}>
-              <span className="tt-thumb">{
-                f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
+              <span className="tt-thumb">{albumMode
+                ? <span style={{fontFamily:'var(--pixel)', fontSize:11, color:'var(--fg-dim)', minWidth:36, textAlign:'center', display:'block'}}>{trackNum}</span>
+                : f.thumbnail ? <img src={f.thumbnail} alt="" /> : noteIcon
               }</span>
               <span className="tt-name">{f.name}</span>
               <span className="tt-album">{f.album || '—'}</span>
@@ -2314,7 +2315,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                     SIN CANCIONES
                   </div>
                 ) : (
-                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode />
+                  <TrackList files={sortedSongs} onOpen={onOpenFile} onPlay={onPlayFile} likedIds={likedIds} onToggleLike={onToggleLike} playlists={playlists} onAddToPlaylist={onAddToPlaylist} onOpenCreatePlaylist={onOpenCreatePlaylist} tableMode albumMode />
                 )}
               </div>
             </div>
