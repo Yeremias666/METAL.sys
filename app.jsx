@@ -6136,6 +6136,7 @@ function routeToHash(r) {
     return r.album ? base + '/' + encodeURIComponent(r.album) : base;
   }
   if (r.page === 'DETAIL') return '#detail/' + encodeURIComponent(r.fileId || '');
+  if (r.page === 'PLAYLIST') return '#playlist/' + encodeURIComponent(r.playlistId || '');
   return '#' + r.page.toLowerCase();
 }
 function hashToRoute(hash) {
@@ -6148,6 +6149,7 @@ function hashToRoute(hash) {
     return album ? { page: 'CAT', cat, album } : { page: 'CAT', cat };
   }
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
+  if (h.startsWith('playlist/')) return { page: 'PLAYLIST', playlistId: decodeURIComponent(h.slice(9)) };
   const page = h.toUpperCase();
   const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
   return valid.includes(page) ? { page } : { page: 'INICIO' };
