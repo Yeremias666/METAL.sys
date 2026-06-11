@@ -5842,7 +5842,8 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                         <span style={{
                           fontFamily:'var(--pixel)', fontSize:22, color:'rgba(255,255,255,0.85)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          maxHeight:220, overflow:'visible', letterSpacing:'0.05em', display:'block'
+                          height: BAR_H + 'px', display:'flex', alignItems:'center', justifyContent:'center',
+                          overflow:'hidden', lineHeight:1, paddingBottom:2
                         }}>
                           {artist}
                         </span>
