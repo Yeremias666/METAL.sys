@@ -5527,14 +5527,16 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
   const dlCount = log.filter(e=>e.kind==='DL').length;
   const delCount = log.filter(e=>e.kind==='DEL').length;
 
-  // All artists (usar intérprete del álbum cuando esté disponible)
-  const allArtistsList = [...new Set(audioFiles.map(f=>f.artist||f.category).filter(Boolean))];
+  const getStatArtist = (f) => f.category || f.artist || '?';
+
+  // All artists (usar category o artist según metadata válida)
+  const allArtistsList = [...new Set(audioFiles.map(f => getStatArtist(f)).filter(Boolean))];
   const artistColorMap = {};
   allArtistsList.forEach((a,i) => { artistColorMap[a] = STAT_COLORS[i % STAT_COLORS.length]; });
 
-  // Artist plays (por intérprete del álbum)
+  // Artist plays (por metadata de archivo válida)
   const artistPlays = {};
-  audioFiles.forEach(f => { const a=f.artist||f.category||'?'; artistPlays[a]=(artistPlays[a]||0)+(playCounts[f.id]||0); });
+  audioFiles.forEach(f => { const a = getStatArtist(f); artistPlays[a] = (artistPlays[a] || 0) + (playCounts[f.id] || 0); });
   const allArtistPlays = Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
   const topArtists = allArtistPlays.slice(0,10);
   const maxAP = Math.max(1,...topArtists.map(([,v])=>v));
