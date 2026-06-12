@@ -71,47 +71,6 @@
   --fg-text: #d8e0ff;
 }
 
-/* Light mode theme */
-[data-theme="light"] {
-  --bg-deep:      #f2ede6;
-  --bg-grid:      #e4ddd3;
-  --fg-primary:   #b01a1a;
-  --fg-secondary: #4a4540;
-  --fg-accent:    #cc2222;
-  --fg-success:   #2a7a00;
-  --fg-dim:       #9a7878;
-  --fg-text:      #1a1412;
-
-  --scanline-opacity: 0;
-  --vignette: 0;
-  --bloom: 0px;
-  --chroma-x: 0px;
-  --curve-radius: 8px;
-}
-[data-theme="light"] .crt-screen {
-  box-shadow: 0 0 0 1px #c8c0b4, 0 4px 24px rgba(0,0,0,0.12);
-  animation: none;
-}
-[data-theme="light"] .crt-content {
-  background: var(--bg-deep);
-  animation: none;
-}
-[data-theme="light"] .crt-scanlines,
-[data-theme="light"] .crt-rollbar,
-[data-theme="light"] .crt-chroma,
-[data-theme="light"] .crt-vignette { display: none; }
-[data-theme="light"] .panel { background: rgba(255,255,255,0.55); }
-[data-theme="light"] .track-list-row { background: transparent; }
-[data-theme="light"] .track-list-row:hover { background: rgba(176,26,26,0.07); }
-[data-theme="light"] .mp-menu-dropdown,
-[data-theme="light"] .user-menu,
-[data-theme="light"] .modal-box { background: #f8f4ef; border-color: var(--fg-dim); }
-[data-theme="light"] .mini-btn,
-[data-theme="light"] .big-btn { filter: none; }
-[data-theme="light"] .statusbar { background: var(--bg-grid); border-color: var(--fg-dim); }
-[data-theme="light"] input,
-[data-theme="light"] textarea,
-[data-theme="light"] select { background: #fff; color: var(--fg-text); border-color: var(--fg-dim); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 *:focus { outline: none; }
@@ -133,9 +92,15 @@ body {
 }
 
 /* Clickable elements: METAL HORNS hand \m/ — silhouette outline, index + pinky raised */
-button, a, .nav button, .cassette .controls button, .guestbook button,
+button, a, select, label, summary,
+[role="button"], [tabindex]:not([tabindex="-1"]),
+.nav button, .cassette .controls button, .guestbook button,
 .cat-card, .file-card, .cat-pill, .dropzone, .thumb-zone,
+.album-card, .track-list-row, .track-table-row, .playlist-row,
 .mini-btn, .big-btn, .banner, .lib-name, .lib-song-row, .lib-album-row,
+.user-btn, .user-menu button, .mp-menu-dropdown button, .perf-row,
+.like-btn, .playlist-btn, .ac-play-btn, .cat-card-play,
+.search-suggestion, .sort-btn, .tab-btn, .tabs button,
 [style*="cursor: pointer"], [style*="cursor:pointer"] {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='28' viewBox='0 0 24 28' shape-rendering='crispEdges'><g fill='black'><rect x='4' y='0' width='1' height='1'/><rect x='8' y='0' width='1' height='1'/><rect x='14' y='0' width='1' height='1'/><rect x='18' y='0' width='1' height='1'/><rect x='4' y='1' width='1' height='1'/><rect x='6' y='1' width='1' height='1'/><rect x='8' y='1' width='1' height='1'/><rect x='14' y='1' width='1' height='1'/><rect x='16' y='1' width='1' height='1'/><rect x='18' y='1' width='1' height='1'/><rect x='4' y='2' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='14' y='2' width='1' height='1'/><rect x='16' y='2' width='1' height='1'/><rect x='18' y='2' width='1' height='1'/><rect x='4' y='3' width='1' height='1'/><rect x='6' y='3' width='1' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='14' y='3' width='1' height='1'/><rect x='16' y='3' width='1' height='1'/><rect x='18' y='3' width='1' height='1'/><rect x='4' y='4' width='1' height='1'/><rect x='6' y='4' width='1' height='1'/><rect x='8' y='4' width='1' height='1'/><rect x='14' y='4' width='1' height='1'/><rect x='16' y='4' width='1' height='1'/><rect x='18' y='4' width='1' height='1'/><rect x='4' y='5' width='1' height='1'/><rect x='6' y='5' width='1' height='1'/><rect x='8' y='5' width='1' height='1'/><rect x='14' y='5' width='1' height='1'/><rect x='16' y='5' width='1' height='1'/><rect x='18' y='5' width='1' height='1'/><rect x='4' y='6' width='1' height='1'/><rect x='6' y='6' width='1' height='1'/><rect x='8' y='6' width='1' height='1'/><rect x='14' y='6' width='1' height='1'/><rect x='16' y='6' width='1' height='1'/><rect x='18' y='6' width='1' height='1'/><rect x='4' y='7' width='1' height='1'/><rect x='6' y='7' width='1' height='1'/><rect x='8' y='7' width='7' height='1'/><rect x='16' y='7' width='1' height='1'/><rect x='18' y='7' width='1' height='1'/><rect x='4' y='8' width='1' height='1'/><rect x='6' y='8' width='1' height='1'/><rect x='8' y='8' width='1' height='1'/><rect x='11' y='8' width='1' height='1'/><rect x='14' y='8' width='1' height='1'/><rect x='16' y='8' width='1' height='1'/><rect x='18' y='8' width='1' height='1'/><rect x='4' y='9' width='1' height='1'/><rect x='6' y='9' width='2' height='1'/><rect x='9' y='9' width='2' height='1'/><rect x='12' y='9' width='2' height='1'/><rect x='15' y='9' width='2' height='1'/><rect x='18' y='9' width='1' height='1'/><rect x='3' y='10' width='2' height='1'/><rect x='6' y='10' width='11' height='1'/><rect x='18' y='10' width='2' height='1'/><rect x='3' y='11' width='1' height='1'/><rect x='5' y='11' width='2' height='1'/><rect x='16' y='11' width='2' height='1'/><rect x='19' y='11' width='1' height='1'/><rect x='3' y='12' width='1' height='1'/><rect x='5' y='12' width='1' height='1'/><rect x='17' y='12' width='1' height='1'/><rect x='19' y='12' width='1' height='1'/><rect x='3' y='13' width='1' height='1'/><rect x='5' y='13' width='1' height='1'/><rect x='17' y='13' width='1' height='1'/><rect x='19' y='13' width='1' height='1'/><rect x='3' y='14' width='1' height='1'/><rect x='5' y='14' width='1' height='1'/><rect x='17' y='14' width='1' height='1'/><rect x='19' y='14' width='1' height='1'/><rect x='3' y='15' width='1' height='1'/><rect x='5' y='15' width='2' height='1'/><rect x='16' y='15' width='2' height='1'/><rect x='19' y='15' width='1' height='1'/><rect x='3' y='16' width='2' height='1'/><rect x='6' y='16' width='1' height='1'/><rect x='16' y='16' width='1' height='1'/><rect x='18' y='16' width='2' height='1'/><rect x='4' y='17' width='1' height='1'/><rect x='6' y='17' width='1' height='1'/><rect x='16' y='17' width='1' height='1'/><rect x='18' y='17' width='1' height='1'/><rect x='4' y='18' width='1' height='1'/><rect x='6' y='18' width='2' height='1'/><rect x='15' y='18' width='2' height='1'/><rect x='18' y='18' width='1' height='1'/><rect x='4' y='19' width='2' height='1'/><rect x='7' y='19' width='1' height='1'/><rect x='15' y='19' width='1' height='1'/><rect x='17' y='19' width='2' height='1'/><rect x='5' y='20' width='1' height='1'/><rect x='7' y='20' width='2' height='1'/><rect x='14' y='20' width='2' height='1'/><rect x='17' y='20' width='1' height='1'/><rect x='5' y='21' width='2' height='1'/><rect x='8' y='21' width='7' height='1'/><rect x='16' y='21' width='2' height='1'/><rect x='6' y='22' width='1' height='1'/><rect x='16' y='22' width='1' height='1'/><rect x='6' y='23' width='11' height='1'/></g><g fill='%23d61f1f'><rect x='5' y='0' width='3' height='1'/><rect x='15' y='0' width='3' height='1'/><rect x='5' y='1' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='15' y='1' width='1' height='1'/><rect x='17' y='1' width='1' height='1'/><rect x='5' y='2' width='1' height='1'/><rect x='7' y='2' width='1' height='1'/><rect x='15' y='2' width='1' height='1'/><rect x='17' y='2' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='15' y='3' width='1' height='1'/><rect x='17' y='3' width='1' height='1'/><rect x='5' y='4' width='1' height='1'/><rect x='7' y='4' width='1' height='1'/><rect x='15' y='4' width='1' height='1'/><rect x='17' y='4' width='1' height='1'/><rect x='5' y='5' width='1' height='1'/><rect x='7' y='5' width='1' height='1'/><rect x='15' y='5' width='1' height='1'/><rect x='17' y='5' width='1' height='1'/><rect x='5' y='6' width='1' height='1'/><rect x='7' y='6' width='1' height='1'/><rect x='15' y='6' width='1' height='1'/><rect x='17' y='6' width='1' height='1'/><rect x='5' y='7' width='1' height='1'/><rect x='7' y='7' width='1' height='1'/><rect x='15' y='7' width='1' height='1'/><rect x='17' y='7' width='1' height='1'/><rect x='5' y='8' width='1' height='1'/><rect x='7' y='8' width='1' height='1'/><rect x='9' y='8' width='2' height='1'/><rect x='12' y='8' width='2' height='1'/><rect x='15' y='8' width='1' height='1'/><rect x='17' y='8' width='1' height='1'/><rect x='5' y='9' width='1' height='1'/><rect x='8' y='9' width='1' height='1'/><rect x='11' y='9' width='1' height='1'/><rect x='14' y='9' width='1' height='1'/><rect x='17' y='9' width='1' height='1'/><rect x='5' y='10' width='1' height='1'/><rect x='17' y='10' width='1' height='1'/><rect x='4' y='11' width='1' height='1'/><rect x='18' y='11' width='1' height='1'/><rect x='4' y='12' width='1' height='1'/><rect x='18' y='12' width='1' height='1'/><rect x='4' y='13' width='1' height='1'/><rect x='18' y='13' width='1' height='1'/><rect x='4' y='14' width='1' height='1'/><rect x='18' y='14' width='1' height='1'/><rect x='4' y='15' width='1' height='1'/><rect x='18' y='15' width='1' height='1'/><rect x='5' y='16' width='1' height='1'/><rect x='17' y='16' width='1' height='1'/><rect x='5' y='17' width='1' height='1'/><rect x='17' y='17' width='1' height='1'/><rect x='5' y='18' width='1' height='1'/><rect x='17' y='18' width='1' height='1'/><rect x='6' y='19' width='1' height='1'/><rect x='16' y='19' width='1' height='1'/><rect x='6' y='20' width='1' height='1'/><rect x='16' y='20' width='1' height='1'/><rect x='7' y='21' width='1' height='1'/><rect x='15' y='21' width='1' height='1'/><rect x='7' y='22' width='9' height='1'/></g></svg>") 6 0, pointer !important;
 }

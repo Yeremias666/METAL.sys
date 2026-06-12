@@ -699,7 +699,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, theme, onToggleTheme, perf, setPerf }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -719,7 +719,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
       <div className="right">
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
-        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} onOpenAdmin={onOpenAdmin} theme={theme} onToggleTheme={onToggleTheme} perf={perf} setPerf={setPerf} />
+        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} onOpenAdmin={onOpenAdmin} perf={perf} setPerf={setPerf} />
       </div>
     </div>
   );
@@ -738,7 +738,7 @@ function Banner({ onNav }) {
   );
 }
 
-function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile }) {
+function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile, authUser }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef(null);
@@ -778,6 +778,9 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile 
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
         <button className={current.page === 'SPOTDL'      ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
         <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
+        {authUser?.role === 'admin' && (
+          <button className={current.page === 'DEBUG' ? 'active' : ''} onClick={() => onNav({ page: 'DEBUG' })} style={{color:'var(--fg-primary)'}}>⚑ ADMIN</button>
+        )}
       </div>
     </nav>
   );
@@ -2001,8 +2004,8 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
     <div>
       {/* Modal de edición del artista */}
       {showEditArtist && (
-        <div className="modal-overlay" onClick={() => setShowEditArtist(false)}>
-          <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
+        <div className="modal-backdrop" onClick={() => setShowEditArtist(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
             <div className="modal-hd">EDITAR ARTISTA <span style={{color:'#fff'}}>{cat}</span></div>
             <div className="modal-body">
               <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'start'}}>
@@ -3861,17 +3864,9 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
 }
 
 // Contador de canciones reproducidas (suma de playCounts)
-function PlaysCounter({ playCounts, listenSecs = 0 }) {
+function PlaysCounter({ playCounts }) {
   const total = Object.values(playCounts).reduce((a, v) => a + v, 0);
   const digits = String(total).padStart(7, '0').split('');
-
-  const fmtTime = (secs) => {
-    const m = Math.floor(secs / 60);
-    if (m === 0) return '< 1 MIN';
-    if (m < 60) return `${m} MIN`;
-    const h = Math.floor(m / 60), min = m % 60;
-    return `${h}H ${String(min).padStart(2, '0')}MIN`;
-  };
 
   return (
     <div className="widget">
@@ -3880,9 +3875,6 @@ function PlaysCounter({ playCounts, listenSecs = 0 }) {
         <div className="panel-body">
           <div className="counter">
             {digits.map((d, i) => <span key={i} className="digit">{d}</span>)}
-          </div>
-          <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
-            {listenSecs > 0 ? fmtTime(listenSecs) + ' ESCUCHADOS' : '—'}
           </div>
         </div>
       </div>
@@ -4215,7 +4207,7 @@ function PerfToggle({ label, value, onChange }) {
   );
 }
 
-function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, theme, onToggleTheme, perf, setPerf }) {
+function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [showPerf, setShowPerf] = React.useState(false);
   const ref = React.useRef(null);
@@ -4248,9 +4240,6 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin
             <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
           </div>
           <button onClick={() => { setMenuOpen(false); setShowPerf(false); onOpenProfile(); }}>⚙ PERFIL</button>
-          {onToggleTheme && (
-            <button onClick={onToggleTheme}>{theme === 'light' ? '◐ MODO OSCURO' : '◑ MODO CLARO'}</button>
-          )}
           <div className="user-menu-sep" />
           <button className={showPerf ? 'active' : ''} onClick={() => setShowPerf(p => !p)}>
             ▸ RENDIMIENTO
@@ -4707,10 +4696,10 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
   return (<>
     <div>
       <div className="panel">
-        <div className="panel-hd" style={{display:'flex', alignItems:'center', gap:8}}>
-          <button className="mini-btn alt" onClick={onBack} style={{marginRight:6}}>◀ VOLVER</button>
-          <span style={{flex:1}}>◈ {playlist.name.toUpperCase()}</span>
-          {onUpdatePlaylist && <button className="mini-btn" onClick={openEdit}>✎ EDITAR</button>}
+        <div className="panel-hd">◈ {playlist.name.toUpperCase()}</div>
+        <div style={{padding:'6px 10px', display:'flex', gap:6}}>
+          <button className="mini-btn alt" onClick={onBack}>◀ VOLVER</button>
+          {onUpdatePlaylist && <button className="mini-btn alt" onClick={openEdit} style={{background:'var(--fg-primary)', color:'#fff', borderColor:'var(--fg-primary)'}}>✎ EDITAR</button>}
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap'}}>
@@ -4810,8 +4799,8 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
     </div>
 
     {showEdit && (
-      <div className="modal-overlay" onClick={() => setShowEdit(false)}>
-        <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
+      <div className="modal-backdrop" onClick={() => setShowEdit(false)}>
+        <div className="modal" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
           <div className="modal-hd">EDITAR PLAYLIST</div>
           <div className="modal-body">
             <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'flex-start'}}>
@@ -6572,8 +6561,6 @@ function App() {
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
   const [authUser,  setAuthUser]    = useState(() => { try { const u = localStorage.getItem('metalsys_auth_user'); return u ? JSON.parse(u) : null; } catch { return null; } });
   const [authToken, setAuthToken]   = useState(() => localStorage.getItem('metalsys_auth_token') || null);
-  const [theme, setTheme]           = useState(() => localStorage.getItem('metalsys_theme') || 'dark');
-  const toggleTheme = () => setTheme(t => { const next = t === 'dark' ? 'light' : 'dark'; localStorage.setItem('metalsys_theme', next); return next; });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
@@ -6686,6 +6673,16 @@ function App() {
   // Fetch cloud user data on startup if already authenticated
   useEffect(() => {
     if (!authToken) { syncReadyRef.current = true; return; }
+    // Refresh profile to pick up role (needed for existing sessions created before role system)
+    fetch('/api/auth/profile', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d && d.username) {
+          const updated = { username: d.username, email: d.email, avatar: d.avatar || null, role: d.role || 'user' };
+          setAuthUser(updated);
+          localStorage.setItem('metalsys_auth_user', JSON.stringify(updated));
+        }
+      }).catch(() => {});
     fetch('/api/userdata', { headers: { Authorization: `Bearer ${authToken}` } })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
@@ -6802,7 +6799,7 @@ function App() {
       playNext(repeatMode === 'all', { autoAdvance: true });
     };
     const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPause = () => { if (!msTransitionRef.current) setIsPlaying(false); };
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('durationchange', onDur);
     audio.addEventListener('ended', onEnded);
@@ -7647,10 +7644,10 @@ function App() {
   const goDetailNext  = () => { if (hasNextDetail) navigateTo({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx + 1].id }); };
 
   return (
-    <div className={`crt-stage ${phosphorClass}`} data-theme={theme}>
+    <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: (perf.flicker && t.flicker) ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: (perf.jitter && t.jitter) ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} onOpenAdmin={() => navigateTo({ page: 'DEBUG' })} theme={theme} onToggleTheme={toggleTheme} perf={perf} setPerf={setPerf} />
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} onOpenAdmin={() => navigateTo({ page: 'DEBUG' })} perf={perf} setPerf={setPerf} />
           <div className="page">
             {/* Left sidebar */}
             {!isMobile && (
@@ -7675,7 +7672,7 @@ function App() {
             {/* Center column */}
             <div className="col-main">
               <Banner onNav={navigateTo} />
-              <Nav current={route} onNav={navigateTo} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} />
+              <Nav current={route} onNav={navigateTo} allCats={allCats} files={files} localFiles={localFiles} onOpenFile={openFile} authUser={authUser} />
               <Marquee allCats={allCats} active={perf.marquee} />
               <div key={`${route.page}:${route.cat||''}:${route.fileId||''}`} className="page-enter">
               {route.page === 'INICIO' && (
@@ -7863,7 +7860,7 @@ function App() {
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} />
               <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
-              <PlaysCounter playCounts={playCounts} listenSecs={listenSecs} />
+              <PlaysCounter playCounts={playCounts} />
               <RecentActivity log={log} />
             </div>
             )}

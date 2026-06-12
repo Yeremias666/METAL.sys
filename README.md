@@ -1,235 +1,47 @@
 # METAL.SYS
 
-Reproductor de música web personal con estética retro CRT. Accede a tu biblioteca desde cualquier dispositivo — sin aplicaciones, sin suscripciones, sin anuncios.
+> Reproductor de música web personal con estética retro CRT. Biblioteca en la nube vía Cloudflare R2, sin aplicaciones nativas, sin suscripciones.
 
-<<<AQUI INSERTAR IMAGEN: captura de pantalla general de la app en modo oscuro>>>
-
----
-
-## Para el usuario
-
-### ¿Qué es esto?
-
-METAL.SYS es tu reproductor de música personal. Tu música vive en la nube (Cloudflare R2) y en tu navegador. La interfaz imita un monitor CRT de los 80 con efectos de escaneo, aberración cromática y paletas de fósforo.
+<<<AQUI INSERTAR IMAGEN: captura de pantalla completa de la app — pantalla de inicio con cuadrícula de artistas, barra de reproductor activa y efectos CRT visibles>>>
 
 ---
 
-### Primeros pasos
+## Características
 
-#### 1. Crear cuenta
-
-Abre la app y pulsa el icono de usuario en la esquina superior derecha. Elige **REGISTRARSE**, escribe tu nombre de usuario, email y contraseña. Una vez dentro, tu música y tus preferencias se sincronizan entre dispositivos.
-
-<<<AQUI INSERTAR IMAGEN: modal de registro / login>>>
-
-#### 2. Subir música
-
-Ve a **SUBIR** en la barra de navegación. Arrastra archivos MP3 o usa el explorador. La app lee automáticamente las etiquetas ID3 (título, artista, álbum, año, portada). La barra de progreso muestra velocidad y tiempo restante.
-
-<<<AQUI INSERTAR IMAGEN: página de subida con barra de progreso>>>
-
-- Límite por archivo: **8 MB**
-- Límite total del vault local: **25 MB**
-- Los archivos en R2 no tienen límite de tamaño desde la app
-
-#### 3. Reproducir
-
-Haz clic en cualquier canción para reproducirla. El reproductor aparece en la barra inferior. Desde ahí puedes pausar, cambiar de pista, activar shuffle, repetir y ver la forma de onda.
-
-<<<AQUI INSERTAR IMAGEN: barra de reproductor con VU meter>>>
+- **Biblioteca en la nube** — archivos MP3 en Cloudflare R2, streaming directo desde el navegador
+- **Vault local** — sube archivos directamente, se guardan como base64 en `localStorage`
+- **Reproductor completo** — waveform, VU meter de 60 barras, shuffle, repeat, cola con drag-to-reorder
+- **Parser ID3v2 nativo** — extrae título, artista, álbum, año, género, pista y portada sin librerías externas
+- **Playlists** — creación, edición (nombre, portada, descripción), añadir/quitar canciones
+- **Marcadores y Clips** — checkpoints con nombre y fragmentos de inicio/fin en bucle
+- **Árbol de biblioteca** — sidebar colapsable con artistas › discos › canciones
+- **Búsqueda en vivo** — sugerencias normalizadas (ignora tildes y mayúsculas)
+- **Selección múltiple** — descarga ZIP por categoría, borrado en bloque
+- **5 paletas de fósforo** — metal (rojo, defecto), synthwave, green, amber, mono
+- **Efectos CRT ajustables** — scanlines, viñeta, aberración cromática, bloom, flicker, rollbar, jitter
+- **Cuentas de usuario** — registro/login con PBKDF2 SHA-256 100k iteraciones, sesiones de 30 días
+- **Panel de administración** — gestión de usuarios y objetos R2 (solo rol `admin`)
+- **Sin build step** — React 18 + Babel Standalone cargados via CDN, cero configuración
 
 ---
 
-### Navegación
+## Capturas
 
-| Página | Qué hay |
-|---|---|
-| **INICIO** | Cuadrícula de artistas, archivos recientes, estadísticas |
-| **TODO** | Todas las canciones ordenadas alfabéticamente |
-| **BANDAS** | Todos los artistas con portada y botón "Reproducir Todo" |
-| **♥ GUSTA** | Canciones marcadas como favoritas |
-| **PLAYLIST** | Tus playlists creadas |
-| **STATS** | Timeline de subidas, top artistas, 8 métricas |
-| **LOCAL** | Música desde carpeta local (Chrome/Edge) |
+<<<AQUI INSERTAR IMAGEN: página de artista con cuadrícula de álbumes y efecto vinilo en hover>>>
 
-En el **sidebar izquierdo** tienes el árbol de biblioteca: artistas > discos > canciones. Haz clic en cualquier nivel para navegar directamente.
+<<<AQUI INSERTAR IMAGEN: barra de reproductor con VU meter de 60 barras y waveform en la barra de progreso>>>
 
-<<<AQUI INSERTAR IMAGEN: sidebar izquierdo con árbol de biblioteca>>>
+<<<AQUI INSERTAR IMAGEN: página de detalle de canción con pestañas AUDIO / MARCADORES / CLIPS>>>
+
+<<<AQUI INSERTAR IMAGEN: TweaksPanel flotante con opciones de paleta de fósforo y sliders de efectos>>>
+
+<<<AQUI INSERTAR IMAGEN: modal de edición de playlist con selector de portada>>>
+
+<<<AQUI INSERTAR IMAGEN: panel de administración con tab de usuarios y tab de archivos R2>>>
 
 ---
 
-### Playlists
-
-Ve a **PLAYLIST** y pulsa **CREAR PLAYLIST**. Ponle nombre, descripción y portada. Desde cualquier canción pulsa `···` → **Añadir a Playlist**. Para editar una playlist, ábrela y pulsa **✎ EDITAR**.
-
-<<<AQUI INSERTAR IMAGEN: página de detalle de playlist con botón editar>>>
-
----
-
-### Marcadores y Clips
-
-Desde la página de detalle de una canción (haz clic en el nombre de la canción) encontrarás dos pestañas:
-
-- **MARCADORES** — guarda un instante con nombre (ej. "intro", "solo"). Pulsa para saltar al momento.
-- **CLIPS** — define un fragmento de inicio/fin que se repite en bucle. Ideal para practicar.
-
----
-
-### Efectos CRT
-
-Pulsa el icono de ajustes para abrir el **TweaksPanel** flotante. Desde ahí puedes:
-
-- Cambiar la **paleta de fósforo**: metal (rojo, defecto), synthwave (rosa), green, amber, mono
-- Ajustar scanlines, viñeta, aberración cromática, bloom, flicker y más
-- Activar **Modo Claro** desde el menú de usuario (icono de usuario → ◑ MODO CLARO)
-
-<<<AQUI INSERTAR IMAGEN: TweaksPanel abierto con opciones de fósforo>>>
-
----
-
-### Rendimiento
-
-Si la app va lenta, abre el menú de usuario → **▸ RENDIMIENTO** y desactiva los efectos que más consumen (scanlines, bloom, VU meter). Los ajustes se sincronizan con tu cuenta si activas "Guardar en cuenta".
-
----
-
-## Referencia técnica
-
-### Stack
-
-| Elemento | Detalle |
-|---|---|
-| Framework | React 18.3.1 (CDN, UMD) |
-| Transpilador | Babel Standalone 7.29.0 (en el navegador) |
-| Bundler | **Ninguno** — archivos `.jsx` cargados directamente |
-| ZIP | JSZip 3.10.1 (CDN) |
-| Markdown | marked 12.0.0 (CDN) |
-| Persistencia local | `localStorage` + IndexedDB (handles de carpeta local, caché de portadas) |
-| Persistencia en nube | Cloudflare R2 (audio) + Cloudflare KV (usuarios, sesiones, datos) |
-| Audio API | Web Audio API nativa |
-| Backend | Cloudflare Pages Functions (`functions/api/`) |
-
-### Restricciones — no cambiar
-
-- **Sin npm, sin bundler, sin node_modules.** React 18 + Babel Standalone se cargan via CDN. Añadir un paso de build rompería el proyecto.
-- **Sin backend propio.** Todo es Cloudflare Pages + KV + R2.
-- **JSX transpilado en el navegador.** Los errores de sintaxis aparecen en la consola del navegador, no en la terminal.
-- El estado global vive en `App()` y se pasa hacia abajo como props. No hay contexto ni store.
-
----
-
-### Estructura de archivos
-
-```
-METAL.sys/
-├── index.html                  ← Entrada principal, carga deps CDN
-├── app.jsx                     ← Toda la lógica y UI (~5000 líneas)
-├── crt.css                     ← Estilos + efectos CRT
-├── tweaks-panel.jsx            ← Panel de ajustes visual
-├── favicon.svg / .ico
-├── README.md
-├── functions/
-│   └── api/
-│       ├── audio.js            ← Proxy streaming R2 con soporte Range
-│       ├── files.js            ← Lista MP3 con metadatos ID3 y portadas
-│       ├── reindex-meta.js     ← Extrae etiquetas ID3 → _meta/index.json
-│       ├── reindex-covers.js   ← Extrae portadas → _covers/*.jpg
-│       ├── userdata.js         ← GET/PUT bookmarks, clips, likes, playCounts
-│       ├── admin/
-│       │   ├── users.js        ← GET/PUT/DELETE usuarios (solo admin)
-│       │   └── r2.js           ← GET/DELETE objetos R2 (solo admin)
-│       └── auth/
-│           ├── register.js
-│           ├── login.js
-│           ├── logout.js
-│           └── profile.js
-└── Documentación/
-    ├── CONTEXT.md              ← ⭐ Contexto para nueva sesión con Claude
-    ├── CHANGELOG.md
-    ├── ARCHITECTURE.md
-    ├── FUNCTIONS.md
-    ├── FEATURES.md
-    ├── PLAYBACK.md
-    ├── UPLOAD.md
-    ├── DEVELOPMENT.md
-    └── COMMANDS.md
-```
-
----
-
-### Arquitectura de datos
-
-#### Vault local (`localStorage`)
-Archivos subidos directamente. Se guardan como data URLs base64.
-- Límite por archivo: **8 MB** (`SIZE_CAP`)
-- Límite total: **25 MB** (`VAULT_CAP`)
-
-#### Biblioteca R2
-Al arrancar, la app llama a `/api/files` y carga la lista de MP3. Los archivos nunca se descargan completos — el reproductor hace streaming via `/api/audio` (proxy con soporte de cabecera `Range`). Las portadas se cachean en IndexedDB.
-
-#### Modelo de archivo
-
-```js
-{
-  id, name, artist, album, track, year, genre,
-  thumbnail,   // PNG data URL — procesada 128px, paleta fósforo
-  coverArt,    // PNG data URL — frame APIC original del ID3
-  fileData,    // base64 data URL completo (vault local)
-  fileSize, fileType, fileName, uploadedAt, downloads
-}
-```
-
-#### claves de localStorage
-
-| Clave | Contenido |
-|---|---|
-| `metalsys_vault_v2` | `file[]` — vault completo |
-| `metalsys_cats_v2` | `{ name, icon }[]` — categorías |
-| `metalsys_likes_v1` | `string[]` — IDs con me gusta |
-| `metalsys_playcounts_v1` | `{ [fileId]: number }` |
-| `metalsys_bookmarks_v1` | `{ [fileId]: { id, name, time }[] }` |
-| `metalsys_clips_v1` | `{ [fileId]: { id, name, start, end }[] }` |
-| `metalsys_artist_meta_v1` | `{ [artist]: { image, description } }` |
-| `metalsys_playlists_v1` | `{ id, name, description, coverArt, songIds[], createdAt }[]` |
-| `metalsys_log_v2` | actividad (máx. 200 entradas) |
-| `metalsys_plog_v1` | log de reproducción (máx. 2000 entradas) |
-| `metalsys_theme` | `'dark'` \| `'light'` |
-
----
-
-### Backend — endpoints
-
-| Endpoint | Método | Descripción |
-|---|---|---|
-| `/api/files` | GET | Lista MP3 de R2 con metadatos e ID3 |
-| `/api/audio?path=…` | GET, HEAD | Proxy streaming con Range desde R2 |
-| `/api/reindex-meta` | GET | Reindexar metadatos ID3 (8 archivos/llamada) |
-| `/api/reindex-covers` | GET | Reindexar portadas → `_covers/` (8/llamada) |
-| `/api/userdata` | GET, PUT | Sincronizar datos de usuario en KV |
-| `/api/auth/register` | POST | Registro con PBKDF2 SHA-256 100k iter. |
-| `/api/auth/login` | POST | Login; devuelve token 30 días |
-| `/api/auth/logout` | POST | Invalida sesión en KV |
-| `/api/auth/profile` | GET, PUT | Ver y actualizar perfil (avatar, contraseña) |
-| `/api/admin/users` | GET, PUT, DELETE | Gestión de usuarios (solo rol `admin`) |
-| `/api/admin/r2` | GET, DELETE | Gestión de objetos R2 (solo rol `admin`) |
-
-#### Roles
-
-Al registrarse, el email `gutierrezy100@gmail.com` recibe rol `admin`; el resto reciben `user`. El rol se almacena en `KV user:${username}` y se verifica en el servidor en cada petición a `/api/admin/*` — nunca se confía en el token de sesión para autorizar acciones de admin.
-
----
-
-### Variables de entorno (Cloudflare Pages)
-
-| Variable | Uso |
-|---|---|
-| `R2_ACCESS_KEY_ID` | Clave de acceso S3-compatible para R2 |
-| `R2_SECRET_ACCESS_KEY` | Clave secreta para R2 |
-| `KV` | Binding al namespace de Cloudflare KV |
-
----
-
-### Ejecutar localmente
+## Inicio rápido
 
 ```bash
 # Python 3
@@ -239,14 +51,172 @@ python -m http.server 8000
 npx http-server -c-1 . -p 8000
 ```
 
-Abrir `http://localhost:8000/`. Abrir `index.html` via `file://` falla por CORS.
+Abrir `http://localhost:8000/`. Abrir `index.html` directamente via `file://` falla por restricciones CORS al cargar los `.jsx`.
 
 ---
 
-### Política de documentación
+## Subir música
+
+Navega a **SUBIR** y arrastra archivos MP3 o usa el explorador. La app lee automáticamente las etiquetas ID3v2 (v2.2, v2.3, v2.4 — UTF-8, UTF-16, Latin1) y genera una thumbnail de 128px con la paleta de fósforo activa.
+
+- Límite por archivo: **8 MB** (`SIZE_CAP`)
+- Límite del vault local: **25 MB** (`VAULT_CAP`)
+
+Los archivos en R2 se indexan via `/api/reindex-meta` y `/api/reindex-covers`, accesibles desde el panel de mantenimiento en la página de Inicio.
+
+---
+
+## Stack
+
+| Elemento | Detalle |
+|---|---|
+| Framework | React 18.3.1 (CDN, UMD) |
+| Transpilador | Babel Standalone 7.29.0 (browser runtime) |
+| Bundler | Ninguno |
+| ZIP | JSZip 3.10.1 (CDN) |
+| Markdown | marked 12.0.0 (CDN) |
+| Almacenamiento local | `localStorage` + IndexedDB (handles de carpeta + caché de portadas) |
+| Almacenamiento en nube | Cloudflare R2 (audio) + Cloudflare KV (usuarios, sesiones, datos) |
+| Audio | Web Audio API nativa |
+| Backend | Cloudflare Pages Functions |
+
+---
+
+## Estructura del proyecto
+
+```
+METAL.sys/
+├── index.html                  — Punto de entrada, carga deps CDN
+├── app.jsx                     — Toda la lógica y UI (~5000 líneas)
+├── crt.css                     — Estilos completos + efectos CRT
+├── tweaks-panel.jsx            — Panel flotante de ajustes visuales
+├── functions/
+│   └── api/
+│       ├── audio.js            — Proxy streaming R2 con soporte Range
+│       ├── files.js            — Lista MP3 con metadatos ID3 y portadas presignadas
+│       ├── reindex-meta.js     — Extrae etiquetas ID3 → _meta/index.json (8/llamada)
+│       ├── reindex-covers.js   — Extrae portadas → _covers/*.jpg (8/llamada)
+│       ├── userdata.js         — Sincroniza bookmarks, clips, likes, playCounts en KV
+│       ├── admin/
+│       │   ├── users.js        — Gestión de usuarios (GET/PUT/DELETE, solo admin)
+│       │   └── r2.js           — Gestión de objetos R2 (GET/DELETE, solo admin)
+│       └── auth/
+│           ├── register.js     — Registro con PBKDF2 SHA-256
+│           ├── login.js        — Login, token 30 días en KV
+│           ├── logout.js       — Invalida sesión
+│           └── profile.js      — Ver y actualizar perfil (avatar, contraseña, rol)
+└── Documentación/
+    ├── CONTEXT.md              — ⭐ Contexto de sesión para Claude
+    ├── CHANGELOG.md
+    ├── ARCHITECTURE.md
+    ├── FUNCTIONS.md
+    ├── FEATURES.md
+    ├── PLAYBACK.md
+    └── DEVELOPMENT.md
+```
+
+---
+
+## API
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `/api/files` | GET | Lista MP3 de R2 con metadatos ID3 y portadas (caché CDN 5 min) |
+| `/api/audio?path=…` | GET, HEAD | Proxy streaming con cabecera Range desde R2 |
+| `/api/reindex-meta` | GET | Reindexar metadatos ID3 (8 archivos/llamada) |
+| `/api/reindex-covers` | GET | Reindexar portadas en `_covers/` (8 álbumes/llamada) |
+| `/api/userdata` | GET, PUT | Sincronizar bookmarks, clips, likes, playCounts, playlists |
+| `/api/auth/register` | POST | Registro — PBKDF2 SHA-256, 100k iteraciones, salt aleatorio |
+| `/api/auth/login` | POST | Login — devuelve token JWT-less de 30 días |
+| `/api/auth/logout` | POST | Invalida sesión en KV |
+| `/api/auth/profile` | GET, PUT | Perfil de usuario — avatar, contraseña, rol |
+| `/api/admin/users` | GET, PUT, DELETE | Listar/cambiar rol/eliminar usuarios — requiere `role: admin` |
+| `/api/admin/r2` | GET, DELETE | Listar/eliminar objetos R2 — requiere `role: admin` |
+
+### Roles
+
+El campo `role` se almacena en `KV user:${username}`. El email `gutierrezy100@gmail.com` recibe `admin` automáticamente al registrarse; el resto reciben `user`. Los endpoints `/api/admin/*` verifican el rol directamente desde KV — nunca confían en el token de sesión para autorizar.
+
+---
+
+## Variables de entorno (Cloudflare Pages)
+
+| Variable | Descripción |
+|---|---|
+| `R2_ACCESS_KEY_ID` | Clave de acceso S3-compatible para el bucket R2 |
+| `R2_SECRET_ACCESS_KEY` | Clave secreta S3-compatible |
+| `KV` | Binding al namespace de Cloudflare KV |
+
+---
+
+## Persistencia local
+
+| Clave | Contenido |
+|---|---|
+| `metalsys_vault_v2` | `file[]` — vault completo (data URLs base64) |
+| `metalsys_cats_v2` | `{ name, icon }[]` — categorías personalizadas |
+| `metalsys_likes_v1` | `string[]` — IDs con me gusta |
+| `metalsys_playcounts_v1` | `{ [fileId]: number }` — reproducciones por canción |
+| `metalsys_bookmarks_v1` | `{ [fileId]: { id, name, time }[] }` |
+| `metalsys_clips_v1` | `{ [fileId]: { id, name, start, end }[] }` |
+| `metalsys_artist_meta_v1` | `{ [artist]: { image, description } }` |
+| `metalsys_playlists_v1` | `{ id, name, description, coverArt, songIds[], createdAt }[]` |
+| `metalsys_log_v2` | Log de actividad — máx. 200 entradas |
+| `metalsys_plog_v1` | Log de reproducción — máx. 2000 entradas |
+| `metalsys_auth_token` | Token de sesión activo |
+| `metalsys_auth_user` | `{ username, email, avatar, role }` en caché |
+
+---
+
+## Modelo de datos
+
+```js
+// Cada archivo en el vault
+{
+  id, name, artist, album, track, year, genre,
+  thumbnail,   // PNG data URL — 128px, paleta fósforo activa
+  coverArt,    // PNG data URL — frame APIC original del ID3
+  fileData,    // base64 data URL completo (solo vault local)
+  fileSize, fileType, fileName, uploadedAt, downloads
+}
+```
+
+`category === artist` — el nombre del artista es la clave de navegación principal.
+
+---
+
+## Pipeline de reproducción
+
+```
+playScope(ctx, shuffle)
+  → limpia manualQueue → establece playContext
+  → startTrack(file)
+      → audio.src = fileData | '/api/audio?path=...'
+      → incrementa playCounts
+      → async: decodifica waveform via OfflineAudioContext
+      → async: lee tags ID3 para portada
+
+audio.ended → onEnded → playNext()
+effectiveQueue = manualQueue ?? musicQueue
+musicQueue derivado de playContext
+```
+
+---
+
+## Restricciones — no modificar
+
+- **Sin npm, sin bundler, sin node_modules.** Añadir un paso de build rompe el proyecto.
+- **Sin backend propio.** Todo es Cloudflare Pages + KV + R2.
+- **JSX transpilado en el navegador** via Babel Standalone. Los errores de sintaxis aparecen en la consola del navegador.
+- **Estado global en `App()`** pasado como props. Sin contexto, sin store.
+
+---
+
+## Desarrollo
 
 Después de cada cambio:
-1. Añadir entrada en `Documentación/CHANGELOG.md`
-2. Actualizar `Documentación/FUNCTIONS.md` si se añade o modifica alguna función
-3. Actualizar `Documentación/FEATURES.md` para funcionalidades nuevas
-4. Actualizar `Documentación/CONTEXT.md` si cambia el estado global del proyecto
+
+1. `Documentación/CHANGELOG.md` — entrada con fecha y descripción
+2. `Documentación/FUNCTIONS.md` — si se añade o modifica una función
+3. `Documentación/FEATURES.md` — si se añade funcionalidad nueva
+4. `Documentación/CONTEXT.md` — si cambia el estado global del proyecto
