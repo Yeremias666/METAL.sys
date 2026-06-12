@@ -5,6 +5,7 @@ bool enableSiteSettingsShortcut
 color backgroundColor
 color colorPrimary
 color colorPrimaryDark
+color ic_launcher_background
 color navigationColor
 color navigationColorDark
 color navigationDividerColor

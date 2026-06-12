@@ -5,6 +5,7 @@
     <color name="backgroundColor">#060606</color>
     <color name="colorPrimary">#D61F1F</color>
     <color name="colorPrimaryDark">#000000</color>
+    <color name="ic_launcher_background">#060606</color>
     <color name="navigationColor">#060606</color>
     <color name="navigationColorDark">#060606</color>
     <color name="navigationDividerColor">#060606</color>

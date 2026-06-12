@@ -6588,6 +6588,9 @@ function App() {
   const playStartRef     = useRef(null);
   const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
   const pauseTimerRef    = useRef(null);  // debounce para onPause — cancela false-pauses del OS antes de nexttrack
+  const playNextRef      = useRef(null);  // ref a playNext siempre fresco — evita closures rancios en mediaSession handlers
+  const playPrevRef      = useRef(null);
+  const blobUrlCacheRef  = useRef({});    // fileId → blob URL; evita decodificar base64 en cada reproducción
   // Waveform en tiempo real para archivos R2 (sin descarga extra)
   const waveformBufRef   = useRef(null);  // Float32Array(300) en construcción
   const waveformIdRef    = useRef(null);  // id de la pista que se está muestreando
@@ -6807,7 +6810,7 @@ function App() {
         playStartRef.current = Date.now();
         return;
       }
-      playNext(repeatMode === 'all', { autoAdvance: true });
+      playNextRef.current?.(repeatMode === 'all', { autoAdvance: true });
     };
     const onPlay = () => {
       if (pauseTimerRef.current) { clearTimeout(pauseTimerRef.current); pauseTimerRef.current = null; }
@@ -7169,7 +7172,19 @@ function App() {
       return;
     }
 
-    audio.src = file.fileData;
+    // Blob URL: el navegador carga desde memoria en vez de decodificar base64 en cada play
+    // Crítico en Android background donde decodificar 8MB de base64 puede tardar minutos
+    if (!blobUrlCacheRef.current[file.id]) {
+      try {
+        const comma = file.fileData.indexOf(',');
+        const mime  = (file.fileType || 'audio/mpeg').split(';')[0];
+        const raw   = atob(file.fileData.slice(comma + 1));
+        const buf   = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+        blobUrlCacheRef.current[file.id] = URL.createObjectURL(new Blob([buf], { type: mime }));
+      } catch { blobUrlCacheRef.current[file.id] = file.fileData; }
+    }
+    audio.src = blobUrlCacheRef.current[file.id];
     if (pendingSeekRef.current !== null) {
       const _t = pendingSeekRef.current; pendingSeekRef.current = null;
       const _seek = () => { audio.currentTime = _t; audio.removeEventListener('loadeddata', _seek); };
@@ -7180,7 +7195,7 @@ function App() {
     if (!waveforms[file.id]) {
       const calcWaveform = async () => {
         try {
-          const resp = await fetch(file.fileData);
+          const resp = await fetch(blobUrlCacheRef.current[file.id] || file.fileData);
           const buf = await resp.arrayBuffer();
           const offCtx = new OfflineAudioContext(1, 1, 44100);
           const decoded = await offCtx.decodeAudioData(buf);
@@ -7583,6 +7598,9 @@ function App() {
       startTrack(prev, undefined, { skipLog: true });
     }
   };
+  // Siempre frescos — los mediaSession handlers usan estos refs para evitar closures rancios
+  playNextRef.current = playNext;
+  playPrevRef.current = playPrev;
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
   const stopMusic = () => {
     audioRef.current.pause();
@@ -7612,8 +7630,8 @@ function App() {
     });
     navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playPrev(); });
-    navigator.mediaSession.setActionHandler('nexttrack',     () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playNext(); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playPrevRef.current?.(); });
+    navigator.mediaSession.setActionHandler('nexttrack',     () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playNextRef.current?.(); });
     navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
   };
 
