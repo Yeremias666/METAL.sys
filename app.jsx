@@ -6604,6 +6604,23 @@ function App() {
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
 
+  // Pre-generar blob URLs para todos los archivos del vault en background
+  // Sin esto, el primer "siguiente" desde la notificación sigue descodificando base64
+  useEffect(() => {
+    files.forEach(file => {
+      if (!file.fileData || file.r2Path || blobUrlCacheRef.current[file.id]) return;
+      const convert = () => {
+        if (blobUrlCacheRef.current[file.id]) return;
+        fetch(file.fileData)
+          .then(r => r.blob())
+          .then(blob => { blobUrlCacheRef.current[file.id] = URL.createObjectURL(blob); })
+          .catch(() => {});
+      };
+      if (window.requestIdleCallback) requestIdleCallback(convert, { timeout: 30000 });
+      else setTimeout(convert, 2000 + Math.random() * 5000);
+    });
+  }, [files]);
+
   // Keep --vu-bottom in sync with the player's top border position
   useEffect(() => {
     const update = () => {
