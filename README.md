@@ -1,8 +1,8 @@
+<img src="favicon.svg" width="64" height="64" alt="METAL.SYS skull">
+
 # METAL.SYS
 
 > Reproductor de música web personal con estética retro CRT. Biblioteca en la nube vía Cloudflare R2, sin aplicaciones nativas, sin suscripciones.
-
-<<<AQUI INSERTAR IMAGEN: captura de pantalla completa de la app — pantalla de inicio con cuadrícula de artistas, barra de reproductor activa y efectos CRT visibles>>>
 
 ---
 
@@ -25,22 +25,6 @@
 
 ---
 
-## Capturas
-
-<<<AQUI INSERTAR IMAGEN: página de artista con cuadrícula de álbumes y efecto vinilo en hover>>>
-
-<<<AQUI INSERTAR IMAGEN: barra de reproductor con VU meter de 60 barras y waveform en la barra de progreso>>>
-
-<<<AQUI INSERTAR IMAGEN: página de detalle de canción con pestañas AUDIO / MARCADORES / CLIPS>>>
-
-<<<AQUI INSERTAR IMAGEN: TweaksPanel flotante con opciones de paleta de fósforo y sliders de efectos>>>
-
-<<<AQUI INSERTAR IMAGEN: modal de edición de playlist con selector de portada>>>
-
-<<<AQUI INSERTAR IMAGEN: panel de administración con tab de usuarios y tab de archivos R2>>>
-
----
-
 ## Inicio rápido
 
 ```bash
@@ -55,17 +39,6 @@ Abrir `http://localhost:8000/`. Abrir `index.html` directamente via `file://` fa
 
 ---
 
-## Subir música
-
-Navega a **SUBIR** y arrastra archivos MP3 o usa el explorador. La app lee automáticamente las etiquetas ID3v2 (v2.2, v2.3, v2.4 — UTF-8, UTF-16, Latin1) y genera una thumbnail de 128px con la paleta de fósforo activa.
-
-- Límite por archivo: **8 MB** (`SIZE_CAP`)
-- Límite del vault local: **25 MB** (`VAULT_CAP`)
-
-Los archivos en R2 se indexan via `/api/reindex-meta` y `/api/reindex-covers`, accesibles desde el panel de mantenimiento en la página de Inicio.
-
----
-
 ## Stack
 
 | Elemento | Detalle |
@@ -75,7 +48,7 @@ Los archivos en R2 se indexan via `/api/reindex-meta` y `/api/reindex-covers`, a
 | Bundler | Ninguno |
 | ZIP | JSZip 3.10.1 (CDN) |
 | Markdown | marked 12.0.0 (CDN) |
-| Almacenamiento local | `localStorage` + IndexedDB (handles de carpeta + caché de portadas) |
+| Almacenamiento local | `localStorage` + IndexedDB |
 | Almacenamiento en nube | Cloudflare R2 (audio) + Cloudflare KV (usuarios, sesiones, datos) |
 | Audio | Web Audio API nativa |
 | Backend | Cloudflare Pages Functions |
@@ -106,7 +79,7 @@ METAL.sys/
 │           ├── logout.js       — Invalida sesión
 │           └── profile.js      — Ver y actualizar perfil (avatar, contraseña, rol)
 └── Documentación/
-    ├── CONTEXT.md              — ⭐ Contexto de sesión para Claude
+    ├── CONTEXT.md              — Contexto de sesión para Claude
     ├── CHANGELOG.md
     ├── ARCHITECTURE.md
     ├── FUNCTIONS.md
@@ -127,7 +100,7 @@ METAL.sys/
 | `/api/reindex-covers` | GET | Reindexar portadas en `_covers/` (8 álbumes/llamada) |
 | `/api/userdata` | GET, PUT | Sincronizar bookmarks, clips, likes, playCounts, playlists |
 | `/api/auth/register` | POST | Registro — PBKDF2 SHA-256, 100k iteraciones, salt aleatorio |
-| `/api/auth/login` | POST | Login — devuelve token JWT-less de 30 días |
+| `/api/auth/login` | POST | Login — devuelve token de 30 días |
 | `/api/auth/logout` | POST | Invalida sesión en KV |
 | `/api/auth/profile` | GET, PUT | Perfil de usuario — avatar, contraseña, rol |
 | `/api/admin/users` | GET, PUT, DELETE | Listar/cambiar rol/eliminar usuarios — requiere `role: admin` |
@@ -135,7 +108,7 @@ METAL.sys/
 
 ### Roles
 
-El campo `role` se almacena en `KV user:${username}`. El email `gutierrezy100@gmail.com` recibe `admin` automáticamente al registrarse; el resto reciben `user`. Los endpoints `/api/admin/*` verifican el rol directamente desde KV — nunca confían en el token de sesión para autorizar.
+El campo `role` se almacena en `KV user:${username}`. El email `gutierrezy100@gmail.com` recibe `admin` al registrarse; el resto reciben `user`. Los endpoints `/api/admin/*` verifican el rol directamente desde KV — nunca confían en el token de sesión para autorizar.
 
 ---
 
@@ -171,7 +144,7 @@ El campo `role` se almacena en `KV user:${username}`. El email `gutierrezy100@gm
 ## Modelo de datos
 
 ```js
-// Cada archivo en el vault
+// Archivo en el vault
 {
   id, name, artist, album, track, year, genre,
   thumbnail,   // PNG data URL — 128px, paleta fósforo activa
@@ -203,11 +176,11 @@ musicQueue derivado de playContext
 
 ---
 
-## Restricciones — no modificar
+## Restricciones
 
 - **Sin npm, sin bundler, sin node_modules.** Añadir un paso de build rompe el proyecto.
 - **Sin backend propio.** Todo es Cloudflare Pages + KV + R2.
-- **JSX transpilado en el navegador** via Babel Standalone. Los errores de sintaxis aparecen en la consola del navegador.
+- **JSX transpilado en el navegador** via Babel Standalone. Los errores de sintaxis aparecen en la consola del navegador, no en la terminal.
 - **Estado global en `App()`** pasado como props. Sin contexto, sin store.
 
 ---

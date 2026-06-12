@@ -6587,6 +6587,7 @@ function App() {
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
   const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
+  const pauseTimerRef    = useRef(null);  // debounce para onPause — cancela false-pauses del OS antes de nexttrack
   // Waveform en tiempo real para archivos R2 (sin descarga extra)
   const waveformBufRef   = useRef(null);  // Float32Array(300) en construcción
   const waveformIdRef    = useRef(null);  // id de la pista que se está muestreando
@@ -6798,8 +6799,16 @@ function App() {
       }
       playNext(repeatMode === 'all', { autoAdvance: true });
     };
-    const onPlay = () => { msTransitionRef.current = false; setIsPlaying(true); };
-    const onPause = () => { if (!msTransitionRef.current) setIsPlaying(false); };
+    const onPlay = () => {
+      if (pauseTimerRef.current) { clearTimeout(pauseTimerRef.current); pauseTimerRef.current = null; }
+      msTransitionRef.current = false;
+      setIsPlaying(true);
+    };
+    const onPause = () => {
+      if (msTransitionRef.current) return;
+      clearTimeout(pauseTimerRef.current);
+      pauseTimerRef.current = setTimeout(() => { pauseTimerRef.current = null; setIsPlaying(false); }, 150);
+    };
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('durationchange', onDur);
     audio.addEventListener('ended', onEnded);
@@ -6811,6 +6820,7 @@ function App() {
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
+      if (pauseTimerRef.current) { clearTimeout(pauseTimerRef.current); pauseTimerRef.current = null; }
     };
   }, [currentTrackId, repeatMode]);
   useEffect(() => {
@@ -7592,8 +7602,8 @@ function App() {
     });
     navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => { navigator.mediaSession.playbackState = 'playing'; playPrev(); });
-    navigator.mediaSession.setActionHandler('nexttrack',     () => { navigator.mediaSession.playbackState = 'playing'; playNext(); });
+    navigator.mediaSession.setActionHandler('previoustrack', () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playPrev(); });
+    navigator.mediaSession.setActionHandler('nexttrack',     () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playNext(); });
     navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
   };
 
