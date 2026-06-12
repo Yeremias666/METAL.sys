@@ -29,7 +29,7 @@ export async function onRequest(context) {
   const user = JSON.parse(raw);
 
   if (context.request.method === 'GET') {
-    return json({ username: session.username, email: user.email, avatar: user.avatar || null, createdAt: user.createdAt });
+    return json({ username: session.username, email: user.email, avatar: user.avatar || null, createdAt: user.createdAt, role: user.role || 'user' });
   }
 
   if (context.request.method === 'PUT') {

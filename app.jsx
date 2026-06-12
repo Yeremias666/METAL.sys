@@ -190,10 +190,10 @@ function sortByYearDiscTrack(a, b) {
 }
 
 function fmtBytes(n) {
-  if (n < 1024) return n + ' B';
-  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KB';
-  if (n < 1024*1024*1024) return (n/1024/1024).toFixed(2) + ' MB';
-  return (n/1024/1024/1024).toFixed(2) + ' GB';
+  if (n < 1000) return n + ' B';
+  if (n < 1000*1000) return (n/1000).toFixed(1) + ' KB';
+  if (n < 1000*1000*1000) return (n/1000/1000).toFixed(2) + ' MB';
+  return (n/1000/1000/1000).toFixed(2) + ' GB';
 }
 function fmtDate(ts) {
   const d = new Date(ts);
@@ -699,7 +699,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPerf }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, theme, onToggleTheme, perf, setPerf }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -719,7 +719,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
       <div className="right">
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
-        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} perf={perf} setPerf={setPerf} />
+        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} onOpenAdmin={onOpenAdmin} theme={theme} onToggleTheme={onToggleTheme} perf={perf} setPerf={setPerf} />
       </div>
     </div>
   );
@@ -2028,6 +2028,26 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                             placeholder="Descripción del artista, género, origen..." />
                 </div>
               </div>
+              {albumObjects.length > 0 && (
+                <div style={{marginBottom:14}}>
+                  <div className="field-label" style={{marginBottom:6}}>USAR PORTADA DE ÁLBUM</div>
+                  <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
+                    {albumObjects.filter(a => a.cover?.thumbnail || a.cover?.coverArt).map(a => {
+                      const src = a.cover.thumbnail || a.cover.coverArt;
+                      const active = editImage === src;
+                      return (
+                        <div key={a.name} title={a.name}
+                          onClick={() => setEditImage(active ? '' : src)}
+                          style={{width:52, height:52, flexShrink:0, cursor:'pointer', overflow:'hidden',
+                            border: active ? '2px solid var(--fg-primary)' : '2px solid transparent',
+                            outline: active ? '1px solid rgba(214,31,31,0.4)' : 'none', borderRadius:2}}>
+                          <img src={src} alt={a.name} style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
                 <button className="mini-btn alt" onClick={() => setShowEditArtist(false)}>CANCELAR</button>
                 <button className="big-btn" onClick={saveArtistEdit}>✓ GUARDAR</button>
@@ -3861,14 +3881,9 @@ function PlaysCounter({ playCounts, listenSecs = 0 }) {
           <div className="counter">
             {digits.map((d, i) => <span key={i} className="digit">{d}</span>)}
           </div>
-          <div style={{textAlign:'center', marginTop: 8, fontSize: 17, color: 'var(--fg-dim)'}}>
-            {total} ESCUCHA{total===1?'':'S'} EN TOTAL
+          <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
+            {listenSecs > 0 ? fmtTime(listenSecs) + ' ESCUCHADOS' : '—'}
           </div>
-          {listenSecs > 0 && (
-            <div style={{textAlign:'center', marginTop: 6, fontSize: 14, color: 'var(--fg-secondary)', fontFamily:'var(--pixel)', letterSpacing:'0.08em'}}>
-              {fmtTime(listenSecs)} ESCUCHADOS
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -4200,7 +4215,7 @@ function PerfToggle({ label, value, onChange }) {
   );
 }
 
-function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPerf }) {
+function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, theme, onToggleTheme, perf, setPerf }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [showPerf, setShowPerf] = React.useState(false);
   const ref = React.useRef(null);
@@ -4233,6 +4248,9 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPe
             <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
           </div>
           <button onClick={() => { setMenuOpen(false); setShowPerf(false); onOpenProfile(); }}>⚙ PERFIL</button>
+          {onToggleTheme && (
+            <button onClick={onToggleTheme}>{theme === 'light' ? '◐ MODO OSCURO' : '◑ MODO CLARO'}</button>
+          )}
           <div className="user-menu-sep" />
           <button className={showPerf ? 'active' : ''} onClick={() => setShowPerf(p => !p)}>
             ▸ RENDIMIENTO
@@ -4259,6 +4277,12 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, perf, setPe
                 </div>
               </div>
             </div>
+          )}
+          {authUser.role === 'admin' && onOpenAdmin && (
+            <>
+              <div className="user-menu-sep" />
+              <button onClick={() => { setMenuOpen(false); setShowPerf(false); onOpenAdmin(); }}>⚑ MODO ADMIN</button>
+            </>
           )}
           <div className="user-menu-sep" />
           <button onClick={() => { setMenuOpen(false); setShowPerf(false); onLogout(); }}>✕ CERRAR SESIÓN</button>
@@ -4641,10 +4665,17 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
 }
 
 // ─── PLAYLIST DETAIL PAGE ───────────────────────────────────
-function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllShuffle, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, onNav }) {
+function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllShuffle, onPlayFile, onOpenFile, currentPlayingId, isPlaying, onRemoveSong, likedIds = new Set(), onToggleLike, playlists = [], onAddToPlaylist, onOpenCreatePlaylist, onUpdatePlaylist, onNav }) {
   const [openPlaylistFor, setOpenPlaylistFor] = useState(null);
   const [page, setPage] = useState(0);
   const menuRef = useRef(null);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [editCover, setEditCover] = useState('');
+  const editCoverRef = useRef(null);
+  const openEdit = () => { setEditName(playlist.name); setEditDesc(playlist.description || ''); setEditCover(playlist.coverArt || ''); setShowEdit(true); };
+  const saveEdit = () => { onUpdatePlaylist && onUpdatePlaylist(playlist.id, { name: editName.trim() || playlist.name, description: editDesc, coverArt: editCover || null }); setShowEdit(false); };
 
   useEffect(() => {
     const handler = e => { if (menuRef.current && !menuRef.current.contains(e.target)) setOpenPlaylistFor(null); };
@@ -4673,12 +4704,13 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
     </div>
   );
 
-  return (
+  return (<>
     <div>
       <div className="panel">
-        <div className="panel-hd">
-          <button className="mini-btn alt" onClick={onBack} style={{marginRight:10}}>◀ VOLVER</button>
-          ◈ {playlist.name.toUpperCase()}
+        <div className="panel-hd" style={{display:'flex', alignItems:'center', gap:8}}>
+          <button className="mini-btn alt" onClick={onBack} style={{marginRight:6}}>◀ VOLVER</button>
+          <span style={{flex:1}}>◈ {playlist.name.toUpperCase()}</span>
+          {onUpdatePlaylist && <button className="mini-btn" onClick={openEdit}>✎ EDITAR</button>}
         </div>
         <div className="panel-body">
           <div style={{display:'flex', gap:20, alignItems:'flex-start', flexWrap:'wrap'}}>
@@ -4776,7 +4808,43 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
           </div></div></div>
       }
     </div>
-  );
+
+    {showEdit && (
+      <div className="modal-overlay" onClick={() => setShowEdit(false)}>
+        <div className="modal-box" onClick={e => e.stopPropagation()} style={{maxWidth:440}}>
+          <div className="modal-hd">EDITAR PLAYLIST</div>
+          <div className="modal-body">
+            <div style={{display:'flex', gap:16, marginBottom:16, alignItems:'flex-start'}}>
+              <div>
+                <div className="field-label" style={{marginBottom:6}}>PORTADA</div>
+                <div className="thumb-zone" style={{width:100, height:100, overflow:'hidden'}} onClick={() => editCoverRef.current?.click()}>
+                  {editCover
+                    ? <img src={editCover} alt="cover" style={{width:'100%',height:'100%',objectFit:'cover'}} />
+                    : <PlaylistAutoGrid playlist={playlist} allFiles={allFiles} />}
+                </div>
+                <input ref={editCoverRef} type="file" accept="image/*" style={{display:'none'}} onChange={async e => {
+                  const f = e.target.files[0]; if (!f) return;
+                  const url = await new Promise(res => { const r = new FileReader(); r.onload = () => res(r.result); r.readAsDataURL(f); });
+                  setEditCover(url);
+                }} />
+                {editCover && <button className="mini-btn alt" style={{marginTop:6, width:'100%'}} onClick={() => setEditCover('')}>✕ QUITAR</button>}
+              </div>
+              <div style={{flex:1}}>
+                <div className="field-label">NOMBRE</div>
+                <input className="field-input" style={{width:'100%', marginTop:6}} value={editName} onChange={e => setEditName(e.target.value)} />
+                <div className="field-label" style={{marginTop:12}}>DESCRIPCIÓN</div>
+                <textarea className="field-input" style={{width:'100%', height:80, resize:'vertical', marginTop:6}} value={editDesc} onChange={e => setEditDesc(e.target.value)} placeholder="Descripción de la playlist..." />
+              </div>
+            </div>
+            <div style={{display:'flex', gap:8, justifyContent:'flex-end'}}>
+              <button className="mini-btn alt" onClick={() => setShowEdit(false)}>CANCELAR</button>
+              <button className="big-btn" onClick={saveEdit}>✓ GUARDAR</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>);
 }
 
 // ─── PLAYLIST PAGE ──────────────────────────────────────────
@@ -5321,6 +5389,166 @@ function SpotDLTable({ headers, rows }) {
           ))}</tr>
         ))}</tbody>
       </table>
+    </div>
+  );
+}
+
+// ─── DEBUG / ADMIN PAGE ──────────────────────────────────────────────────────
+function DebugPage({ authToken, onNav }) {
+  const [tab, setTab] = useState('users');
+
+  // ── Users tab ──────────────────────────────────────────────────────────────
+  const [users, setUsers]       = useState(null);
+  const [usersErr, setUsersErr] = useState('');
+  const [roleMsg, setRoleMsg]   = useState('');
+
+  const loadUsers = () => {
+    setUsersErr(''); setRoleMsg('');
+    fetch('/api/admin/users', { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.json()).then(d => { if (Array.isArray(d)) setUsers(d); else setUsersErr(d.error || 'Error'); })
+      .catch(() => setUsersErr('Error de red'));
+  };
+  useEffect(() => { if (tab === 'users') loadUsers(); }, [tab]);
+
+  const changeRole = (username, role) => {
+    setRoleMsg('');
+    fetch('/api/admin/users', {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, role }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) { setRoleMsg(`Rol de ${username} actualizado a ${role}`); loadUsers(); }
+      else setRoleMsg(d.error || 'Error');
+    }).catch(() => setRoleMsg('Error de red'));
+  };
+
+  const deleteUser = (username) => {
+    if (!confirm(`¿Eliminar usuario "${username}"? Esta acción es irreversible.`)) return;
+    fetch(`/api/admin/users?u=${encodeURIComponent(username)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authToken}` },
+    }).then(r => r.json()).then(d => {
+      if (d.ok) loadUsers(); else setUsersErr(d.error || 'Error al eliminar');
+    }).catch(() => setUsersErr('Error de red'));
+  };
+
+  // ── R2 tab ─────────────────────────────────────────────────────────────────
+  const [r2Objects, setR2Objects]   = useState(null);
+  const [r2Next, setR2Next]         = useState(null);
+  const [r2Err, setR2Err]           = useState('');
+  const [r2Msg, setR2Msg]           = useState('');
+  const [r2Prefix, setR2Prefix]     = useState('');
+
+  const loadR2 = (token = null) => {
+    setR2Err(''); setR2Msg('');
+    const qs = new URLSearchParams();
+    if (r2Prefix) qs.set('prefix', r2Prefix);
+    if (token)    qs.set('token', token);
+    fetch(`/api/admin/r2?${qs}`, { headers: { Authorization: `Bearer ${authToken}` } })
+      .then(r => r.json()).then(d => {
+        if (d.objects) {
+          setR2Objects(prev => token ? [...(prev || []), ...d.objects] : d.objects);
+          setR2Next(d.nextToken || null);
+        } else setR2Err(d.error || 'Error');
+      }).catch(() => setR2Err('Error de red'));
+  };
+  useEffect(() => { if (tab === 'r2') { setR2Objects(null); setR2Next(null); loadR2(); } }, [tab]);
+
+  const deleteR2 = (key) => {
+    if (!confirm(`¿Eliminar "${key}" de R2? Esta acción es irreversible.`)) return;
+    fetch('/api/admin/r2', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    }).then(r => r.json()).then(d => {
+      if (d.ok) { setR2Msg(`Eliminado: ${key}`); setR2Objects(prev => (prev||[]).filter(o => o.key !== key)); }
+      else setR2Err(d.error || 'Error');
+    }).catch(() => setR2Err('Error de red'));
+  };
+
+  return (
+    <div>
+      <div className="panel">
+        <div className="panel-hd" style={{display:'flex', alignItems:'center', gap:8}}>
+          <button className="mini-btn alt" onClick={() => onNav({ page: 'INICIO' })} style={{marginRight:6}}>◀ VOLVER</button>
+          <span style={{flex:1}}>⚑ PANEL DE ADMINISTRACIÓN</span>
+        </div>
+        <div className="panel-body" style={{padding:'8px 12px'}}>
+          <div style={{display:'flex', gap:6, marginBottom:12}}>
+            {['users','r2'].map(t => (
+              <button key={t} className={`mini-btn${tab===t?' ':' alt'}`} onClick={() => setTab(t)}>
+                {t === 'users' ? '👤 USUARIOS' : '🗄 ARCHIVOS R2'}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Users ── */}
+          {tab === 'users' && (
+            <div>
+              {usersErr && <div style={{color:'var(--fg-primary)', marginBottom:8}}>{usersErr}</div>}
+              {roleMsg  && <div style={{color:'#6f6', marginBottom:8, fontSize:13}}>{roleMsg}</div>}
+              {!users ? <div style={{color:'var(--fg-dim)'}}>Cargando...</div> : (
+                <div className="track-table">
+                  <div className="track-table-header" style={{gridTemplateColumns:'1fr 1.4fr auto auto'}}>
+                    <span>USUARIO</span><span>EMAIL</span><span>ROL</span><span></span>
+                  </div>
+                  {users.map(u => (
+                    <div key={u.username} className="track-table-row" style={{gridTemplateColumns:'1fr 1.4fr auto auto', alignItems:'center'}}>
+                      <span style={{fontFamily:'var(--pixel)', fontSize:12}}>{u.username}</span>
+                      <span style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)'}}>{u.email}</span>
+                      <span>
+                        <select
+                          className="field-input"
+                          style={{padding:'2px 4px', fontSize:11}}
+                          value={u.role}
+                          onChange={e => changeRole(u.username, e.target.value)}>
+                          <option value="user">user</option>
+                          <option value="admin">admin</option>
+                        </select>
+                      </span>
+                      <span>
+                        <button className="mini-btn alt" style={{fontSize:10}} onClick={() => deleteUser(u.username)}>✕</button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── R2 ── */}
+          {tab === 'r2' && (
+            <div>
+              <div style={{display:'flex', gap:6, marginBottom:10}}>
+                <input className="field-input" style={{flex:1}} placeholder="Filtrar por prefijo (ej: _covers/)" value={r2Prefix} onChange={e => setR2Prefix(e.target.value)} />
+                <button className="mini-btn" onClick={() => { setR2Objects(null); setR2Next(null); loadR2(); }}>BUSCAR</button>
+              </div>
+              {r2Err && <div style={{color:'var(--fg-primary)', marginBottom:8}}>{r2Err}</div>}
+              {r2Msg && <div style={{color:'#6f6', marginBottom:8, fontSize:13}}>{r2Msg}</div>}
+              {!r2Objects ? <div style={{color:'var(--fg-dim)'}}>Cargando...</div> : (
+                <>
+                  <div className="track-table">
+                    <div className="track-table-header" style={{gridTemplateColumns:'1fr auto auto'}}>
+                      <span>CLAVE</span><span>TAMAÑO</span><span></span>
+                    </div>
+                    {r2Objects.map(o => (
+                      <div key={o.key} className="track-table-row" style={{gridTemplateColumns:'1fr auto auto', alignItems:'center'}}>
+                        <span style={{fontFamily:'var(--mono)', fontSize:11, wordBreak:'break-all'}}>{o.key}</span>
+                        <span style={{fontFamily:'var(--mono)', fontSize:11, color:'var(--fg-dim)', whiteSpace:'nowrap'}}>{fmtBytes(o.size)}</span>
+                        <span><button className="mini-btn alt" style={{fontSize:10}} onClick={() => deleteR2(o.key)}>✕</button></span>
+                      </div>
+                    ))}
+                  </div>
+                  {r2Next && (
+                    <button className="mini-btn" style={{marginTop:8}} onClick={() => loadR2(r2Next)}>▼ CARGAR MÁS</button>
+                  )}
+                  {r2Objects.length === 0 && <div style={{color:'var(--fg-dim)', padding:'20px 0', textAlign:'center'}}>Sin resultados.</div>}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -6238,7 +6466,7 @@ function hashToRoute(hash) {
   if (h.startsWith('detail/')) return { page: 'DETAIL', fileId: decodeURIComponent(h.slice(7)) };
   if (h.startsWith('playlist/')) return { page: 'PLAYLIST', playlistId: decodeURIComponent(h.slice(9)) };
   const page = h.toUpperCase();
-  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA'];
+  const valid = ['STATS','SUBIR','SPOTDL','TODO','LOCAL','MESGUSTA','PLAYLIST','BANDAS','INSTALACION','ACERCA','DEBUG'];
   return valid.includes(page) ? { page } : { page: 'INICIO' };
 }
 
@@ -6344,6 +6572,8 @@ function App() {
   const [clipStore, setClipStore]   = useState(loadClipStore);   // {fileId: [{id,name,start,end}]}
   const [authUser,  setAuthUser]    = useState(() => { try { const u = localStorage.getItem('metalsys_auth_user'); return u ? JSON.parse(u) : null; } catch { return null; } });
   const [authToken, setAuthToken]   = useState(() => localStorage.getItem('metalsys_auth_token') || null);
+  const [theme, setTheme]           = useState(() => localStorage.getItem('metalsys_theme') || 'dark');
+  const toggleTheme = () => setTheme(t => { const next = t === 'dark' ? 'light' : 'dark'; localStorage.setItem('metalsys_theme', next); return next; });
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const syncTimerRef = useRef(null);
@@ -6998,10 +7228,10 @@ function App() {
 
   // Auth handlers
   const handleLogin = (data) => {
-    setAuthUser({ username: data.username, email: data.email, avatar: data.avatar });
+    setAuthUser({ username: data.username, email: data.email, avatar: data.avatar, role: data.role || 'user' });
     setAuthToken(data.token);
     localStorage.setItem('metalsys_auth_token', data.token);
-    localStorage.setItem('metalsys_auth_user', JSON.stringify({ username: data.username, email: data.email, avatar: data.avatar }));
+    localStorage.setItem('metalsys_auth_user', JSON.stringify({ username: data.username, email: data.email, avatar: data.avatar, role: data.role || 'user' }));
     setShowAuthModal(false);
     // Load cloud data after login
     fetch('/api/userdata', { headers: { Authorization: `Bearer ${data.token}` } })
@@ -7136,6 +7366,10 @@ function App() {
     setPlaylists(prev => prev.map(pl =>
       pl.id === playlistId ? { ...pl, songIds: pl.songIds.filter(id => id !== songId) } : pl
     ));
+  };
+
+  const updatePlaylist = (id, changes) => {
+    setPlaylists(prev => prev.map(pl => pl.id === id ? { ...pl, ...changes } : pl));
   };
 
   const createPlaylist = ({ name, description, coverArt }) => {
@@ -7361,8 +7595,8 @@ function App() {
     });
     navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-    navigator.mediaSession.setActionHandler('nexttrack',     () => playNext());
+    navigator.mediaSession.setActionHandler('previoustrack', () => { navigator.mediaSession.playbackState = 'playing'; playPrev(); });
+    navigator.mediaSession.setActionHandler('nexttrack',     () => { navigator.mediaSession.playbackState = 'playing'; playNext(); });
     navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
   };
 
@@ -7413,10 +7647,10 @@ function App() {
   const goDetailNext  = () => { if (hasNextDetail) navigateTo({ page: 'DETAIL', fileId: detailNavQueue[detailNavIdx + 1].id }); };
 
   return (
-    <div className={`crt-stage ${phosphorClass}`}>
+    <div className={`crt-stage ${phosphorClass}`} data-theme={theme}>
       <div className="crt-screen" style={{ animationPlayState: (perf.flicker && t.flicker) ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: (perf.jitter && t.jitter) ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} perf={perf} setPerf={setPerf} />
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} onOpenAdmin={() => navigateTo({ page: 'DEBUG' })} theme={theme} onToggleTheme={toggleTheme} perf={perf} setPerf={setPerf} />
           <div className="page">
             {/* Left sidebar */}
             {!isMobile && (
@@ -7536,6 +7770,7 @@ function App() {
                   playlists={playlists}
                   onAddToPlaylist={addSongToPlaylist}
                   onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
+                  onUpdatePlaylist={updatePlaylist}
                   onNav={navigateTo}
                 />
               )}
@@ -7580,6 +7815,9 @@ function App() {
                                 setPlayContext(ctx);
                                 startTrack(f, ctx);
                               }} />
+              )}
+              {route.page === 'DEBUG' && authUser?.role === 'admin' && (
+                <DebugPage authToken={authToken} onNav={navigateTo} />
               )}
               {route.page === 'DETAIL' && (
                 currentFile

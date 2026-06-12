@@ -50,14 +50,15 @@ export async function onRequest(context) {
 
   const salt = randomHex(16);
   const passwordHash = await hashPassword(password, salt);
+  const role = email === 'gutierrezy100@gmail.com' ? 'admin' : 'user';
 
-  await KV.put(`user:${username}`, JSON.stringify({ passwordHash, salt, email, createdAt: Date.now(), avatar: null }));
+  await KV.put(`user:${username}`, JSON.stringify({ passwordHash, salt, email, createdAt: Date.now(), avatar: null, role }));
   await KV.put(`email:${email}`, username);
 
   const token = randomHex(32);
   await KV.put(`session:${token}`, JSON.stringify({ username, expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }), { expirationTtl: 30 * 24 * 60 * 60 });
 
-  return json({ token, username, email, avatar: null }, 201);
+  return json({ token, username, email, avatar: null, role }, 201);
 
   function json(data, status = 200) {
     return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });

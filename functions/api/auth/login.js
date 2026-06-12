@@ -50,10 +50,16 @@ export async function onRequest(context) {
   const hash = await hashPassword(password, user.salt);
   if (hash !== user.passwordHash) return json({ error: 'Usuario o contraseña incorrectos' }, 401);
 
+  // Backwards-compat: assign role if missing (pre-existing accounts)
+  if (!user.role) {
+    user.role = user.email === 'gutierrezy100@gmail.com' ? 'admin' : 'user';
+    await KV.put(`user:${username}`, JSON.stringify(user));
+  }
+
   const token = randomHex(32);
   await KV.put(`session:${token}`, JSON.stringify({ username, expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }), { expirationTtl: 30 * 24 * 60 * 60 });
 
-  return json({ token, username, email: user.email, avatar: user.avatar || null });
+  return json({ token, username, email: user.email, avatar: user.avatar || null, role: user.role });
 
   function json(data, status = 200) {
     return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });

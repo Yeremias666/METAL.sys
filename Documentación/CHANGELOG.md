@@ -5,6 +5,36 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-06-12 — Múltiples mejoras: smart play, fixes UI, editor playlists/artista, fmtBytes, roles admin, README
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`, `functions/api/auth/register.js`, `functions/api/auth/login.js`, `functions/api/auth/profile.js`  
+**Archivos creados:** `functions/api/admin/users.js`, `functions/api/admin/r2.js`
+
+### Cambios
+
+- **Smart play toggle:** `smartPlayArtist` / `smartPlayAlbum` — pausa si ya está sonando el mismo contexto.
+- **Fix `setSelAlbums is not defined`** en `openAlbum` de `CategoryPage`.
+- **Barra nav móvil:** botones con `flex: 0 0 auto`, `min-width: calc(24vw - 3px)`, 4 por fila natural.
+- **TrackList móvil:** fuentes más pequeñas, duración centrada en columna propia.
+- **Dropdown menú:** `line-height: 1` para alineación correcta de items.
+- **Botón play en cards móvil:** siempre visible (`opacity: 1`), color blanco.
+- **Media session flicker:** `playbackState = 'playing'` antes de `playNext`/`playPrev`.
+- **PlaysCounter:** eliminado "X ESCUCHAS EN TOTAL", siempre muestra tiempo escuchado.
+- **Editor de playlists:** botón ✎ EDITAR en `PlaylistDetailPage` con modal (nombre, portada, descripción).
+- **Editor de artista — picker de portada:** sección en el modal de editar artista que muestra las portadas de los álbumes del artista para seleccionar como imagen.
+- **fmtBytes:** cambiado a base 1000 (SI/decimal, compatible con Cloudflare R2).
+- **Cursor personalizado:** añadidas clases `lib-name`, `lib-song-row`, `lib-album-row` al selector global.
+- **Sistema de roles admin/user:**
+  - `register.js`: guarda `role` ("admin" si email=gutierrezy100@gmail.com, "user" si no).
+  - `login.js`: devuelve `role`; asigna rol en cuentas existentes sin role (backwards-compat).
+  - `profile.js` GET: devuelve `role`.
+  - `functions/api/admin/users.js`: GET lista usuarios, PUT cambia rol, DELETE elimina usuario. Verifica `role === 'admin'` desde KV.
+  - `functions/api/admin/r2.js`: GET lista objetos R2, DELETE elimina objeto. Verifica `role === 'admin'` desde KV.
+  - `app.jsx`: `authUser` persiste `role`; botón "⚑ MODO ADMIN" en dropdown de usuario (solo admins); página `DebugPage` con tabs Usuarios y Archivos R2.
+
+---
+
 ## 2026-06-11 — Fix reproducción R2: proxy streaming en lugar de URL presignada
 
 **Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
