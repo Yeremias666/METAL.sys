@@ -27,6 +27,9 @@
   --mono: 'VT323', 'Share Tech Mono', monospace;
   --pixel: 'Press Start 2P', 'VT323', monospace;
   --display: 'Major Mono Display', 'VT323', monospace;
+
+  /* Custom hand cursor (\m/) — used everywhere cursor:pointer appears */
+  --hand: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='28' viewBox='0 0 24 28' shape-rendering='crispEdges'><g fill='black'><rect x='4' y='0' width='1' height='1'/><rect x='8' y='0' width='1' height='1'/><rect x='14' y='0' width='1' height='1'/><rect x='18' y='0' width='1' height='1'/><rect x='4' y='1' width='1' height='1'/><rect x='6' y='1' width='1' height='1'/><rect x='8' y='1' width='1' height='1'/><rect x='14' y='1' width='1' height='1'/><rect x='16' y='1' width='1' height='1'/><rect x='18' y='1' width='1' height='1'/><rect x='4' y='2' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='14' y='2' width='1' height='1'/><rect x='16' y='2' width='1' height='1'/><rect x='18' y='2' width='1' height='1'/><rect x='4' y='3' width='1' height='1'/><rect x='6' y='3' width='1' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='14' y='3' width='1' height='1'/><rect x='16' y='3' width='1' height='1'/><rect x='18' y='3' width='1' height='1'/><rect x='4' y='4' width='1' height='1'/><rect x='6' y='4' width='1' height='1'/><rect x='8' y='4' width='1' height='1'/><rect x='14' y='4' width='1' height='1'/><rect x='16' y='4' width='1' height='1'/><rect x='18' y='4' width='1' height='1'/><rect x='4' y='5' width='1' height='1'/><rect x='6' y='5' width='1' height='1'/><rect x='8' y='5' width='1' height='1'/><rect x='14' y='5' width='1' height='1'/><rect x='16' y='5' width='1' height='1'/><rect x='18' y='5' width='1' height='1'/><rect x='4' y='6' width='1' height='1'/><rect x='6' y='6' width='1' height='1'/><rect x='8' y='6' width='1' height='1'/><rect x='14' y='6' width='1' height='1'/><rect x='16' y='6' width='1' height='1'/><rect x='18' y='6' width='1' height='1'/><rect x='4' y='7' width='1' height='1'/><rect x='6' y='7' width='1' height='1'/><rect x='8' y='7' width='7' height='1'/><rect x='16' y='7' width='1' height='1'/><rect x='18' y='7' width='1' height='1'/><rect x='4' y='8' width='1' height='1'/><rect x='6' y='8' width='1' height='1'/><rect x='8' y='8' width='1' height='1'/><rect x='11' y='8' width='1' height='1'/><rect x='14' y='8' width='1' height='1'/><rect x='16' y='8' width='1' height='1'/><rect x='18' y='8' width='1' height='1'/><rect x='4' y='9' width='1' height='1'/><rect x='6' y='9' width='2' height='1'/><rect x='9' y='9' width='2' height='1'/><rect x='12' y='9' width='2' height='1'/><rect x='15' y='9' width='2' height='1'/><rect x='18' y='9' width='1' height='1'/><rect x='3' y='10' width='2' height='1'/><rect x='6' y='10' width='11' height='1'/><rect x='18' y='10' width='2' height='1'/><rect x='3' y='11' width='1' height='1'/><rect x='5' y='11' width='2' height='1'/><rect x='16' y='11' width='2' height='1'/><rect x='19' y='11' width='1' height='1'/><rect x='3' y='12' width='1' height='1'/><rect x='5' y='12' width='1' height='1'/><rect x='17' y='12' width='1' height='1'/><rect x='19' y='12' width='1' height='1'/><rect x='3' y='13' width='1' height='1'/><rect x='5' y='13' width='1' height='1'/><rect x='17' y='13' width='1' height='1'/><rect x='19' y='13' width='1' height='1'/><rect x='3' y='14' width='1' height='1'/><rect x='5' y='14' width='1' height='1'/><rect x='17' y='14' width='1' height='1'/><rect x='19' y='14' width='1' height='1'/><rect x='3' y='15' width='1' height='1'/><rect x='5' y='15' width='2' height='1'/><rect x='16' y='15' width='2' height='1'/><rect x='19' y='15' width='1' height='1'/><rect x='3' y='16' width='2' height='1'/><rect x='6' y='16' width='1' height='1'/><rect x='16' y='16' width='1' height='1'/><rect x='18' y='16' width='2' height='1'/><rect x='4' y='17' width='1' height='1'/><rect x='6' y='17' width='1' height='1'/><rect x='16' y='17' width='1' height='1'/><rect x='18' y='17' width='1' height='1'/><rect x='4' y='18' width='1' height='1'/><rect x='6' y='18' width='2' height='1'/><rect x='15' y='18' width='2' height='1'/><rect x='18' y='18' width='1' height='1'/><rect x='4' y='19' width='2' height='1'/><rect x='7' y='19' width='1' height='1'/><rect x='15' y='19' width='1' height='1'/><rect x='17' y='19' width='2' height='1'/><rect x='5' y='20' width='1' height='1'/><rect x='7' y='20' width='2' height='1'/><rect x='14' y='20' width='2' height='1'/><rect x='17' y='20' width='1' height='1'/><rect x='5' y='21' width='2' height='1'/><rect x='8' y='21' width='7' height='1'/><rect x='16' y='21' width='2' height='1'/><rect x='6' y='22' width='1' height='1'/><rect x='16' y='22' width='1' height='1'/><rect x='6' y='23' width='11' height='1'/></g><g fill='%23d61f1f'><rect x='5' y='0' width='3' height='1'/><rect x='15' y='0' width='3' height='1'/><rect x='5' y='1' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='15' y='1' width='1' height='1'/><rect x='17' y='1' width='1' height='1'/><rect x='5' y='2' width='1' height='1'/><rect x='7' y='2' width='1' height='1'/><rect x='15' y='2' width='1' height='1'/><rect x='17' y='2' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='15' y='3' width='1' height='1'/><rect x='17' y='3' width='1' height='1'/><rect x='5' y='4' width='1' height='1'/><rect x='7' y='4' width='1' height='1'/><rect x='15' y='4' width='1' height='1'/><rect x='17' y='4' width='1' height='1'/><rect x='5' y='5' width='1' height='1'/><rect x='7' y='5' width='1' height='1'/><rect x='15' y='5' width='1' height='1'/><rect x='17' y='5' width='1' height='1'/><rect x='5' y='6' width='1' height='1'/><rect x='7' y='6' width='1' height='1'/><rect x='15' y='6' width='1' height='1'/><rect x='17' y='6' width='1' height='1'/><rect x='5' y='7' width='1' height='1'/><rect x='7' y='7' width='1' height='1'/><rect x='15' y='7' width='1' height='1'/><rect x='17' y='7' width='1' height='1'/><rect x='5' y='8' width='1' height='1'/><rect x='7' y='8' width='1' height='1'/><rect x='9' y='8' width='2' height='1'/><rect x='12' y='8' width='2' height='1'/><rect x='15' y='8' width='1' height='1'/><rect x='17' y='8' width='1' height='1'/><rect x='5' y='9' width='1' height='1'/><rect x='8' y='9' width='1' height='1'/><rect x='11' y='9' width='1' height='1'/><rect x='14' y='9' width='1' height='1'/><rect x='17' y='9' width='1' height='1'/><rect x='5' y='10' width='1' height='1'/><rect x='17' y='10' width='1' height='1'/><rect x='4' y='11' width='1' height='1'/><rect x='18' y='11' width='1' height='1'/><rect x='4' y='12' width='1' height='1'/><rect x='18' y='12' width='1' height='1'/><rect x='4' y='13' width='1' height='1'/><rect x='18' y='13' width='1' height='1'/><rect x='4' y='14' width='1' height='1'/><rect x='18' y='14' width='1' height='1'/><rect x='4' y='15' width='1' height='1'/><rect x='18' y='15' width='1' height='1'/><rect x='5' y='16' width='1' height='1'/><rect x='17' y='16' width='1' height='1'/><rect x='5' y='17' width='1' height='1'/><rect x='17' y='17' width='1' height='1'/><rect x='5' y='18' width='1' height='1'/><rect x='17' y='18' width='1' height='1'/><rect x='6' y='19' width='1' height='1'/><rect x='16' y='19' width='1' height='1'/><rect x='6' y='20' width='1' height='1'/><rect x='16' y='20' width='1' height='1'/><rect x='7' y='21' width='1' height='1'/><rect x='15' y='21' width='1' height='1'/><rect x='7' y='22' width='9' height='1'/></g></svg>") 6 0, pointer;
 }
 
 /* Phosphor presets */
@@ -102,7 +105,7 @@ button, a, select, label, summary,
 .like-btn, .playlist-btn, .ac-play-btn, .cat-card-play,
 .search-suggestion, .sort-btn, .tab-btn, .tabs button,
 [style*="cursor: pointer"], [style*="cursor:pointer"] {
-  cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='28' viewBox='0 0 24 28' shape-rendering='crispEdges'><g fill='black'><rect x='4' y='0' width='1' height='1'/><rect x='8' y='0' width='1' height='1'/><rect x='14' y='0' width='1' height='1'/><rect x='18' y='0' width='1' height='1'/><rect x='4' y='1' width='1' height='1'/><rect x='6' y='1' width='1' height='1'/><rect x='8' y='1' width='1' height='1'/><rect x='14' y='1' width='1' height='1'/><rect x='16' y='1' width='1' height='1'/><rect x='18' y='1' width='1' height='1'/><rect x='4' y='2' width='1' height='1'/><rect x='6' y='2' width='1' height='1'/><rect x='8' y='2' width='1' height='1'/><rect x='14' y='2' width='1' height='1'/><rect x='16' y='2' width='1' height='1'/><rect x='18' y='2' width='1' height='1'/><rect x='4' y='3' width='1' height='1'/><rect x='6' y='3' width='1' height='1'/><rect x='8' y='3' width='1' height='1'/><rect x='14' y='3' width='1' height='1'/><rect x='16' y='3' width='1' height='1'/><rect x='18' y='3' width='1' height='1'/><rect x='4' y='4' width='1' height='1'/><rect x='6' y='4' width='1' height='1'/><rect x='8' y='4' width='1' height='1'/><rect x='14' y='4' width='1' height='1'/><rect x='16' y='4' width='1' height='1'/><rect x='18' y='4' width='1' height='1'/><rect x='4' y='5' width='1' height='1'/><rect x='6' y='5' width='1' height='1'/><rect x='8' y='5' width='1' height='1'/><rect x='14' y='5' width='1' height='1'/><rect x='16' y='5' width='1' height='1'/><rect x='18' y='5' width='1' height='1'/><rect x='4' y='6' width='1' height='1'/><rect x='6' y='6' width='1' height='1'/><rect x='8' y='6' width='1' height='1'/><rect x='14' y='6' width='1' height='1'/><rect x='16' y='6' width='1' height='1'/><rect x='18' y='6' width='1' height='1'/><rect x='4' y='7' width='1' height='1'/><rect x='6' y='7' width='1' height='1'/><rect x='8' y='7' width='7' height='1'/><rect x='16' y='7' width='1' height='1'/><rect x='18' y='7' width='1' height='1'/><rect x='4' y='8' width='1' height='1'/><rect x='6' y='8' width='1' height='1'/><rect x='8' y='8' width='1' height='1'/><rect x='11' y='8' width='1' height='1'/><rect x='14' y='8' width='1' height='1'/><rect x='16' y='8' width='1' height='1'/><rect x='18' y='8' width='1' height='1'/><rect x='4' y='9' width='1' height='1'/><rect x='6' y='9' width='2' height='1'/><rect x='9' y='9' width='2' height='1'/><rect x='12' y='9' width='2' height='1'/><rect x='15' y='9' width='2' height='1'/><rect x='18' y='9' width='1' height='1'/><rect x='3' y='10' width='2' height='1'/><rect x='6' y='10' width='11' height='1'/><rect x='18' y='10' width='2' height='1'/><rect x='3' y='11' width='1' height='1'/><rect x='5' y='11' width='2' height='1'/><rect x='16' y='11' width='2' height='1'/><rect x='19' y='11' width='1' height='1'/><rect x='3' y='12' width='1' height='1'/><rect x='5' y='12' width='1' height='1'/><rect x='17' y='12' width='1' height='1'/><rect x='19' y='12' width='1' height='1'/><rect x='3' y='13' width='1' height='1'/><rect x='5' y='13' width='1' height='1'/><rect x='17' y='13' width='1' height='1'/><rect x='19' y='13' width='1' height='1'/><rect x='3' y='14' width='1' height='1'/><rect x='5' y='14' width='1' height='1'/><rect x='17' y='14' width='1' height='1'/><rect x='19' y='14' width='1' height='1'/><rect x='3' y='15' width='1' height='1'/><rect x='5' y='15' width='2' height='1'/><rect x='16' y='15' width='2' height='1'/><rect x='19' y='15' width='1' height='1'/><rect x='3' y='16' width='2' height='1'/><rect x='6' y='16' width='1' height='1'/><rect x='16' y='16' width='1' height='1'/><rect x='18' y='16' width='2' height='1'/><rect x='4' y='17' width='1' height='1'/><rect x='6' y='17' width='1' height='1'/><rect x='16' y='17' width='1' height='1'/><rect x='18' y='17' width='1' height='1'/><rect x='4' y='18' width='1' height='1'/><rect x='6' y='18' width='2' height='1'/><rect x='15' y='18' width='2' height='1'/><rect x='18' y='18' width='1' height='1'/><rect x='4' y='19' width='2' height='1'/><rect x='7' y='19' width='1' height='1'/><rect x='15' y='19' width='1' height='1'/><rect x='17' y='19' width='2' height='1'/><rect x='5' y='20' width='1' height='1'/><rect x='7' y='20' width='2' height='1'/><rect x='14' y='20' width='2' height='1'/><rect x='17' y='20' width='1' height='1'/><rect x='5' y='21' width='2' height='1'/><rect x='8' y='21' width='7' height='1'/><rect x='16' y='21' width='2' height='1'/><rect x='6' y='22' width='1' height='1'/><rect x='16' y='22' width='1' height='1'/><rect x='6' y='23' width='11' height='1'/></g><g fill='%23d61f1f'><rect x='5' y='0' width='3' height='1'/><rect x='15' y='0' width='3' height='1'/><rect x='5' y='1' width='1' height='1'/><rect x='7' y='1' width='1' height='1'/><rect x='15' y='1' width='1' height='1'/><rect x='17' y='1' width='1' height='1'/><rect x='5' y='2' width='1' height='1'/><rect x='7' y='2' width='1' height='1'/><rect x='15' y='2' width='1' height='1'/><rect x='17' y='2' width='1' height='1'/><rect x='5' y='3' width='1' height='1'/><rect x='7' y='3' width='1' height='1'/><rect x='15' y='3' width='1' height='1'/><rect x='17' y='3' width='1' height='1'/><rect x='5' y='4' width='1' height='1'/><rect x='7' y='4' width='1' height='1'/><rect x='15' y='4' width='1' height='1'/><rect x='17' y='4' width='1' height='1'/><rect x='5' y='5' width='1' height='1'/><rect x='7' y='5' width='1' height='1'/><rect x='15' y='5' width='1' height='1'/><rect x='17' y='5' width='1' height='1'/><rect x='5' y='6' width='1' height='1'/><rect x='7' y='6' width='1' height='1'/><rect x='15' y='6' width='1' height='1'/><rect x='17' y='6' width='1' height='1'/><rect x='5' y='7' width='1' height='1'/><rect x='7' y='7' width='1' height='1'/><rect x='15' y='7' width='1' height='1'/><rect x='17' y='7' width='1' height='1'/><rect x='5' y='8' width='1' height='1'/><rect x='7' y='8' width='1' height='1'/><rect x='9' y='8' width='2' height='1'/><rect x='12' y='8' width='2' height='1'/><rect x='15' y='8' width='1' height='1'/><rect x='17' y='8' width='1' height='1'/><rect x='5' y='9' width='1' height='1'/><rect x='8' y='9' width='1' height='1'/><rect x='11' y='9' width='1' height='1'/><rect x='14' y='9' width='1' height='1'/><rect x='17' y='9' width='1' height='1'/><rect x='5' y='10' width='1' height='1'/><rect x='17' y='10' width='1' height='1'/><rect x='4' y='11' width='1' height='1'/><rect x='18' y='11' width='1' height='1'/><rect x='4' y='12' width='1' height='1'/><rect x='18' y='12' width='1' height='1'/><rect x='4' y='13' width='1' height='1'/><rect x='18' y='13' width='1' height='1'/><rect x='4' y='14' width='1' height='1'/><rect x='18' y='14' width='1' height='1'/><rect x='4' y='15' width='1' height='1'/><rect x='18' y='15' width='1' height='1'/><rect x='5' y='16' width='1' height='1'/><rect x='17' y='16' width='1' height='1'/><rect x='5' y='17' width='1' height='1'/><rect x='17' y='17' width='1' height='1'/><rect x='5' y='18' width='1' height='1'/><rect x='17' y='18' width='1' height='1'/><rect x='6' y='19' width='1' height='1'/><rect x='16' y='19' width='1' height='1'/><rect x='6' y='20' width='1' height='1'/><rect x='16' y='20' width='1' height='1'/><rect x='7' y='21' width='1' height='1'/><rect x='15' y='21' width='1' height='1'/><rect x='7' y='22' width='9' height='1'/></g></svg>") 6 0, pointer !important;
+  cursor: var(--hand) !important;
 }
 
 /* Inputs keep the text I-beam — restore it after the !important above */
@@ -295,7 +298,7 @@ input:not([type=range]), textarea {
   background: none;
   border: 2px solid var(--fg-primary);
   color: var(--fg-primary);
-  cursor: pointer;
+  cursor: var(--hand);
   border-radius: 0;
   width: 34px;
   height: 34px;
@@ -333,7 +336,7 @@ input:not([type=range]), textarea {
   font-size: 13px;
   text-align: left;
   padding: 7px 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   letter-spacing: 0.04em;
 }
 .user-menu button:hover { background: var(--fg-primary); color: var(--bg-deep); }
@@ -353,7 +356,7 @@ input:not([type=range]), textarea {
   align-items: center;
   justify-content: space-between;
   padding: 7px 6px;
-  cursor: pointer;
+  cursor: var(--hand);
   border-radius: 2px;
   gap: 16px;
 }
@@ -401,7 +404,7 @@ input:not([type=range]), textarea {
   width: 80px; height: 80px;
   border: 2px solid var(--fg-primary);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
+  cursor: var(--hand);
   position: relative;
   overflow: hidden;
   flex-shrink: 0;
@@ -455,7 +458,7 @@ input:not([type=range]), textarea {
   font-size: 13px;
   letter-spacing: 0.08em;
   padding: 6px 18px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .auth-tab--active { color: var(--fg-primary); border-bottom: 2px solid var(--fg-primary); margin-bottom: -2px; }
 .auth-field { margin-bottom: 14px; }
@@ -481,7 +484,7 @@ input:not([type=range]), textarea {
   font-size: 13px;
   letter-spacing: 0.1em;
   padding: 9px 0;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .auth-submit:hover { opacity: 0.85; }
 .auth-close {
@@ -584,7 +587,7 @@ input:not([type=range]), textarea {
   background: none;
   border: none;
   border-bottom: 1px solid rgba(214,31,31,0.15);
-  cursor: pointer;
+  cursor: var(--hand);
   text-align: left;
 }
 .nav-search-item:hover { background: rgba(214,31,31,0.12); }
@@ -598,7 +601,7 @@ input:not([type=range]), textarea {
   color: var(--fg-text);
   border: 1px solid var(--fg-dim);
   padding: 0.2em 0.6em;
-  cursor: pointer;
+  cursor: var(--hand);
   letter-spacing: 0.06em;
   transition: all 0.08s;
   text-transform: uppercase;
@@ -730,7 +733,7 @@ input:not([type=range]), textarea {
   font-family: var(--pixel);
   font-size: 11px;
   letter-spacing: 0.08em;
-  cursor: pointer;
+  cursor: var(--hand);
   flex-shrink: 0;
   transition: background 0.12s, box-shadow 0.12s;
 }
@@ -833,7 +836,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-secondary);
   color: var(--fg-secondary);
   width: 36px; height: 28px;
-  cursor: pointer;
+  cursor: var(--hand);
   padding: 0;
 }
 .cassette .controls button:hover { background: var(--fg-secondary); color: var(--bg-deep); }
@@ -845,7 +848,7 @@ input:not([type=range]), textarea {
   gap: 4px;
   padding: 12px 8px;
   background: #000;
-  border: 1px inset #444;
+  border: none;
 }
 .counter .digit {
   font-family: var(--pixel);
@@ -1052,7 +1055,7 @@ input:not([type=range]), textarea {
   font-family: var(--pixel); font-size: 11px;
   background: var(--fg-primary); color: #fff;
   border: none; padding: 8px 14px; margin-top: 10px;
-  cursor: pointer; letter-spacing: 0.1em;
+  cursor: var(--hand); letter-spacing: 0.1em;
 }
 
 /* Shows */
@@ -1090,7 +1093,7 @@ input:not([type=range]), textarea {
   border-radius: 3px;
   padding: 28px 20px;
   text-align: center;
-  cursor: pointer;
+  cursor: var(--hand);
   background:
     repeating-linear-gradient(45deg, rgba(214,31,31,0.06) 0 8px, transparent 8px 16px),
     rgba(0,0,0,0.25);
@@ -1145,7 +1148,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-success);
   color: var(--fg-success);
   padding: 4px 7px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-transform: uppercase;
 }
 .mini-btn:hover { background: var(--fg-success); color: #000; }
@@ -1165,7 +1168,7 @@ input:not([type=range]), textarea {
   color: #fff;
   border: 2px solid var(--fg-primary);
   padding: 14px 22px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-transform: uppercase;
   box-shadow: 0 0 14px rgba(214,31,31,0.5), inset 0 0 8px rgba(255,255,255,0.1);
   text-shadow: 0 0 6px rgba(255,255,255,0.4);
@@ -1202,7 +1205,7 @@ input:not([type=range]), textarea {
 }
 .cat-card {
   border: 2px solid var(--fg-primary);
-  cursor: pointer;
+  cursor: var(--hand);
   background: rgba(0,0,0,0.45);
   transition: transform 0.12s, box-shadow 0.15s;
   color: var(--fg-text);
@@ -1251,7 +1254,7 @@ input:not([type=range]), textarea {
   border: 2px solid var(--fg-primary);
   color: #fff;
   font-size: 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1303,7 +1306,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-dim);
   color: var(--fg-secondary);
   padding: 6px 12px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: all 0.1s;
   text-transform: uppercase;
 }
@@ -1329,7 +1332,7 @@ input:not([type=range]), textarea {
   border: 2px solid var(--fg-primary);
   background: rgba(0,0,0,0.35);
   color: var(--fg-text);
-  cursor: pointer;
+  cursor: var(--hand);
   overflow: visible;
   transition: transform 0.42s cubic-bezier(0.23,1,0.32,1), box-shadow 0.42s;
   text-align: left;
@@ -1624,7 +1627,7 @@ input:not([type=range]), textarea {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  cursor: pointer;
+  cursor: var(--hand);
   color: var(--fg-text);
   transition: background 0.12s, border-color 0.12s;
 }
@@ -1683,7 +1686,7 @@ input:not([type=range]), textarea {
 .file-card {
   border: 2px solid var(--fg-primary);
   background: rgba(0,0,0,0.4);
-  cursor: pointer;
+  cursor: var(--hand);
   display: flex;
   flex-direction: column;
   transition: transform 0.1s, box-shadow 0.15s;
@@ -1814,7 +1817,7 @@ input:not([type=range]), textarea {
   border: 2px solid var(--fg-dim);
   color: var(--fg-text);
   padding: 7px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: all 0.1s;
 }
 .cat-pill:hover { border-color: var(--fg-secondary); color: var(--fg-secondary); }
@@ -1845,7 +1848,7 @@ input:not([type=range]), textarea {
     repeating-linear-gradient(45deg, rgba(214,31,31,0.10) 0 6px, transparent 6px 12px),
     #08070a;
   aspect-ratio: 1 / 1;
-  cursor: pointer;
+  cursor: var(--hand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2153,7 +2156,7 @@ input:not([type=range]), textarea {
   border: 2px solid var(--fg-dim);
   border-bottom: none;
   padding: 9px 16px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-transform: uppercase;
   margin-bottom: -2px;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
@@ -2295,7 +2298,7 @@ input:not([type=range]), textarea {
   color: var(--fg-text);
   border: 1px solid var(--fg-dim);
   padding: 5px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   appearance: none;
   -webkit-appearance: none;
   min-width: 140px;
@@ -2308,7 +2311,7 @@ input:not([type=range]), textarea {
   color: var(--fg-secondary);
   border: 1px solid var(--fg-dim);
   padding: 4px 12px;
-  cursor: pointer;
+  cursor: var(--hand);
   flex-shrink: 0;
   transition: all 0.08s;
   line-height: 1;
@@ -2329,7 +2332,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-dim);
   color: var(--fg-text);
   padding: 7px 8px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .view-toggle button.on {
   background: var(--fg-primary);
@@ -2353,7 +2356,7 @@ input:not([type=range]), textarea {
   width: 32px; height: 32px;
   border-radius: 50%;
   font-size: 18px;
-  cursor: pointer;
+  cursor: var(--hand);
   padding: 0;
   text-shadow: 0 0 6px currentColor;
 }
@@ -2387,7 +2390,7 @@ input:not([type=range]), textarea {
   padding: 10px 8px;
   text-align: left;
   border-bottom: 2px solid var(--fg-primary);
-  cursor: pointer;
+  cursor: var(--hand);
   user-select: none;
   white-space: nowrap;
 }
@@ -2396,7 +2399,7 @@ input:not([type=range]), textarea {
 .file-list .sort-dir { color: var(--fg-primary); }
 .file-list tbody tr {
   border-bottom: 1px dotted var(--fg-dim);
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.08s;
 }
 .file-list tbody tr:hover { background: rgba(214,31,31,0.08); }
@@ -2773,7 +2776,7 @@ input:not([type=range]), textarea {
   border: 3px solid var(--fg-primary);
   color: var(--fg-accent);
   font-size: 18px;
-  cursor: pointer;
+  cursor: var(--hand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2796,7 +2799,7 @@ input:not([type=range]), textarea {
   border: 2px solid var(--fg-primary);
   color: var(--fg-primary);
   font-size: 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2978,7 +2981,7 @@ input:not([type=range]), textarea {
   height: 8px;
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--fg-dim);
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .mp-bar-fill {
   height: 100%;
@@ -3002,7 +3005,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
   width: 38px; height: 38px;
-  cursor: pointer;
+  cursor: var(--hand);
   padding: 0;
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
@@ -3039,7 +3042,7 @@ input:not([type=range]), textarea {
   background: rgba(0,0,0,0.6);
   border: 1px solid var(--fg-dim);
   outline: none;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .mp-volume input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -3065,7 +3068,7 @@ input:not([type=range]), textarea {
   border: 1px solid var(--fg-primary);
   color: var(--fg-primary);
   width: 38px; height: 38px;
-  cursor: pointer;
+  cursor: var(--hand);
   padding: 0;
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
@@ -3403,7 +3406,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: #000;
   border: none;
   padding: 4px 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   letter-spacing: 0.05em;
 }
 
@@ -3601,7 +3604,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   align-items: center;
   gap: 4px;
   padding: 5px 8px 5px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.1s;
 }
 .lib-artist-row:hover { background: rgba(214,31,31,0.1); }
@@ -3619,7 +3622,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .lib-name:hover { color: var(--fg-accent); text-decoration: underline; }
 .lib-album-name { color: var(--fg-secondary); font-weight: normal; font-size: 16px; }
@@ -3629,7 +3632,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: var(--fg-primary);
   font-size: 11px;
   padding: 1px 5px;
-  cursor: pointer;
+  cursor: var(--hand);
   flex-shrink: 0;
   opacity: 0;
   transition: opacity 0.15s;
@@ -3643,7 +3646,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   gap: 4px;
   justify-content: space-between;
   padding: 4px 8px 4px 22px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .lib-album-row:hover { background: rgba(184,182,173,0.07); }
 .lib-songs { padding-left: 10px; }
@@ -3653,7 +3656,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   gap: 6px;
   justify-content: space-between;
   padding: 3px 8px 3px 34px;
-  cursor: pointer;
+  cursor: var(--hand);
   font-size: 16px;
 }
 .lib-song-row:hover { background: rgba(214,31,31,0.08); color: var(--fg-text); }
@@ -3694,7 +3697,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   border-bottom: 1px dotted rgba(214,31,31,0.15);
   transition: background 0.1s;
   user-select: none;
@@ -3721,7 +3724,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   border-bottom: 1px dotted rgba(214,31,31,0.15);
   transition: background 0.1s;
 }
@@ -3747,7 +3750,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 22px;
   line-height: 1;
   padding: 2px 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: color 0.15s, border-color 0.15s, text-shadow 0.15s;
   align-self: stretch;
   display: flex;
@@ -3868,7 +3871,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 14px;
   width: 38px; height: 38px;
   padding: 0;
-  cursor: pointer;
+  cursor: var(--hand);
   letter-spacing: 0;
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
@@ -3902,7 +3905,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 20px;
   line-height: 1;
   padding: 9px 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.1s;
   white-space: nowrap;
 }
@@ -3943,7 +3946,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-size: 20px;
   line-height: 1;
   padding: 9px 14px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.1s;
   white-space: nowrap;
 }
@@ -3996,7 +3999,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-family: var(--mono);
   font-size: 16px;
   padding: 2px 8px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .bm-item button:hover, .clip-item button:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
 .clip-item.active-clip { border-color: var(--fg-primary); background: rgba(214,31,31,0.10); }
@@ -4039,7 +4042,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   gap: 10px;
   padding: 7px 14px;
   border-bottom: 1px dotted rgba(214,31,31,0.15);
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.1s;
   font-size: 19px;
 }
@@ -4176,7 +4179,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   z-index: 6;
   padding: 0;
   padding-left: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .album-card:hover .ac-play-btn {
   opacity: 1;
@@ -4266,7 +4269,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 
 /* ─── Cursor pointer en barra de progreso del player ───────────── */
 .mp-bar {
-  cursor: pointer;
+  cursor: var(--hand);
   user-select: none;
 }
 .mp-bar-knob {
@@ -4290,7 +4293,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   display: flex; align-items: center; gap: 10px;
   padding: 8px 14px;
   border-bottom: 1px dotted rgba(214,31,31,0.15);
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .track-list-row:nth-child(even) { background: rgba(214,31,31,0.03); }
 .track-list-row:hover { background: rgba(214,31,31,0.07); }
@@ -4302,7 +4305,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: var(--fg-primary);
   font-size: 18px;
   line-height: 1;
-  cursor: pointer;
+  cursor: var(--hand);
   border-radius: 2px;
   opacity: 0;
   transition: opacity 0.15s;
@@ -4424,7 +4427,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   color: var(--fg-primary);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .track-list-row .like-btn:hover {
   background: var(--fg-primary);
@@ -4440,7 +4443,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   color: var(--fg-primary);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
   width: 28px;
   height: 28px;
   font-size: 18px;
@@ -4467,7 +4470,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   color: var(--fg-primary);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
 }
 .playlist-btn:hover {
   background: var(--fg-primary);
@@ -4489,7 +4492,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   color: var(--fg-primary);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-shadow: 0 0 6px var(--fg-primary);
 }
 .player-actions .playlist-btn:hover {
@@ -4510,7 +4513,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   background: transparent;
   color: var(--fg-primary);
   border-radius: 2px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-shadow: 0 0 6px var(--fg-primary);
 }
 .player-actions .like-btn:hover,
@@ -4541,7 +4544,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   font-family: var(--mono);
   font-size: 16px;
   padding: 12px 16px;
-  cursor: pointer;
+  cursor: var(--hand);
   transition: background 0.1s;
   white-space: nowrap;
 }
@@ -4575,7 +4578,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   color: var(--fg-dim);
   border: 1px solid rgba(214,31,31,0.3);
   padding: 4px 10px;
-  cursor: pointer;
+  cursor: var(--hand);
   text-transform: uppercase;
   transition: all 0.08s;
 }
@@ -4592,7 +4595,7 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   flex-direction: column;
   background: rgba(214,31,31,0.04);
   border: 1px solid rgba(214,31,31,0.2);
-  cursor: pointer;
+  cursor: var(--hand);
   transition: border-color 0.1s, background 0.1s;
   overflow: hidden;
 }

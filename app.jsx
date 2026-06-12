@@ -6798,7 +6798,7 @@ function App() {
       }
       playNext(repeatMode === 'all', { autoAdvance: true });
     };
-    const onPlay = () => setIsPlaying(true);
+    const onPlay = () => { msTransitionRef.current = false; setIsPlaying(true); };
     const onPause = () => { if (!msTransitionRef.current) setIsPlaying(false); };
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('durationchange', onDur);
