@@ -8,12 +8,12 @@
         "source": "com.yeremias.metalsys.app-main-26:/mipmap-xhdpi/ic_launcher.png"
     },
     {
-        "merged": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-release-25:\\mipmap-xxhdpi_ic_maskable.png.flat",
-        "source": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-main-26:\\mipmap-xxhdpi\\ic_maskable.png"
-    },
-    {
         "merged": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-release-25:\\mipmap-xhdpi_ic_maskable.png.flat",
         "source": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-main-26:\\mipmap-xhdpi\\ic_maskable.png"
+    },
+    {
+        "merged": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-release-25:\\mipmap-xxhdpi_ic_maskable.png.flat",
+        "source": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-main-26:\\mipmap-xxhdpi\\ic_maskable.png"
     },
     {
         "merged": "C:\\Users\\Usuario\\.gradle\\daemon\\8.11.1\\com.yeremias.metalsys.app-release-25:\\mipmap-anydpi-v26_ic_launcher.xml.flat",

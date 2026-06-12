@@ -7631,6 +7631,7 @@ function App() {
 
   // ── Media Session API ────────────────────────────────────────
   const _applyMSMetadata = (track) => {
+    if (!('mediaSession' in navigator)) return;
     if (!track) { navigator.mediaSession.metadata = null; return; }
     // Prefer real HTTP URL — data URLs can be too large for mobile OS and get silently rejected
     const src = track.coverUrl || track.thumbnail;
@@ -7645,12 +7646,18 @@ function App() {
       album:  track.album  || '',
       artwork,
     });
+    // Handlers NO van aquí — se registran una sola vez en el useEffect de abajo
+  };
+
+  // Registrar handlers UNA SOLA VEZ — nunca se borran aunque currentTrack sea null
+  useEffect(() => {
+    if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
     navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
     navigator.mediaSession.setActionHandler('previoustrack', () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playPrevRef.current?.(); });
     navigator.mediaSession.setActionHandler('nexttrack',     () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playNextRef.current?.(); });
-    navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) seek(e.seekTime); });
-  };
+    navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) { audioRef.current.currentTime = e.seekTime; } });
+  }, []);
 
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
