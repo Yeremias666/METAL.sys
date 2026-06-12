@@ -6623,6 +6623,16 @@ function App() {
     }
   }, []);
 
+  // Keep screen awake while playing (Android APK / mobile)
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+    let lock = null;
+    if (isPlaying) {
+      navigator.wakeLock.request('screen').then(l => { lock = l; }).catch(() => {});
+    }
+    return () => { lock?.release().catch(() => {}); };
+  }, [isPlaying]);
+
   // Remove CMD boot overlay once React has mounted
   useEffect(() => {
     const el = document.getElementById('boot-overlay');
