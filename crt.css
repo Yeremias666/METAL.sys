@@ -4045,9 +4045,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   cursor: var(--hand);
   transition: background 0.1s;
   font-size: 19px;
-  /* El navegador omite layout/pintado de las filas fuera de pantalla (listas de ~1000 canciones) */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 53px;
 }
 .local-track-row:hover { background: rgba(214,31,31,0.1); }
 .local-track-active { background: rgba(214,31,31,0.18) !important; border-left: 2px solid var(--fg-accent); }
