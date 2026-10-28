@@ -1,0 +1,447 @@
+# CHANGELOG — METAL.SYS
+
+Historial completo de cambios. Orden cronológico descendente (más reciente arriba).
+Cada sesión debe añadir su entrada al inicio de este archivo.
+
+---
+
+## 2026-10-27 — Fix real del congelamiento (medido en Chromium) + service worker con caché obsoleta
+
+**Autor:** Claude (claude-sonnet-5-5) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `sw.js`, `Documentación/FUNCTIONS.md`
+
+### Qué se descubrió (mediciones con 1000 MP3 reales en Chromium, hilo principal)
+
+1. **La corrección del 2026-10-25 empeoraba la primera carga:** reducir portadas con un `<canvas>` en el hilo principal bloqueaba la página (`toDataURL()` espera a la GPU, ocupada con los efectos CRT): ~61 s de hilo bloqueado, tareas de 1,4 s seguidas. Con el código original eran 17 s sin ese bloqueo.
+2. **`sw.js` servía el `app.jsx` viejo:** estrategia "primero caché" con nombre de caché fijo (`metalsys-v1`). Aunque se reemplazara `app.jsx`, el navegador seguía ejecutando la versión anterior (comprobado en 3 recargas seguidas). Por eso los arreglos anteriores "no se notaban".
+3. **El parser copiaba la portada completa de cada archivo** (500 KB × 1000) aunque las canciones de un álbum comparten la misma: pico de ~1 GB de memoria y paradas de GC.
+
+### Cambios
+
+- **`_downscaleCover` en un Web Worker** (`OffscreenCanvas` + `createImageBitmap`); respaldo con canvas en el hilo principal usando `willReadFrequently: true`.
+- **Portadas y duraciones en segundo plano:** las canciones aparecen en cuanto se leen sus etiquetas; la portada y la duración llegan después como "parches" (`addPatch`/`applyPatches`) por clave estable `_ckey`, aplicados por lotes cada 400 ms. La caché se guarda al terminar la lista y otra vez al terminar los parches.
+- **Parser ID3:** con `coverAsBlob` devuelve solo `coverRange` (posición, sin copiar); el escaneo extrae la imagen una sola vez por álbum.
+- **`sw.js` (v2):** archivos de la propia web con **primero red** (la caché solo sirve sin conexión), librerías de unpkg primero caché, ignora peticiones no GET / no http(s) / terceros no listados (extensiones, Cloudflare Insights). Tras desplegar, el navegador necesita **2 recargas** (o "Clear site data") para pasar al service worker nuevo; a partir de ahí un cambio se carga con una recarga.
+
+### Resultados medidos (1000 canciones, portadas de 431 KB, hilo principal)
+
+| | Código original | Corregido |
+|---|---|---|
+| Lista completa tras montar la app | ~29 s | ~9 s |
+| Paradas ≥ 500 ms / la mayor | 17 / 3,2 s | 0 / 0,27 s |
+| Pico de memoria JS | ~1000 MB | ~535 MB |
+| Recarga (con caché IndexedDB) | ~29 s, mismas paradas | ~4 s, 0,27 s, 132 MB |
+
+---
+
+## 2026-10-25 — Caché de metadatos de música local en IndexedDB
+
+**Autor:** Claude (claude-sonnet-5-5) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `Documentación/FUNCTIONS.md`
+
+### Cambios
+
+- **Caché en IndexedDB** (`metalsys_fs` → almacén `handles`, clave `localMetaCache_v1`): guarda por archivo título, artista, álbum, pista, año, género, duración y tipo, más las portadas reducidas **una sola vez por álbum**.
+- **Validez:** la clave de cada entrada es `carpeta|ruta|nombre|tamaño|fecha de modificación`. Si el archivo cambia, se vuelve a leer; si no, se reutiliza sin leer el 1 MB, ni parsear ID3, ni reducir portadas, ni sondear la duración.
+- **Se guarda dos veces por escaneo:** al terminar la lista y al terminar las duraciones en segundo plano.
+- **Se poda sola:** cada escaneo reconstruye la caché con lo que existe ahora; los archivos borrados desaparecen.
+- **Desconectar carpeta** (`disconnectLocalFolder`) también borra la caché.
+- **Pool de escaneo:** 6 → 10 archivos simultáneos (con caché cada archivo solo cuesta un `getFile()`).
+- Si cambia el formato o el tamaño de las portadas, subir el sufijo de `LOCAL_META_KEY` (`_v2`...) para invalidar la caché anterior.
+
+---
+
+## 2026-10-25 — Fix: la página se congelaba al leer ~1000 canciones locales
+
+**Autor:** Claude (claude-sonnet-5-5) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`, `Documentación/FUNCTIONS.md`
+
+### Causa
+
+`scanLocalDir` lanzaba `Promise.all` sobre todos los archivos a la vez: ~1000 buffers de 1 MB en memoria, ~1000 elementos `<audio>` cargando metadatos en paralelo (para la duración) y cada portada convertida a base64 a tamaño completo y guardada en el estado. Además `LocalPage` pintaba las ~1000 filas (con su `<img>` base64) y reconciliaba todas en cada re-render de `App` durante la reproducción.
+
+### Cambios
+
+- **Escaneo con concurrencia limitada:** `_runPool` (6 archivos a la vez) en lugar de `Promise.all`; cede el hilo (`_yieldToUI`) cada 50 archivos.
+- **Resultados progresivos y en orden:** la lista se va llenando cada 50 canciones; el botón muestra `ESCANEANDO n/total` (`localProgress`).
+- **Escaneo cancelable:** `localScanIdRef` — cambiar o desconectar la carpeta aborta el escaneo anterior.
+- **Portadas reducidas:** `_downscaleCover` → `thumbnail` 128 px y `coverArt` 480 px (JPEG), con caché por álbum. `_parseID3Buffer(buf, { coverAsBlob })` devuelve la portada como `Blob` sin pasar por base64.
+- **Duración en segundo plano:** `probeLocalDuration` (3 a la vez) tras mostrar la lista; antes bloqueaba el escaneo.
+- **`LocalPage`:** agrupación con `useMemo`, filas `LocalTrackRow` con `React.memo`, `<img loading="lazy" decoding="async">`.
+- **`crt.css`:** `.local-track-row` con `content-visibility: auto` (el navegador no pinta las filas fuera de pantalla).
+
+---
+
+## 2026-06-12 — Múltiples mejoras: smart play, fixes UI, editor playlists/artista, fmtBytes, roles admin, README
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`, `functions/api/auth/register.js`, `functions/api/auth/login.js`, `functions/api/auth/profile.js`  
+**Archivos creados:** `functions/api/admin/users.js`, `functions/api/admin/r2.js`
+
+### Cambios
+
+- **Smart play toggle:** `smartPlayArtist` / `smartPlayAlbum` — pausa si ya está sonando el mismo contexto.
+- **Fix `setSelAlbums is not defined`** en `openAlbum` de `CategoryPage`.
+- **Barra nav móvil:** botones con `flex: 0 0 auto`, `min-width: calc(24vw - 3px)`, 4 por fila natural.
+- **TrackList móvil:** fuentes más pequeñas, duración centrada en columna propia.
+- **Dropdown menú:** `line-height: 1` para alineación correcta de items.
+- **Botón play en cards móvil:** siempre visible (`opacity: 1`), color blanco.
+- **Media session flicker:** `playbackState = 'playing'` antes de `playNext`/`playPrev`.
+- **PlaysCounter:** eliminado "X ESCUCHAS EN TOTAL", siempre muestra tiempo escuchado.
+- **Editor de playlists:** botón ✎ EDITAR en `PlaylistDetailPage` con modal (nombre, portada, descripción).
+- **Editor de artista — picker de portada:** sección en el modal de editar artista que muestra las portadas de los álbumes del artista para seleccionar como imagen.
+- **fmtBytes:** cambiado a base 1000 (SI/decimal, compatible con Cloudflare R2).
+- **Cursor personalizado:** añadidas clases `lib-name`, `lib-song-row`, `lib-album-row` al selector global.
+- **Sistema de roles admin/user:**
+  - `register.js`: guarda `role` ("admin" si email=gutierrezy100@gmail.com, "user" si no).
+  - `login.js`: devuelve `role`; asigna rol en cuentas existentes sin role (backwards-compat).
+  - `profile.js` GET: devuelve `role`.
+  - `functions/api/admin/users.js`: GET lista usuarios, PUT cambia rol, DELETE elimina usuario. Verifica `role === 'admin'` desde KV.
+  - `functions/api/admin/r2.js`: GET lista objetos R2, DELETE elimina objeto. Verifica `role === 'admin'` desde KV.
+  - `app.jsx`: `authUser` persiste `role`; botón "⚑ MODO ADMIN" en dropdown de usuario (solo admins); página `DebugPage` con tabs Usuarios y Archivos R2.
+
+---
+
+## 2026-06-11 — Fix reproducción R2: proxy streaming en lugar de URL presignada
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `functions/api/audio.js`, `app.jsx`
+
+### Problema
+Las canciones tardaban minutos en arrancar o no arrancaban nunca. El elemento `<audio>` tiene `crossOrigin = 'anonymous'` (necesario para el VU meter via Web Audio API). Esto hacía que el navegador enviara peticiones CORS directamente a R2, que no devolvía cabeceras `Access-Control-Allow-Origin` → petición bloqueada → audio nunca cargaba.
+
+### Solución
+`audio.js` ya no devuelve `{ url }` JSON. Ahora genera la URL presignada en el servidor (Worker→R2, sin CORS), hace el fetch desde el Worker y devuelve el stream directamente al navegador con soporte de cabecera `Range` para seeking. El navegador solo habla con el mismo origen (`/api/audio?path=...`), eliminando el problema de CORS por completo.
+
+### Cambios en `functions/api/audio.js`
+- Handler cambiado: en lugar de `return jsonResponse({ url: signedUrl })`, genera la URL presignada, hace `fetch(signedUrl, { Range? })` desde el Worker y devuelve `r2Res.body` con los headers relevantes (`Content-Type`, `Content-Length`, `Content-Range`, `Accept-Ranges: bytes`, `Cache-Control`).
+- Soporte de método `HEAD` añadido.
+
+### Cambios en `app.jsx`
+- `downloadFile`: eliminado `fetch(...).then(r.json()).then({url})` — ahora `a.href = '/api/audio?path=...'` directo.
+- Probe de duración (waveform): `src = '/api/audio?path=...'` en lugar de fetch JSON.
+- `requestID3`: `src = '/api/audio?path=...'` en lugar de fetch JSON.
+- `startTrack` (rama R2): eliminado bloque `async () => { fetch... }` — `audio.src = '/api/audio?path=...'` directo, sin espera previa. El audio arranca inmediatamente.
+
+---
+
+## 2026-06-09 — Fix RSS parsing en página NOTICIAS
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- `fetchNewsSource`: cambiado de `querySelectorAll('channel > item, feed > entry')` a `getElementsByTagName('item')` / `getElementsByTagName('entry')` — más robusto con XML arbitrario.
+- Cambiado `DOMParser` de `'text/xml'` a `'application/xml'` para mejor compatibilidad.
+- Añadida detección de respuesta HTML (redirect/error) antes de parsear.
+- Añadida verificación de `parsererror` en el documento resultante.
+- Extracción de `<link>` más robusta: lee `textContent` y `getAttribute('href')`.
+- Si no hay items, lanza error para que el source aparezca en `srcErrors`.
+
+---
+
+## 2026-06-09 — Vista de columnas en lista de canciones de disco (PC)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Cambios
+- `TrackList` acepta nueva prop `albumMode` (bool, defecto `false`).
+- En `albumMode`: layout CSS grid de 5 columnas — `#` · thumbnail · título · duración · acciones. Sin nombre de artista ni álbum. El número de pista muestra el valor ID3 (`f.track`) en lugar del índice secuencial.
+- Fila de cabecera `tl-album-header` con etiquetas TÍTULO / DUR.
+- `CategoryPage`: el `TrackList` de canciones dentro de un disco recibe `albumMode`.
+- En móvil (≤700px): el grid colapsa a flex normal y la columna de duración se oculta.
+- El resto de usos de `TrackList` (TODO, ME GUSTA, búsqueda, playlists) mantienen el layout compacto original.
+
+---
+
+## 2026-06-09 — Efecto 3D hover en tarjetas de artistas (INICIO y BANDAS)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- Nuevo componente `ArtistCard` con el mismo efecto 3D de inclinación perspectiva que tienen los `AlbumCard` en la página de artista: en `onMouseMove` aplica `perspective(600px) rotateX/Y`, `translateY(-10px) scale(1.05)` y sombra roja dinámica según la posición del cursor; en `onMouseLeave` restaura con transición suave.
+- `HomePage`: el grid de artistas usa `ArtistCard` en lugar del `<div className="cat-card">` inline.
+- `BandasPage`: ídem — el grid de bandas usa `ArtistCard`.
+- No hay cambios visuales en reposo ni en otros componentes.
+
+---
+
+## 2026-06-08 — Sistema de playlists: crear desde el reproductor y portada automática
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Cambios
+- `PlayerMenuDropdown` ampliado con opción "◈ AÑADIR A PLAYLIST" que abre un submenú lateral con las playlists existentes y el botón "＋ NUEVA PLAYLIST".
+- `CreatePlaylistModal`: modal emergente con campos nombre (obligatorio), descripción (opcional) y portada (opcional). Al no elegir portada se genera automáticamente a partir de las portadas de las canciones añadidas.
+- `PlaylistAutoGrid`: componente nuevo que genera la portada tipo Spotify — 1 imagen si hay 1 artista, 2 en paralelo, 3 (1 arriba + 2 abajo) o 2×2 si hay 4+ artistas distintos. Sustituye al cover manual en `PlaylistCard`.
+- `addToPlaylist(playlistId)`: añade la canción en reproducción a una playlist existente (evita duplicados).
+- `createPlaylist({ name, description, coverArt })`: crea nueva playlist y añade la canción actual como primera entrada.
+- `useEffect` para `savePlaylists` añadido — las playlists ya se persistían pero sin efecto reactivo.
+- CSS: `.mp-menu-item--sub`, `.mp-menu-submenu`, `.mp-menu-submenu-create`, `.ac-auto-grid` y variantes `[data-count]`.
+
+---
+
+## 2026-06-08 — Timeline de reproducciones dinámico con filtros
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`
+
+### Cambios
+- Añadida función `buildTimeline(filter, playLog)` que genera buckets dinámicos según el filtro seleccionado: `hora` (24h por hora), `dia` (7 días), `semana` (8 semanas por lunes), `mes` (30 días, default), `año` (12 meses), `todo` (historial completo mes a mes sin límite).
+- El timeline en StatsPage ya no está limitado a 30 días fijos. Ahora tiene estado `timeFilter` (default `'mes'`) y botones de filtro 24H / 7D / 8W / 30D / 12M / TODO.
+- El gráfico de líneas se adapta: ejes X con labels apropiados según granularidad, paso de etiquetas dinámico, artistas calculados dentro de la ventana activa.
+- Cálculo de racha (`streak`) mantenido independiente del filtro con mapa de días propio.
+
+---
+
+## 2026-06-05 — Reindexado de metadatos ID3 y portadas desde R2
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos creados:** `functions/api/reindex-meta.js`  
+**Archivos modificados:** `functions/api/files.js`, `app.jsx`
+
+### Cambios
+- Creado `reindex-meta.js`: función Cloudflare Pages que descarga los primeros 256 KB de cada MP3 en R2, extrae todos los metadatos ID3 (título, artista, álbum, año, género, pista, disco) y los guarda en `_meta/index.json` dentro del bucket. Soporta ID3v2.2, v2.3 y v2.4. Procesa 8 archivos por llamada; parámetro `force=1` para re-leer todos.
+- Modificado `files.js`: lee `_meta/index.json` al construir el listado y usa los metadatos reales del ID3 en lugar de parsear solo el nombre del archivo. Fallback al path parsing si el índice no tiene datos para un archivo.
+- Modificado `app.jsx`: añadido panel "BIBLIOTECA R2 /// MANTENIMIENTO" en la página de Inicio con botones "REINDEXAR METADATOS" y "REINDEXAR PORTADAS", indicador de progreso en tiempo real y recarga automática de la biblioteca al terminar.
+
+---
+
+## 2026-06-05 — Migración Vercel → Cloudflare Pages Functions
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos creados:** `functions/api/audio.js`, `functions/api/files.js`
+
+### Cambios
+- Convertido formato Vercel (`module.exports`, `req`/`res`, `process.env`) al formato Cloudflare Pages Functions (`export async function onRequest(context)`, `Response`, `context.env`).
+- Reemplazado módulo `crypto` de Node.js por Web Crypto API (`crypto.subtle`): `importKey` + `sign` para HMAC-SHA256, `digest` para SHA-256.
+- Reemplazado `Buffer.from(...).toString('base64')` por `btoa()` + iteración `Uint8Array` (Buffer no existe en Workers).
+- Los archivos `/api/audio.js` y `/api/files.js` originales (Vercel) se pueden eliminar.
+
+---
+
+## 2026-06-05 — Migración B2 → Cloudflare R2
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `api/audio.js`, `api/files.js`
+
+### Cambios
+- **`api/audio.js`**: Reescrito para generar URLs presignadas contra R2 en vez de B2.
+  - Implementa AWS Signature V4 manualmente (sin dependencias npm).
+  - Bucket: `metalsys`, Endpoint: `97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com`, Región: `auto`.
+  - Variables de entorno: `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` (se eliminan `B2_KEY_ID` / `B2_APP_KEY`).
+- **`api/files.js`**: Migrado de B2 API propietaria a S3 API de R2 (ListObjectsV2 + GetObject firmados).
+  - También extrae `TPOS` (número de disco) del ID3.
+  - El campo `b2Path` se mantiene por compatibilidad con `app.jsx`.
+
+---
+
+## 2026-06-05 — 9 correcciones y mejoras (sesión 2)
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`
+
+### Correcciones de bugs
+1. **TopSongs** (sidebar derecho): ahora incluye `localFiles` en el ranking — antes ignoraba la carpeta local
+2. **Shuffle**: al activar aleatorio, la cola empieza en la canción actual y baraja el resto; ya no mezcla incluyendo la actual en posición aleatoria
+3. **Carpeta local**: al recargar la página, si el permiso del sistema no está activo, el handle se limpia — ya no aparece como "conectada" sin estarlo
+
+### Mejoras de UI
+4. **Stats → Favoritos → Artista**: muestra la foto del artista (meta o portada de disco) en lugar del icono de nota; cambiado a icono de persona si no hay foto
+5. **Stats → Favoritos → Artista**: icono genérico cambiado de nota musical a silueta de persona
+6. **Cola de reproducción** (sidebar): número de posición ahora tiene `min-width: 24px` — ya no se solapa con el nombre al llegar a 3 dígitos
+7. **Nav**: orden nuevo — INICIO, STATS, SUBIR, **TODO** (nueva), LOCAL, ME GUSTA, **BANDAS** (antes TODO)
+8. **Inicio → biblioteca actual**: "ocupando" suma vault + local; añadido "(En local X canciones, Xgb)" si hay carpeta conectada
+9. **StatusBar**: "(LOCAL X)" → "(Local X canciones, Xgb)" con tamaño real
+10. **BANDAS** (antes TODO): icono de artista sin portada cambiado de nota a silueta de persona; muestra imagen de artistMeta si existe
+11. **TODO** (nueva página): lista todas las canciones de vault + local ordenadas alfabéticamente
+
+---
+
+## 2026-06-05 — 27 mejoras y correcciones
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx`, `crt.css`, `.gitignore` (nuevo)
+
+### Cambios visuales / UI
+1. **AlbumCard**: la animación de hover ahora afecta a todo el contenedor (lift + glow), no solo al vinilo
+2. **AlbumCard**: corregido desbordamiento de texto/título al hover — `minWidth: 0` en el wrapper
+3. **AlbumCard**: botón ▶ movido a la esquina inferior derecha de la portada, rojo, solo visible en hover
+4. **CategoryPage**: eliminado botón "VOLVER" redundante del header de artista
+5. **Nav**: reordenado — INICIO, STATS, SUBIR, LOCAL, TODO, ME GUSTA
+6. **Nav**: nuevos iconos — corazón (ME GUSTA), gráfico de barras (STATS), carpeta (LOCAL), nota musical (TODO)
+7. **UploadPage**: icono de nota musical en dropzone sustituido por `IconGlyph iconId="nota"`
+8. **DetailPage**: eliminado cassette (redundante con el reproductor inferior)
+9. **StatusBar**: "VAULT ONLINE" → "SYSTEM ONLINE", "NODE 03" → "NODE 01", "ARCHIVOS" → "CANCIONES", eliminado "LIBRE: X MB"
+10. **Banner**: autor cambiado a "Yeremias", fecha actualizada a 27/06/2026, géneros actualizados
+11. **Footer**: badges eliminados; añadidos iconos de enlace a GitHub, Discord, Steam, Spotify; copyright actualizado
+12. **Inicio**: eliminado `StatsPanel` (redundante con el tree)
+13. **Inicio**: eliminada sección "AÑADIDAS RECIENTEMENTE"
+14. **Inicio**: artistas limitados a 12 con botón expandir/colapsar
+15. **Inicio**: botón ♪ AÑADIR CANCIÓN con icono alineado verticalmente
+16. **Inicio**: bloque LOCAL con más texto y botón DESCONECTAR
+
+### Nuevas funcionalidades
+17. **MusicPlayer**: barra de progreso ahora soporta arrastrar (drag) además de click
+18. **CategoryPage**: botón ✎ EDITAR ARTISTA con modal para imagen y descripción; se persiste en `metalsys_artist_meta_v1`; imagen usada en tarjetas de INICIO y TODO
+19. **LocalPage**: añadido botón ✕ DESCONECTAR que limpia estado y handle de IndexedDB
+20. **Sidebar derecho**: NowStreaming y PlayQueue fusionadas en `PlayQueueWithNowPlaying` — cassette arriba, cola abajo
+21. **Sidebar derecho**: `DownloadCounter` reemplazado por `PlaysCounter` (suma de `playCounts`)
+22. **Sidebar derecho**: `RecentActivity` rediseñado como log estilo `tail -f` — 10 líneas, scroll, timestamps, eventos de música (PLAY, PAUSE, NEXT, PREV, LIKE, UNLIKE, UP, DL, DEL)
+23. **Sidebar izquierdo**: botones ▶ de lib-tree invierten colores al hover (fondo rojo, triángulo oscuro)
+24. **Inicio → ARTISTAS**: `songCount` ahora incluye archivos locales
+25. **Vinilo**: brillo rojo radial detrás del disco en hover
+
+### Técnico
+26. **`.gitignore`**: creado para excluir `.claude/`, `node_modules/`, etc.
+27. **Comentarios en español**: añadidos en las secciones principales de `app.jsx`
+
+---
+
+## 2026-06-02 — 11 mejoras implementadas
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `app.jsx` (+~730 líneas), `crt.css` (+~280 líneas)
+
+### Nuevas funcionalidades
+
+#### 1. Árbol de biblioteca (sidebar izquierdo)
+- Nuevo componente `LibraryTree` en columna izquierda del grid
+- Muestra artistas > discos > canciones, colapsables por nivel
+- Click en nombre navega a la página del artista/disco
+- Botón ▶ en cada artista y disco para reproducir directamente
+- Se oculta automáticamente en pantallas < 1050px
+
+#### 2. Cola de reproducción (sidebar derecho)
+- Nuevo componente `PlayQueue` en sidebar derecho
+- Muestra la pista actual destacada y el orden de reproducción
+- Drag-to-reorder: arrastra canciones para reordenar con HTML5 drag API
+- Tiempo real: se actualiza cuando cambia el contexto o el modo shuffle
+- `manualQueue` state: permite sobrescribir la cola derivada con un orden manual
+- Al cambiar contexto (artista/disco/todo), el orden manual se descarta
+
+#### 3. Top canciones (sidebar derecho)
+- Nuevo componente `TopSongs` en sidebar derecho
+- Muestra las 10 canciones más reproducidas con contador
+- `playCounts` state persistido en `metalsys_playcounts_v1` (localStorage)
+- Se incrementa al iniciar cada pista nueva en `startTrack`
+
+#### 4. Botón Me Gusta + página ME GUSTA
+- `LikeButton` component (♡/♥ toggle)
+- Visible en: barra del reproductor, DetailPage (acciones)
+- `likedIds` state (Set) persistido en `metalsys_likes_v1`
+- Nueva página `MESGUSTA` accesible desde la nav (♥ GUSTA)
+- Botón "▶ REPRODUCIR ME GUSTA" en la página
+- `MeGustaPage` muestra grid de canciones liked con botón para quitar
+
+#### 5. Subpágina de estadísticas
+- Nueva ruta `{ page: 'STATS' }`, botón STATS en nav
+- `StatsPage` component con:
+  - Grid de 8 métricas: canciones, artistas, reproducciones, me gusta, subidas, descargas, borradas, tamaño medio
+  - Fecha de la primera subida + canción más escuchada
+  - Timeline de subidas por día (gráfico de barras verticales)
+  - Top 5 artistas por reproducciones (barras horizontales)
+  - Panel de uso de vault (reutiliza StatsPanel)
+
+#### 6. Menú ··· en el reproductor
+- Botón `···` en la barra del reproductor (MusicPlayer)
+- `PlayerMenuDropdown` component: dropdown con opciones ◆ CREAR MARCADOR y ✂ CREAR CLIP
+- Se cierra al hacer click fuera (mousedown listener)
+
+#### 7. Marcadores
+- `BookmarkModal`: formulario nombre + tiempo (M:SS) con valor pre-rellenado al tiempo actual
+- `bookmarks` state `{ [fileId]: [{id, name, time}] }` persistido en `metalsys_bookmarks_v1`
+- Pestaña MARCADORES en DetailPage: lista con botón ▶ (ir al marcador) y ✕ (borrar)
+- `seekToBookmark(time)` llama a `seek()`
+
+#### 8. Clips con reproducción en bucle
+- `ClipModal`: formulario nombre + inicio + fin (M:SS)
+- `clipStore` state `{ [fileId]: [{id, name, start, end}] }` persistido en `metalsys_clips_v1`
+- Pestaña CLIPS en DetailPage: lista con botón ▶ (activar clip) y ✕ (borrar)
+- `activeClip` state: `{ id, start, end }` — cuando activo, el handler `onTime` hace loop entre start y end
+- `activeClipRef` sincronizado con state para que el closure de `onTime` siempre tenga el valor fresco
+- El clip activo se resalta con clase `active-clip` (borde verde)
+
+#### 9. Importar carpeta local de música
+- Nueva ruta `{ page: 'LOCAL' }`, botón LOCAL en nav
+- `LocalPage` component usa File System Access API (`showDirectoryPicker`)
+- Escanea recursivamente directorios buscando .mp3/.wav/.ogg/.flac/.m4a/.aac/.opus/.aiff/.wma
+- Muestra archivos encontrados antes de importar
+- Importa con el mismo flujo que la subida normal (FileReader + ID3 parsing)
+- Categoría asignada: `LOCAL` (si no hay artista en ID3)
+- Límites normales aplicados: 8 MB/archivo, 25 MB total
+- Solo funciona en Chrome/Edge (File System Access API)
+
+#### 10. Forma de onda (waveform) en barra de progreso
+- Al iniciar cada pista, decodifica el audio con `OfflineAudioContext.decodeAudioData`
+- Genera array de 300 puntos RMS (amplitud media por bloque)
+- SVG superpuesto en `.mp-bar` con dos polylines simétricas (parte alta y baja)
+- `waveforms` state cache: `{ [fileId]: Float32Array }` — se computa una sola vez por pista
+- Opacity 0.55 para no interferir con la barra de progreso
+
+#### 11. Destello CRT sincronizado con la música
+- `useEffect` con `requestAnimationFrame` que lee el RMS del `AnalyserNode` en tiempo real
+- Modifica `opacity` del elemento `.crt-audio-pulse` (overlay radial blanco) en cada frame
+- `audioSyncRef` para limpiar el RAF al detener/pausar
+- Se activa solo cuando `isPlaying === true` y hay analyser disponible
+
+### Cambios de layout
+- `.grid` cambia de 2 columnas a 3: `220px 1fr 280px` (responsive: oculta sidebar izquierdo < 1050px, oculta derecho < 900px)
+- Nuevo `lib-tree-wrap` con `position: sticky` para que el árbol siga el scroll
+- `PlayQueue` + `TopSongs` + widgets existentes en columna derecha
+
+### Nuevas claves de localStorage
+| Clave | Contenido |
+|---|---|
+| `metalsys_likes_v1` | Array de IDs de canciones con me gusta |
+| `metalsys_playcounts_v1` | Objeto `{ fileId: count }` |
+| `metalsys_bookmarks_v1` | Objeto `{ fileId: [{id, name, time}] }` |
+| `metalsys_clips_v1` | Objeto `{ fileId: [{id, name, start, end}] }` |
+
+---
+
+## 2026-06-02 — Refactor completo de documentación
+
+**Autor:** Claude (claude-sonnet-4-6) por instrucción del usuario  
+**Archivos modificados:** `README.md`, `Documentación/*` (todos reescritos desde cero)
+
+- Documentación previa (generada por GitHub Copilot) descartada por ser genérica e inexacta
+- Creados: CONTEXT.md, CHANGELOG.md, ARCHITECTURE.md, FUNCTIONS.md, FEATURES.md, PLAYBACK.md, UPLOAD.md, DEVELOPMENT.md, COMMANDS.md
+- Actualizado README.md raíz
+
+---
+
+## Sesiones anteriores — Sistema de reproducción completo
+
+*(sin fecha exacta, reconstruido desde el código)*
+
+- `MusicPlayer` barra persistente con VU meter 60 barras
+- `playContext` con tipos `all | artist | album`
+- Shuffle (Fisher-Yates), Repeat (`off | all | one`)
+- `TodoPage`, botones ▶ en artista/álbum
+
+---
+
+## Sesiones anteriores — Página de artista y búsqueda
+
+*(sin fecha exacta, reconstruido desde el código)*
+
+- Parser ID3v2 nativo, artista = categoría
+- `CategoryPage` con cuadrícula de álbumes, buscador con sugerencias en vivo
+- Thumbnails con canvas (paleta fósforo CRT)
+
+---
+
+## Sesiones anteriores — Base inicial
+
+*(sin fecha exacta, reconstruido desde el código)*
+
+- Base React CDN + Babel + JSX en navegador
+- Sistema de subida con FileReader + progreso
+- Estética CRT completa, TweaksPanel
+- Visualizadores: imagen, vídeo, PDF, Markdown, texto, ZIP
+- Multi-select, bulk download ZIP, bulk delete
+![alt text](image.png)

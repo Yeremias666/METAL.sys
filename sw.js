@@ -1,4 +1,6 @@
-const CACHE = 'metalsys-v1';
+// Sube este número cuando cambies la lista SHELL o la estrategia de caché: al cambiar sw.js el
+// navegador instala el nuevo service worker y, al activarse, borra las cachés de versiones anteriores.
+const CACHE = 'metalsys-v2';
 const SHELL = [
   '/',
   '/index.html',
@@ -15,6 +17,7 @@ const SHELL = [
   'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js',
   'https://unpkg.com/marked@12.0.0/marked.min.js',
 ];
+const SHELL_EXTERNAL = new Set(SHELL.filter(u => u.startsWith('http')));
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -30,23 +33,41 @@ self.addEventListener('activate', e => {
   );
 });
 
-self.addEventListener('fetch', e => {
-  const url = new URL(e.request.url);
+// Guarda una copia en caché sin que un fallo de almacenamiento rompa la respuesta.
+function remember(req, res) {
+  if (res && res.ok && res.status === 200) {
+    const clone = res.clone();
+    caches.open(CACHE).then(c => c.put(req, clone)).catch(() => {});
+  }
+  return res;
+}
 
-  // API siempre a red
-  if (url.pathname.startsWith('/api/')) {
-    e.respondWith(fetch(e.request));
+self.addEventListener('fetch', e => {
+  const req = e.request;
+  // Solo GET por http(s). Todo lo demás (POST, esquemas como chrome-extension:) lo gestiona el navegador.
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  // API: siempre a la red, sin pasar por el service worker.
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
+
+  // Recursos externos que no son del shell (analíticas, fuentes, etc.): no se interceptan.
+  if (url.origin !== self.location.origin) {
+    if (!SHELL_EXTERNAL.has(req.url)) return;
+    // Librerías con versión fija en la URL: primero caché (nunca cambian).
+    e.respondWith(
+      caches.match(req).then(cached => cached || fetch(req).then(res => remember(req, res)))
+    );
     return;
   }
 
-  // Shell: cache first, fallback a red
+  // Archivos de la propia web (index.html, app.jsx, crt.css...): primero la RED, para que una
+  // versión nueva se cargue siempre; la caché solo se usa sin conexión. (Antes era "primero caché"
+  // con un nombre de caché fijo, y el navegador seguía ejecutando el app.jsx viejo.)
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      if (res.ok) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
-      return res;
-    }))
+    fetch(req)
+      .then(res => remember(req, res))
+      .catch(() => caches.match(req).then(cached => cached || caches.match('/index.html')).then(r => r || Response.error()))
   );
 });

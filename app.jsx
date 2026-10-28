@@ -355,7 +355,10 @@ function buildPlaylistHits(playlists, allFiles, q) {
 // Parser nativo: lee título, artista, álbum, año, género, pista y portada (APIC)
 // directamente desde un ArrayBuffer. Sin librerías externas.
 // Core ID3 parser\u2014 accepts an ArrayBuffer directly
-async function _parseID3Buffer(buf) {
+// opts.coverAsBlob: en vez de un data URL base64 a tamaño completo, devuelve solo la posición de
+// la portada dentro del buffer (tags.coverRange = { start, end, mime }) sin copiarla. Lo usa el
+// escaneo de música local, que la extrae y la reduce solo una vez por álbum.
+async function _parseID3Buffer(buf, opts = {}) {
   if (buf.byteLength < 10) return {};
   const view = new DataView(buf);
   const sig = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2));
@@ -417,14 +420,21 @@ async function _parseID3Buffer(buf) {
           const isPng  = frameBytes[i] === 0x89 && frameBytes[i+1] === 0x50 && frameBytes[i+2] === 0x4E;
           if (isJpeg || isPng) {
             const mime = isJpeg ? 'image/jpeg' : 'image/png';
-            const imgSlice = buf.slice(fdStart + i, frameEnd);
-            const blob = new Blob([imgSlice], { type: mime });
-            tags.coverArt = await new Promise(res => {
-              const fr = new FileReader();
-              fr.onload  = () => res(fr.result);
-              fr.onerror = () => res(null);
-              fr.readAsDataURL(blob);
-            });
+            if (opts.coverAsBlob) {
+              // No se copia la imagen aquí: solo su posición. Quien escanea la carpeta la extrae
+              // únicamente si el álbum aún no tiene portada (las ~10 canciones de un álbum comparten
+              // la misma; copiar 500 KB × 1000 archivos disparaba la memoria y los parones de GC).
+              tags.coverRange = { start: fdStart + i, end: frameEnd, mime };
+            } else {
+              const imgSlice = buf.slice(fdStart + i, frameEnd);
+              const blob = new Blob([imgSlice], { type: mime });
+              tags.coverArt = await new Promise(res => {
+                const fr = new FileReader();
+                fr.onload  = () => res(fr.result);
+                fr.onerror = () => res(null);
+                fr.readAsDataURL(blob);
+              });
+            }
             break;
           }
         }
@@ -435,7 +445,7 @@ async function _parseID3Buffer(buf) {
 
   // Fallback: brute-force scan the entire ID3 section for JPEG/PNG magic bytes.
   // Covers cases where the APIC frame was skipped or the loop broke early.
-  if (!tags.coverArt) {
+  if (!tags.coverArt && !tags.coverRange) {
     const tagEnd = Math.min(10 + tagSize, buf.byteLength);
     const tagView = new Uint8Array(buf, 0, tagEnd);
     for (let i = 10; i < tagView.length - 3; i++) {
@@ -443,13 +453,17 @@ async function _parseID3Buffer(buf) {
       const isPng  = tagView[i] === 0x89 && tagView[i+1] === 0x50 && tagView[i+2] === 0x4E;
       if (isJpeg || isPng) {
         const mime = isJpeg ? 'image/jpeg' : 'image/png';
-        const blob = new Blob([buf.slice(i, tagEnd)], { type: mime });
-        tags.coverArt = await new Promise(res => {
-          const fr = new FileReader();
-          fr.onload  = () => res(fr.result);
-          fr.onerror = () => res(null);
-          fr.readAsDataURL(blob);
-        });
+        if (opts.coverAsBlob) {
+          tags.coverRange = { start: i, end: tagEnd, mime };
+        } else {
+          const blob = new Blob([buf.slice(i, tagEnd)], { type: mime });
+          tags.coverArt = await new Promise(res => {
+            const fr = new FileReader();
+            fr.onload  = () => res(fr.result);
+            fr.onerror = () => res(null);
+            fr.readAsDataURL(blob);
+          });
+        }
         break;
       }
     }
@@ -467,6 +481,110 @@ async function readID3(src) {
     const buf  = await resp.arrayBuffer();
     return _parseID3Buffer(buf);
   } catch { return {}; }
+}
+
+// ─── HELPERS DE ESCANEO LOCAL ──────────────────────────────────
+// Reduce una portada (Blob) a un JPEG pequeño en data URL. Una portada original
+// puede pesar varios MB; con ~1000 canciones guardarlas a tamaño completo en el
+// estado de React agota la memoria y congela la página.
+// IMPORTANTE: la reducción se hace en un Web Worker (OffscreenCanvas). Hacerla con un <canvas>
+// en el hilo principal bloqueaba la página: toDataURL() espera a la GPU (que está ocupada con
+// los efectos CRT) y cada llamada congelaba la interfaz cientos de ms. Medido con 1000 canciones:
+// ~60 s de hilo bloqueado en la primera carga con canvas en el hilo principal.
+let _coverWorker = null;            // null = sin crear, false = no disponible, Worker = listo
+const _coverJobs = new Map();       // id → resolve
+let _coverJobId = 0;
+function _getCoverWorker() {
+  if (_coverWorker !== null) return _coverWorker;
+  try {
+    if (typeof Worker === 'undefined' || typeof OffscreenCanvas === 'undefined') return (_coverWorker = false);
+    const src = `onmessage = async (e) => {
+      const { id, blob, max, quality } = e.data;
+      try {
+        const bmp = await createImageBitmap(blob);
+        const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+        const w = Math.max(1, Math.round(bmp.width * scale));
+        const h = Math.max(1, Math.round(bmp.height * scale));
+        const oc = new OffscreenCanvas(w, h);
+        const ctx = oc.getContext('2d');
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(bmp, 0, 0, w, h);
+        if (bmp.close) bmp.close();
+        postMessage({ id, blob: await oc.convertToBlob({ type: 'image/jpeg', quality }) });
+      } catch (err) { postMessage({ id, blob: null }); }
+    };`;
+    const w = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    w.onmessage = (e) => { const r = _coverJobs.get(e.data.id); if (r) { _coverJobs.delete(e.data.id); r(e.data.blob || null); } };
+    w.onerror = () => { _coverWorker = false; _coverJobs.forEach(r => r(null)); _coverJobs.clear(); };
+    return (_coverWorker = w);
+  } catch { return (_coverWorker = false); }
+}
+function _blobToDataURL(blob) {
+  return new Promise(res => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = () => res(null);
+    fr.readAsDataURL(blob);
+  });
+}
+// Respaldo si no hay Worker/OffscreenCanvas: canvas en el hilo principal. willReadFrequently
+// fuerza un canvas por software y evita la espera a la GPU en toDataURL().
+async function _downscaleCoverMain(blob, max, quality) {
+  try {
+    const bmp = await createImageBitmap(blob);
+    const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const cv = document.createElement('canvas');
+    cv.width = w; cv.height = h;
+    const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bmp, 0, 0, w, h);
+    if (bmp.close) bmp.close();
+    return cv.toDataURL('image/jpeg', quality);
+  } catch { return null; }
+}
+async function _downscaleCover(blob, max = 480, quality = 0.85) {
+  const w = _getCoverWorker();
+  if (w) {
+    const out = await new Promise(resolve => {
+      const id = ++_coverJobId;
+      _coverJobs.set(id, resolve);
+      try { w.postMessage({ id, blob, max, quality }); } catch { _coverJobs.delete(id); resolve(null); }
+    });
+    if (out) return _blobToDataURL(out);
+  }
+  return _downscaleCoverMain(blob, max, quality);
+}
+
+// Ejecuta fn sobre cada item con como máximo `limit` tareas a la vez.
+async function _runPool(items, limit, fn) {
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      await fn(items[i], i);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+}
+
+// Cede el hilo principal para que el navegador pueda repintar y atender eventos.
+const _yieldToUI = () => new Promise(r => setTimeout(r, 0));
+
+// Caché de metadatos de la música local en IndexedDB: evita volver a leer y parsear los
+// ~1000 archivos en cada carga. Una entrada vale mientras no cambien tamaño ni fecha de
+// modificación del archivo. Sube el sufijo de la clave si cambia el formato o el tamaño de las portadas.
+//   { items: { [clave]: { name, artist, album, track, disc, year, genre, duration, fileType, coverKey } },
+//     covers: { [coverKey]: { thumbnail, coverArt } } }   ← las portadas se guardan una vez por álbum
+const LOCAL_META_KEY = 'localMetaCache_v1';
+const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
+  [dirName, pathPrefix, name, size, mtime].join('|');
+const _emptyLocalCache = () => ({ items: {}, covers: {} });
+async function _loadLocalCache() {
+  const c = await idbGet(LOCAL_META_KEY);
+  return (c && c.items && c.covers) ? c : _emptyLocalCache();
 }
 
 let _catIconRegistry = {};
@@ -6342,19 +6460,51 @@ function CreatePlaylistModal({ onSave, onClose }) {
 }
 
 // ─── LOCAL IMPORT PAGE ──────────────────────────────────────
-function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
+// Fila memoizada: durante la reproducción App se re-renderiza varias veces por segundo;
+// sin memo se reconciliarían las ~1000 filas en cada tick.
+const LocalTrackRow = React.memo(function LocalTrackRow({ f, active, playing, onPlay }) {
+  return (
+    <div className={`local-track-row${active?' local-track-active':''}`} onClick={() => onPlay(f)}>
+      {f.thumbnail
+        ? <img src={f.thumbnail} alt="" className="local-track-thumb" loading="lazy" decoding="async" />
+        : <div className="local-track-thumb local-track-thumb-empty">♪</div>
+      }
+      <span className="local-track-num">{f.track ? f.track.split('/')[0] : '—'}</span>
+      <div style={{flex:1, minWidth:0}}>
+        <div className="local-track-name">{f.name}</div>
+        {f.album && <div className="local-track-album">{f.album}</div>}
+      </div>
+      {f.year && <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9, flexShrink:0}}>{f.year}</span>}
+      <span className="local-track-size">{fmtBytes(f.fileSize)}</span>
+      <span className="local-track-play">{playing ? '❚❚' : '▶'}</span>
+    </div>
+  );
+});
+
+function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
   const supported = 'showDirectoryPicker' in window;
   const connected = localFiles.length > 0 || dirName;
 
-  // Group by artist/album for display
-  const byArtist = {};
-  localFiles.forEach(f => {
-    const a = f.artist || 'SIN ARTISTA';
-    if (!byArtist[a]) byArtist[a] = {};
-    const al = f.album || 'SIN ÁLBUM';
-    if (!byArtist[a][al]) byArtist[a][al] = [];
-    byArtist[a][al].push(f);
-  });
+  // onPlayFile llega como función nueva en cada render de App; la guardamos en un ref
+  // para pasar a las filas un handler estable y que React.memo funcione.
+  const playRef = useRef(onPlayFile);
+  playRef.current = onPlayFile;
+  const handlePlay = useCallback((f) => playRef.current(f), []);
+
+  // Agrupar por artista/álbum solo cuando cambia la lista (no en cada render)
+  const byArtist = useMemo(() => {
+    const out = {};
+    localFiles.forEach(f => {
+      const a = f.artist || 'SIN ARTISTA';
+      if (!out[a]) out[a] = {};
+      const al = f.album || 'SIN ÁLBUM';
+      if (!out[a][al]) out[a][al] = [];
+      out[a][al].push(f);
+    });
+    Object.values(out).forEach(albums => Object.values(albums).forEach(songs =>
+      songs.sort((a, b) => (parseInt(a.track) || 999) - (parseInt(b.track) || 999))));
+    return out;
+  }, [localFiles]);
 
   return (
     <div>
@@ -6367,7 +6517,9 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, 
           {supported && (
             <div style={{display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
               <button className="big-btn" onClick={onPickFolder} disabled={scanning}>
-                {scanning ? '◆ ESCANEANDO...' : connected ? '↺ CAMBIAR CARPETA' : '📁 ELEGIR CARPETA'}
+                {scanning
+                  ? (progress.total > 0 ? `◆ ESCANEANDO ${progress.done}/${progress.total}` : '◆ ESCANEANDO...')
+                  : connected ? '↺ CAMBIAR CARPETA' : '📁 ELEGIR CARPETA'}
               </button>
               {connected && localFiles.length > 0 && (
                 <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
@@ -6402,28 +6554,10 @@ function LocalPage({ localFiles, dirName, scanning, onPickFolder, onDisconnect, 
                 <div style={{padding:'6px 14px 4px', fontFamily:'var(--pixel)', fontSize:10, color:'var(--fg-secondary)', letterSpacing:'0.08em', borderBottom:'1px dotted rgba(214,31,31,0.2)'}}>
                   {album}
                 </div>
-                {songs
-                  .sort((a,b)=>(parseInt(a.track)||999)-(parseInt(b.track)||999))
-                  .map(f => {
-                    const active = f.id === currentId;
-                    return (
-                      <div key={f.id} className={`local-track-row${active?' local-track-active':''}`} onClick={() => onPlayFile(f)}>
-                        {f.thumbnail
-                          ? <img src={f.thumbnail} alt="" className="local-track-thumb" />
-                          : <div className="local-track-thumb local-track-thumb-empty">♪</div>
-                        }
-                        <span className="local-track-num">{f.track ? f.track.split('/')[0] : '—'}</span>
-                        <div style={{flex:1, minWidth:0}}>
-                          <div className="local-track-name">{f.name}</div>
-                          {f.album && <div className="local-track-album">{f.album}</div>}
-                        </div>
-                        {f.year && <span style={{color:'var(--fg-dim)', fontFamily:'var(--pixel)', fontSize:9, flexShrink:0}}>{f.year}</span>}
-                        <span className="local-track-size">{fmtBytes(f.fileSize)}</span>
-                        <span className="local-track-play">{active && isPlaying ? '❚❚' : '▶'}</span>
-                      </div>
-                    );
-                  })
-                }
+                {songs.map(f => {
+                  const active = f.id === currentId;
+                  return <LocalTrackRow key={f.id} f={f} active={active} playing={active && isPlaying} onPlay={handlePlay} />;
+                })}
               </div>
             ))}
           </div>
@@ -6600,6 +6734,8 @@ function App() {
   const [localFiles,   setLocalFiles]   = useState([]);
   const [localDirName, setLocalDirName] = useState('');
   const [localScanning, setLocalScanning] = useState(false);
+  const [localProgress, setLocalProgress] = useState({ done: 0, total: 0 });
+  const localScanIdRef = useRef(0); // se incrementa para invalidar un escaneo en curso
 
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
@@ -7439,11 +7575,41 @@ function App() {
 
   // Import file from local folder (used by LocalPage)
   // ── LOCAL MUSIC (read from disk, no copy) ─────────────────────
+  // Lee la duración real de un archivo con un <audio> temporal (solo metadatos).
+  const probeLocalDuration = async (fileHandle) => {
+    let url = null;
+    try {
+      const file = await fileHandle.getFile();
+      url = URL.createObjectURL(file);
+      return await new Promise(resolve => {
+        const a = document.createElement('audio');
+        const timer = setTimeout(() => finish(null), 8000); // por si el códec nunca responde
+        const finish = (v) => {
+          clearTimeout(timer);
+          a.onloadedmetadata = a.onerror = null;
+          a.removeAttribute('src'); a.load();
+          resolve(v);
+        };
+        a.preload = 'metadata';
+        a.onloadedmetadata = () => finish(isFinite(a.duration) && a.duration > 0 ? a.duration : null);
+        a.onerror = () => finish(null);
+        a.src = url;
+      });
+    } catch { return null; }
+    finally { if (url) URL.revokeObjectURL(url); }
+  };
+
   const scanLocalDir = async (dirHandle) => {
+    // Cada escaneo tiene un id; si el usuario cambia/desconecta la carpeta, el anterior se aborta.
+    const scanId = ++localScanIdRef.current;
+    const stale = () => scanId !== localScanIdRef.current;
     setLocalScanning(true);
+    setLocalFiles([]);
+    setLocalProgress({ done: 0, total: 0 });
     const entries = [];
     const scan = async (handle, pathPrefix) => {
       for await (const [name, entry] of handle.entries()) {
+        if (stale()) return;
         if (entry.kind === 'file') {
           const ext = name.split('.').pop().toLowerCase();
           if (/^(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/.test(ext)) {
@@ -7456,50 +7622,165 @@ function App() {
     };
     try {
       await scan(dirHandle, '');
-      // Read ID3 tags for each file (only first 1MB — enough for metadata)
-      const parsed = await Promise.all(entries.map(async ({ fileHandle, name }) => {
+      if (stale()) return;
+      const total = entries.length;
+      setLocalProgress({ done: 0, total });
+
+      // Caché de metadatos (IndexedDB). newCache solo conserva lo que existe ahora mismo:
+      // los archivos borrados o modificados desaparecen de la caché al guardarla.
+      const oldCache = await _loadLocalCache();
+      if (stale()) return;
+      const newCache = _emptyLocalCache();
+      const saveCache = () => { if (!stale()) idbSet(LOCAL_META_KEY, newCache).catch(() => {}); };
+
+      // Datos que llegan DESPUÉS de mostrar la canción (portada reducida, duración): se acumulan por
+      // clave de caché (f._ckey) y se aplican a la lista por lotes. Un parche solo se aplica cuando la
+      // canción ya está en la lista (flushedKeys); si aún no, espera al siguiente lote.
+      const patches = new Map();
+      const flushedKeys = new Set();
+      let patchTimer = null;
+      const applyPatches = () => {
+        patchTimer = null;
+        if (stale()) return;
+        const batch = new Map();
+        for (const [k, p] of patches) if (flushedKeys.has(k)) { batch.set(k, p); patches.delete(k); }
+        if (!batch.size) return;
+        setLocalFiles(prev => prev.map(f => { const p = batch.get(f._ckey); return p ? { ...f, ...p } : f; }));
+      };
+      const addPatch = (k, p) => {
+        patches.set(k, { ...(patches.get(k) || {}), ...p });
+        if (!patchTimer) patchTimer = setTimeout(applyPatches, 400);
+      };
+      const pendingCovers = []; // promesas de portadas que se están reduciendo en segundo plano
+
+      // Resultados por posición para conservar el orden original del escaneo
+      // (la cola de "REPRODUCIR TODO" depende de él) aunque terminen desordenados.
+      const slots = new Array(total);
+      let flushed = 0, done = 0;
+      const coverCache = new Map(); // álbum → Promise<{thumbnail, coverArt}> (misma portada, una sola vez)
+      const flush = () => {
+        const chunk = [];
+        while (flushed < total && slots[flushed] !== undefined) {
+          if (slots[flushed]) { chunk.push(slots[flushed]); flushedKeys.add(slots[flushed]._ckey); }
+          flushed++;
+        }
+        if (chunk.length) setLocalFiles(prev => prev.concat(chunk));
+      };
+
+      // Máx. 6 archivos a la vez (antes eran ~1000 a la vez: ~1 GB de buffers y 1000 <audio> simultáneos)
+      // Hasta 10 a la vez: con caché cada archivo solo cuesta un getFile(); sin caché,
+      // 10 buffers de 1 MB siguen siendo poca memoria (antes eran ~1000 a la vez).
+      await _runPool(entries, 10, async ({ fileHandle, name, pathPrefix }, i) => {
+        if (stale()) return;
+        let item = null;
         try {
           const file = await fileHandle.getFile();
-          const slice = file.slice(0, 1024 * 1024);
-          const buf = await slice.arrayBuffer();
-          const tags = await _parseID3Buffer(buf);
-          let duration = tags.duration || null;
-          if (!duration) {
-            const blobUrl = URL.createObjectURL(file);
-            duration = await new Promise(resolve => {
-              const a = document.createElement('audio');
-              a.preload = 'metadata';
-              a.onloadedmetadata = () => { resolve(isFinite(a.duration) ? a.duration : null); a.src = ''; URL.revokeObjectURL(blobUrl); };
-              a.onerror = () => { resolve(null); a.src = ''; URL.revokeObjectURL(blobUrl); };
-              a.src = blobUrl;
-            });
+          const ckey = _localMetaKey(dirHandle.name, pathPrefix, name, file.size, file.lastModified);
+          let meta = oldCache.items[ckey];
+          let cov = meta && meta.coverKey ? (oldCache.covers[meta.coverKey] || null) : null;
+          let coverP = null; // portada que se reduce en segundo plano (no se espera aquí)
+
+          if (!meta) {
+            // Sin acierto en la caché: leer y parsear. Solo el primer MB (las etiquetas ID3 están al principio)
+            const buf = await file.slice(0, 1024 * 1024).arrayBuffer();
+            const tags = await _parseID3Buffer(buf, { coverAsBlob: true });
+
+            let coverKey = null;
+            if (tags.coverRange) {
+              const albumKey = tags.album ? (tags.albumArtist || tags.artist || '') + '|' + tags.album : null;
+              coverKey = albumKey || 'f|' + ckey;
+              let p = albumKey ? coverCache.get(albumKey) : null;
+              if (!p) {
+                // Solo aquí (primer archivo del álbum) se copia la imagen del buffer
+                const coverBlob = new Blob([buf.slice(tags.coverRange.start, tags.coverRange.end)], { type: tags.coverRange.mime });
+                // null si no se pudo reducir (así no se guarda una portada vacía en la caché)
+                p = Promise.all([_downscaleCover(coverBlob, 128, 0.82), _downscaleCover(coverBlob, 480, 0.85)])
+                  .then(([t, c]) => (t || c) ? { thumbnail: t, coverArt: c } : null);
+                if (albumKey) coverCache.set(albumKey, p);
+              }
+              coverP = p;
+            }
+            meta = {
+              name: tags.title || name.replace(/\.[^.]+$/, ''),
+              artist: tags.albumArtist || tags.artist || '',
+              album: tags.album || '',
+              track: tags.track || '',
+              disc: tags.disc || '',
+              year: tags.year || '',
+              genre: tags.genre || '',
+              duration: tags.duration || null, // si falta, se calcula después en segundo plano
+              fileType: file.type || 'audio/mpeg',
+              coverKey,
+            };
           }
-          return {
+
+          newCache.items[ckey] = meta;
+          if (meta.coverKey && cov) newCache.covers[meta.coverKey] = cov;
+          if (coverP) {
+            const myMeta = meta;
+            pendingCovers.push(coverP.then(c => {
+              if (stale()) return;
+              if (c) { newCache.covers[myMeta.coverKey] = c; addPatch(ckey, { thumbnail: c.thumbnail, coverArt: c.coverArt }); }
+              else myMeta.coverKey = null; // no se pudo reducir: no dejar una referencia vacía en la caché
+            }));
+          }
+
+          item = {
+            _ckey: ckey,         // clave estable para aplicar portada/duración después
             id: 'local_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
-            name: tags.title || name.replace(/\.[^.]+$/, ''),
-            artist: tags.albumArtist || tags.artist || '',
-            album: tags.album || '',
-            track: tags.track || '',
-            disc: tags.disc || '',
-            year: tags.year || '',
-            genre: tags.genre || '',
-            thumbnail: tags.coverArt || null,
-            coverArt: tags.coverArt || null,
+            name: meta.name,
+            artist: meta.artist,
+            album: meta.album,
+            track: meta.track,
+            disc: meta.disc,
+            year: meta.year,
+            genre: meta.genre,
+            thumbnail: cov ? cov.thumbnail : null,
+            coverArt: cov ? cov.coverArt : null,
             fileName: name,
             fileSize: file.size,
-            fileType: file.type || 'audio/mpeg',
+            fileType: meta.fileType,
             fileData: null,      // never stored
             isLocal: true,
             fileHandle,
-            duration,
+            duration: meta.duration || null,
             uploadedAt: file.lastModified || Date.now(),
             downloads: 0,
           };
-        } catch { return null; }
-      }));
-      setLocalFiles(parsed.filter(Boolean));
-    } catch {}
-    setLocalScanning(false);
+        } catch { item = null; }
+        slots[i] = item;
+        done++;
+        if (done % 50 === 0) {
+          flush();
+          setLocalProgress({ done, total });
+          await _yieldToUI(); // deja que el navegador repinte y atienda clics
+        }
+      });
+      if (stale()) return;
+      flush();
+      setLocalProgress({ done: total, total });
+      setLocalScanning(false);
+      saveCache(); // la lista ya está completa: guardarla ya, sin esperar a las duraciones
+
+      // En segundo plano, sin bloquear la lista: duraciones que faltan (de 3 en 3) y portadas que
+      // aún se están reduciendo en el worker. Ambas se van aplicando a la lista como parches.
+      const missing = slots.filter(f => f && !f.duration);
+      const durationsDone = _runPool(missing, 3, async (f) => {
+        if (stale()) return;
+        const d = await probeLocalDuration(f.fileHandle);
+        if (d) {
+          if (newCache.items[f._ckey]) newCache.items[f._ckey].duration = d; // se guarda en la caché
+          addPatch(f._ckey, { duration: d });
+        }
+      });
+      await Promise.all([durationsDone, Promise.all(pendingCovers)]);
+      if (stale()) return;
+      clearTimeout(patchTimer);
+      applyPatches();
+      saveCache();
+    } catch {
+      if (!stale()) setLocalScanning(false);
+    }
   };
 
   const pickLocalFolder = async () => {
@@ -7516,9 +7797,12 @@ function App() {
 
   // Desconectar carpeta local — limpia estado y elimina handle de IndexedDB
   const disconnectLocalFolder = async () => {
+    localScanIdRef.current++;   // aborta cualquier escaneo en curso
+    setLocalScanning(false);
     setLocalFiles([]);
     setLocalDirName('');
     try { await idbSet('localDirHandle', null); } catch {}
+    try { await idbSet(LOCAL_META_KEY, null); } catch {} // al desconectar también se borra la caché de metadatos
     if (currentTrackId) {
       const current = localFiles.find(f => f.id === currentTrackId);
       if (current) stopMusic();
@@ -7838,7 +8122,7 @@ function App() {
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
-                  localFiles={localFiles} dirName={localDirName} scanning={localScanning}
+                  localFiles={localFiles} dirName={localDirName} scanning={localScanning} progress={localProgress}
                   onPickFolder={pickLocalFolder} onDisconnect={disconnectLocalFolder}
                   onPlayAll={() => { if(localFiles.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
                   onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
