@@ -472,6 +472,99 @@ async function _parseID3Buffer(buf, opts = {}) {
   return tags;
 }
 
+// ── Lector ID3 "ligero" para el escaneo de música local ────────────────────────────────
+// El lector clásico (_parseID3Buffer) necesita 1 MB por archivo: con 1000 canciones son ~1 GB de
+// lecturas y buffers que el navegador tarda en devolver (y en un disco duro, minutos). Este lee
+// una ventana de 32 KB, recorre los marcos saltándose la imagen y, si hay portada, devuelve solo
+// su posición: getCoverBlob() es un trozo perezoso del archivo (file.slice), sin copiar nada a memoria.
+// Devuelve {} si no hay etiqueta ID3, o null si no puede decidir (ID3v2.2, etiqueta rara) → lector clásico.
+async function _parseID3FileFast(file) {
+  const size = file.size;
+  if (size < 10) return {};
+  const readAt = async (off, len) => new Uint8Array(await file.slice(off, Math.min(size, off + len)).arrayBuffer());
+  const h = await readAt(0, 10);
+  if (h[0] !== 0x49 || h[1] !== 0x44 || h[2] !== 0x33) return {};   // sin etiqueta ID3v2
+  const major = h[3];
+  if (major !== 3 && major !== 4) return null;                       // ID3v2.2 y otras → lector clásico
+  const tagSize = ((h[6] & 0x7f) << 21) | ((h[7] & 0x7f) << 14) | ((h[8] & 0x7f) << 7) | (h[9] & 0x7f);
+  const end = Math.min(10 + tagSize, size);
+  const WIN = 32768;
+  let win = new Uint8Array(0), winStart = 0;
+  const get = async (off, len) => {
+    if (off >= winStart && off + len <= winStart + win.length) return win.subarray(off - winStart, off - winStart + len);
+    if (len > WIN) return readAt(off, len);
+    win = await readAt(off, WIN); winStart = off;
+    return win.subarray(0, Math.min(len, win.length));
+  };
+  const decUtf = new TextDecoder('utf-8'), decUtf16 = new TextDecoder('utf-16'), decLatin = new TextDecoder('latin1');
+  const tags = {};
+  let offset = 10;
+  while (offset + 10 < end) {
+    const hd = await get(offset, 10);
+    if (hd.length < 10) break;
+    const frameId = String.fromCharCode(hd[0], hd[1], hd[2], hd[3]);
+    if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
+    const frameSize = major === 4
+      ? (((hd[4] & 0x7f) << 21) | ((hd[5] & 0x7f) << 14) | ((hd[6] & 0x7f) << 7) | (hd[7] & 0x7f))
+      : (((hd[4] << 24) | (hd[5] << 16) | (hd[6] << 8) | hd[7]) >>> 0);
+    if (frameSize <= 0 || offset + 10 + frameSize > end) break;
+    const fdStart = offset + 10;
+    if (frameId[0] === 'T') {
+      if (frameSize <= 4096) {                                       // los textos son cortos
+        const body = await get(fdStart, frameSize);
+        if (body.length === frameSize) {
+          try {
+            const enc = body[0], bytes = body.subarray(1);
+            let text;
+            if (enc === 0) text = decLatin.decode(bytes);
+            else if (enc === 1 || enc === 2) text = decUtf16.decode(bytes);
+            else text = decUtf.decode(bytes);
+            text = text.replace(/\0+$/g, '').replace(/^﻿/, '').trim();
+            if (frameId === 'TIT2') tags.title = text;
+            if (frameId === 'TPE1') tags.artist = text;
+            if (frameId === 'TPE2') tags.albumArtist = text;
+            if (frameId === 'TALB') tags.album = text;
+            if (frameId === 'TYER' || frameId === 'TDRC') tags.year = text.slice(0, 4);
+            if (frameId === 'TCON') tags.genre = text.replace(/^\(?\d+\)?/, '').trim() || text;
+            if (frameId === 'TRCK') tags.track = text;
+            if (frameId === 'TPOS') tags.disc = text;
+            if (frameId === 'TLEN') { const ms = parseInt(text, 10); if (ms > 0) tags.duration = ms / 1000; }
+          } catch {}
+        }
+      }
+    } else if (frameId === 'APIC' && !tags.coverRange) {
+      const probe = await get(fdStart, Math.min(frameSize, 256));    // solo la cabecera: busca el inicio de la imagen
+      for (let i = 0; i < probe.length - 3; i++) {
+        const isJpeg = probe[i] === 0xFF && probe[i+1] === 0xD8 && probe[i+2] === 0xFF;
+        const isPng  = probe[i] === 0x89 && probe[i+1] === 0x50 && probe[i+2] === 0x4E;
+        if (isJpeg || isPng) { tags.coverRange = { start: fdStart + i, end: fdStart + frameSize, mime: isJpeg ? 'image/jpeg' : 'image/png' }; break; }
+      }
+    }
+    offset = fdStart + frameSize;
+  }
+  if (!tags.title && !tags.artist && !tags.album && !tags.coverRange) return null;   // no entendí nada → lector clásico
+  if (tags.coverRange) {
+    const r = tags.coverRange;
+    tags.getCoverBlob = () => file.slice(r.start, r.end, r.mime);    // trozo perezoso del archivo, sin copiarlo
+  }
+  return tags;
+}
+
+// Etiquetas de un archivo local: primero el lector ligero; si no puede, el clásico (primer MB).
+async function _readLocalTags(file) {
+  try {
+    const fast = await _parseID3FileFast(file);
+    if (fast) return fast;
+  } catch {}
+  const buf = await file.slice(0, 1024 * 1024).arrayBuffer();
+  const tags = await _parseID3Buffer(buf, { coverAsBlob: true });
+  if (tags.coverRange) {
+    const r = tags.coverRange;
+    tags.getCoverBlob = () => new Blob([buf.slice(r.start, r.end)], { type: r.mime });
+  }
+  return tags;
+}
+
 // readID3: lee etiquetas ID3. Para URLs de API solo descarga el primer MB (las
 // etiquetas siempre están al principio); para data URLs descarga todo en memoria.
 async function readID3(src) {
@@ -576,15 +669,69 @@ const _yieldToUI = () => new Promise(r => setTimeout(r, 0));
 // Caché de metadatos de la música local en IndexedDB: evita volver a leer y parsear los
 // ~1000 archivos en cada carga. Una entrada vale mientras no cambien tamaño ni fecha de
 // modificación del archivo. Sube el sufijo de la clave si cambia el formato o el tamaño de las portadas.
-//   { items: { [clave]: { name, artist, album, track, disc, year, genre, duration, fileType, coverKey } },
+//   { items: { [clave]: { name, artist, album, track, disc, year, genre, duration, fileType, coverKey,
+//                         fileName, fileSize, mtime, idx } },
 //     covers: { [coverKey]: { thumbnail, coverArt } } }   ← las portadas se guardan una vez por álbum
-const LOCAL_META_KEY = 'localMetaCache_v1';
+// fileName/fileSize/mtime/idx permiten reconstruir la lista al abrir la página SIN tocar los archivos
+// (ver _localItemsFromCache); idx es la posición original del escaneo (conserva el orden de la cola).
+const LOCAL_META_KEY = 'localMetaCache_v2';
 const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
   [dirName, pathPrefix, name, size, mtime].join('|');
 const _emptyLocalCache = () => ({ items: {}, covers: {} });
 async function _loadLocalCache() {
   const c = await idbGet(LOCAL_META_KEY);
   return (c && c.items && c.covers) ? c : _emptyLocalCache();
+}
+// Lista de canciones a partir de la caché, sin acceso a los archivos. Son "sin permiso": no tienen
+// fileHandle hasta que se reconecta/revalida la carpeta (startTrack lo gestiona al pulsar ▶).
+function _localItemsFromCache(cache, dirName) {
+  const out = [];
+  for (const [ckey, m] of Object.entries(cache.items)) {
+    if (!m || !m.fileName || !ckey.startsWith(dirName + '|')) continue;
+    const cov = m.coverKey ? cache.covers[m.coverKey] : null;
+    out.push({
+      _idx: m.idx || 0,
+      _ckey: ckey,
+      id: 'local_' + m.fileName.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+      name: m.name, artist: m.artist, album: m.album, track: m.track, disc: m.disc, year: m.year, genre: m.genre,
+      thumbnail: cov ? cov.thumbnail : null,
+      coverArt: cov ? cov.coverArt : null,
+      fileName: m.fileName, fileSize: m.fileSize || 0, fileType: m.fileType || 'audio/mpeg',
+      fileData: null, isLocal: true, fileHandle: null, needsPermission: true,
+      duration: m.duration || null, uploadedAt: m.mtime || Date.now(), downloads: 0,
+    });
+  }
+  out.sort((a, b) => a._idx - b._idx);
+  out.forEach(f => { delete f._idx; });
+  return out;
+}
+
+// Una misma canción puede estar en la carpeta local Y en R2/vault. Para que no salga ni cuente dos
+// veces, de la lista local se quitan las que ya existen en `remote` (se conserva la de R2/vault: su id
+// es estable y es donde viven los "me gusta", las listas y las reproducciones).
+// Misma canción = mismo artista + mismo título (sin acentos/mayúsculas/signos); si ambas conocen la
+// duración y difiere en más de 3 s se consideran versiones distintas (en vivo, remasterizada...).
+const _normSong = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const _songKey = (f) => _normSong(f.artist || f.category) + '|' + _normSong(f.name);
+function _dedupeLocal(localAll, remote) {
+  if (!localAll.length || !remote.length) return localAll;
+  const byKey = new Map();
+  for (const r of remote) {
+    if (!isAudioFile(r)) continue;
+    const k = _songKey(r);
+    if (k === '|') continue;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(r);
+  }
+  if (!byKey.size) return localAll;
+  const out = localAll.filter(l => {
+    const cands = byKey.get(_songKey(l));
+    if (!cands) return true;
+    const same = cands.some(r => !(l.duration && r.duration && Math.abs(l.duration - r.duration) > 3));
+    return !same;
+  });
+  return out.length === localAll.length ? localAll : out;
 }
 
 let _catIconRegistry = {};
@@ -6481,7 +6628,7 @@ const LocalTrackRow = React.memo(function LocalTrackRow({ f, active, playing, on
   );
 });
 
-function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
+function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, needsPermission = false, onReconnect, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
   const supported = 'showDirectoryPicker' in window;
   const connected = localFiles.length > 0 || dirName;
 
@@ -6535,6 +6682,14 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
                   {dirName} · <span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span>
                 </span>
               )}
+            </div>
+          )}
+          {supported && needsPermission && (
+            <div style={{marginTop:14, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
+              <button className="big-btn" onClick={() => onReconnect && onReconnect()}>🔓 RECONECTAR CARPETA</button>
+              <span style={{color:'var(--fg-dim)', fontSize:18}}>
+                Tu biblioteca ya está cargada. El navegador pide permiso de lectura al abrir la página: pulsa aquí, o ▶ en cualquier canción, para poder reproducirla.
+              </span>
             </div>
           )}
           {!connected && !scanning && supported && (
@@ -6731,11 +6886,20 @@ function App() {
   const waveformFrRef    = useRef(0);     // contador de frames para throttle
 
   // Local music (File System Access — never stored in localStorage)
-  const [localFiles,   setLocalFiles]   = useState([]);
+  // localFilesAll = todo lo que hay en la carpeta (página MÚSICA LOCAL y cola "local").
+  // localFiles    = lo mismo SIN las canciones que ya existen en R2/vault: es lo que ven y cuentan
+  //                 el resto de secciones, para que una misma canción no salga (ni cuente) dos veces.
+  const [localFilesAll, setLocalFiles] = useState([]);
+  const localFiles = useMemo(() => _dedupeLocal(localFilesAll, files), [localFilesAll, files]);
   const [localDirName, setLocalDirName] = useState('');
   const [localScanning, setLocalScanning] = useState(false);
   const [localProgress, setLocalProgress] = useState({ done: 0, total: 0 });
   const localScanIdRef = useRef(0); // se incrementa para invalidar un escaneo en curso
+  const localScanningRef = useRef(false);     // true mientras se escanea (lo leen los manejadores, que ven estado viejo)
+  const localDirHandleRef = useRef(null);     // carpeta guardada (puede estar sin permiso al abrir la página)
+  const pendingLocalPlayRef = useRef(null);   // id de la canción que se pulsó antes de reconectar
+  const startTrackRef = useRef(null);
+  const [localNeedsPermission, setLocalNeedsPermission] = useState(false); // lista cargada de la caché, falta el permiso
 
   useEffect(() => { saveVault(files); }, [files]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
@@ -7207,7 +7371,7 @@ function App() {
   };
 
   const getQueueForContext = useCallback((context) => {
-    if (context.type === 'local') return localFiles;
+    if (context.type === 'local') return localFilesAll;
     const all = files.filter(isAudioFile);
     const combined = [...all, ...localFiles.filter(isAudioFile)];
     if (context.type === 'playlist' && context.playlistId) {
@@ -7222,11 +7386,11 @@ function App() {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return [...combined].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-  }, [files, localFiles, playlists]);
+  }, [files, localFiles, localFilesAll, playlists]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
-  const currentTrack = currentTrackId ? ([...files, ...localFiles].find((f) => f.id === currentTrackId) ?? null) : null;
+  const currentTrack = currentTrackId ? ([...files, ...localFilesAll].find((f) => f.id === currentTrackId) ?? null) : null;
 
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
@@ -7243,7 +7407,7 @@ function App() {
   const countPlay = (id) => {
     if (!id) return;
     setPlayCounts(prev => { const n = { ...prev, [id]: (prev[id] || 0) + 1 }; saveCounts(n); return n; });
-    const file = [...files, ...localFiles].find(f => f.id === id);
+    const file = [...files, ...localFilesAll].find(f => f.id === id);
     setPlayLog(prev => {
       const n = [{ id, artist: (file?.category || file?.artist || ''), ts: Date.now() }, ...prev].slice(0,2000);
       savePLog(n);
@@ -7267,6 +7431,8 @@ function App() {
 
   const startTrack = (file, nextContext, { skipLog = false } = {}) => {
     if (!file) return;
+    // Canción de la lista guardada y carpeta aún sin reconectar: pedir permiso y reproducirla al terminar
+    if (file.isLocal && !file.fileHandle) { reconnectLocalFolder(file.id); return; }
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
     msTransitionRef.current = true;
@@ -7402,7 +7568,7 @@ function App() {
   // Like toggle
   const toggleLike = (fileId) => {
     const wasLiked = likedIds.has(fileId);
-    const f = [...files, ...localFiles].find(x => x.id === fileId);
+    const f = [...files, ...localFilesAll].find(x => x.id === fileId);
     setLikedIds(prev => {
       const next = new Set(prev);
       if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
@@ -7599,12 +7765,17 @@ function App() {
     finally { if (url) URL.revokeObjectURL(url); }
   };
 
-  const scanLocalDir = async (dirHandle) => {
+  // opts.hold: revalida la carpeta SIN vaciar la lista que ya se ve (la de la caché): la lista nueva se
+  // construye aparte y sustituye a la anterior de golpe al terminar.
+  const scanLocalDir = async (dirHandle, opts = {}) => {
     // Cada escaneo tiene un id; si el usuario cambia/desconecta la carpeta, el anterior se aborta.
     const scanId = ++localScanIdRef.current;
     const stale = () => scanId !== localScanIdRef.current;
+    const hold = !!opts.hold;
+    const held = [];   // modo hold: canciones del escaneo nuevo, aún sin mostrar
+    localScanningRef.current = true;
     setLocalScanning(true);
-    setLocalFiles([]);
+    if (!hold) setLocalFiles([]);
     setLocalProgress({ done: 0, total: 0 });
     const entries = [];
     const scan = async (handle, pathPrefix) => {
@@ -7661,10 +7832,12 @@ function App() {
       const flush = () => {
         const chunk = [];
         while (flushed < total && slots[flushed] !== undefined) {
-          if (slots[flushed]) { chunk.push(slots[flushed]); flushedKeys.add(slots[flushed]._ckey); }
+          if (slots[flushed]) { chunk.push(slots[flushed]); if (!hold) flushedKeys.add(slots[flushed]._ckey); }
           flushed++;
         }
-        if (chunk.length) setLocalFiles(prev => prev.concat(chunk));
+        if (!chunk.length) return;
+        if (hold) held.push(...chunk);
+        else setLocalFiles(prev => prev.concat(chunk));
       };
 
       // Máx. 6 archivos a la vez (antes eran ~1000 a la vez: ~1 GB de buffers y 1000 <audio> simultáneos)
@@ -7681,18 +7854,17 @@ function App() {
           let coverP = null; // portada que se reduce en segundo plano (no se espera aquí)
 
           if (!meta) {
-            // Sin acierto en la caché: leer y parsear. Solo el primer MB (las etiquetas ID3 están al principio)
-            const buf = await file.slice(0, 1024 * 1024).arrayBuffer();
-            const tags = await _parseID3Buffer(buf, { coverAsBlob: true });
+            // Sin acierto en la caché: leer las etiquetas (ventana de 32 KB; la portada no se copia)
+            const tags = await _readLocalTags(file);
 
             let coverKey = null;
-            if (tags.coverRange) {
+            if (tags.getCoverBlob) {
               const albumKey = tags.album ? (tags.albumArtist || tags.artist || '') + '|' + tags.album : null;
               coverKey = albumKey || 'f|' + ckey;
               let p = albumKey ? coverCache.get(albumKey) : null;
               if (!p) {
-                // Solo aquí (primer archivo del álbum) se copia la imagen del buffer
-                const coverBlob = new Blob([buf.slice(tags.coverRange.start, tags.coverRange.end)], { type: tags.coverRange.mime });
+                // Solo aquí (primer archivo del álbum) se prepara la imagen; es un trozo del archivo, no una copia
+                const coverBlob = tags.getCoverBlob();
                 // null si no se pudo reducir (así no se guarda una portada vacía en la caché)
                 p = Promise.all([_downscaleCover(coverBlob, 128, 0.82), _downscaleCover(coverBlob, 480, 0.85)])
                   .then(([t, c]) => (t || c) ? { thumbnail: t, coverArt: c } : null);
@@ -7711,8 +7883,12 @@ function App() {
               duration: tags.duration || null, // si falta, se calcula después en segundo plano
               fileType: file.type || 'audio/mpeg',
               coverKey,
+              fileName: name,
+              fileSize: file.size,
+              mtime: file.lastModified || 0,
             };
           }
+          meta.idx = i; // posición en el escaneo (para reconstruir la lista en el mismo orden)
 
           newCache.items[ckey] = meta;
           if (meta.coverKey && cov) newCache.covers[meta.coverKey] = cov;
@@ -7758,9 +7934,26 @@ function App() {
       });
       if (stale()) return;
       flush();
+      if (hold) {                                  // sustituir la lista de la caché por la real (con fileHandle)
+        held.forEach(f => flushedKeys.add(f._ckey));
+        setLocalFiles(held);
+      }
       setLocalProgress({ done: total, total });
       setLocalScanning(false);
+      localScanningRef.current = false;
       saveCache(); // la lista ya está completa: guardarla ya, sin esperar a las duraciones
+
+      // Si el usuario pulsó ▶ en una canción mientras la carpeta estaba sin reconectar, reproducirla ahora.
+      const pid = pendingLocalPlayRef.current;
+      if (pid) {
+        pendingLocalPlayRef.current = null;
+        const f = slots.find(x => x && x.id === pid);
+        if (f && startTrackRef.current) {
+          const ctx = { type: 'local', shuffle: false };
+          setManualQueue(null); setPlayContext(ctx);
+          startTrackRef.current(f, ctx);
+        }
+      }
 
       // En segundo plano, sin bloquear la lista: duraciones que faltan (de 3 en 3) y portadas que
       // aún se están reduciendo en el worker. Ambas se van aplicando a la lista como parches.
@@ -7779,7 +7972,29 @@ function App() {
       applyPatches();
       saveCache();
     } catch {
-      if (!stale()) setLocalScanning(false);
+      if (!stale()) { setLocalScanning(false); localScanningRef.current = false; }
+    }
+  };
+
+  startTrackRef.current = startTrack; // siempre la versión del último render (la usa el escaneo al terminar)
+
+  // Vuelve a pedir permiso de lectura (Chrome lo exige con un clic del usuario) y revalida la carpeta.
+  // Se llama desde el botón RECONECTAR o al pulsar ▶ en una canción de la lista guardada.
+  const reconnectLocalFolder = async (playId = null) => {
+    if (playId) pendingLocalPlayRef.current = playId;
+    if (localScanningRef.current) return;     // ya se está revalidando: al terminar reproducirá la pendiente
+    try {
+      const dh = localDirHandleRef.current || await idbGet('localDirHandle');
+      if (!dh) { pendingLocalPlayRef.current = null; return; }
+      localDirHandleRef.current = dh;
+      let perm = await dh.queryPermission({ mode: 'read' });
+      if (perm !== 'granted') perm = await dh.requestPermission({ mode: 'read' });
+      if (perm !== 'granted') { pendingLocalPlayRef.current = null; return; }
+      setLocalNeedsPermission(false);
+      await scanLocalDir(dh, { hold: true });
+    } catch (e) {
+      pendingLocalPlayRef.current = null;
+      if (e && e.name !== 'AbortError') console.error(e);
     }
   };
 
@@ -7787,6 +8002,8 @@ function App() {
     if (!('showDirectoryPicker' in window)) return;
     try {
       const dh = await window.showDirectoryPicker({ mode: 'read' });
+      localDirHandleRef.current = dh;
+      setLocalNeedsPermission(false);
       setLocalDirName(dh.name);
       await idbSet('localDirHandle', dh);
       await scanLocalDir(dh);
@@ -7798,31 +8015,39 @@ function App() {
   // Desconectar carpeta local — limpia estado y elimina handle de IndexedDB
   const disconnectLocalFolder = async () => {
     localScanIdRef.current++;   // aborta cualquier escaneo en curso
+    localScanningRef.current = false;
+    pendingLocalPlayRef.current = null;
+    localDirHandleRef.current = null;
+    setLocalNeedsPermission(false);
     setLocalScanning(false);
     setLocalFiles([]);
     setLocalDirName('');
     try { await idbSet('localDirHandle', null); } catch {}
     try { await idbSet(LOCAL_META_KEY, null); } catch {} // al desconectar también se borra la caché de metadatos
     if (currentTrackId) {
-      const current = localFiles.find(f => f.id === currentTrackId);
+      const current = localFilesAll.find(f => f.id === currentTrackId);
       if (current) stopMusic();
     }
   };
 
-  // Try to restore local folder on first load
-  // If permission is not already granted, clear the stored handle — the user must reconnect manually
+  // Al abrir la página: mostrar AL INSTANTE la biblioteca guardada (caché de IndexedDB) y revalidarla.
+  // Chrome suele pedir permiso de lectura de nuevo en cada visita; eso ya NO hace olvidar la carpeta:
+  // la lista se ve igualmente y se reconecta con un clic (botón RECONECTAR o ▶ en cualquier canción).
   useEffect(() => {
     (async () => {
       try {
         const dh = await idbGet('localDirHandle');
         if (!dh) return;
-        const perm = await dh.queryPermission({ mode: 'read' });
+        localDirHandleRef.current = dh;
+        setLocalDirName(dh.name);
+        const cached = _localItemsFromCache(await _loadLocalCache(), dh.name);
+        if (cached.length) setLocalFiles(prev => prev.length ? prev : cached);
+        let perm = 'prompt';
+        try { perm = await dh.queryPermission({ mode: 'read' }); } catch {}
         if (perm === 'granted') {
-          setLocalDirName(dh.name);
-          await scanLocalDir(dh);
+          await scanLocalDir(dh, { hold: cached.length > 0 });   // revalida en segundo plano; la caché evita releer
         } else {
-          // Permission lost after page reload — clear stored handle
-          await idbSet('localDirHandle', null);
+          setLocalNeedsPermission(true);
         }
       } catch {}
     })();
@@ -7970,7 +8195,7 @@ function App() {
 
   const totalBytes = [...files, ...localFiles].reduce((a, f) => a + (f.fileSize || 0), 0);
   const phosphorClass = `phosphor-${t.phosphor}`;
-  const currentFile = route.page === 'DETAIL' ? ([...files, ...localFiles].find((f) => f.id === route.fileId) ?? null) : null;
+  const currentFile = route.page === 'DETAIL' ? ([...files, ...localFilesAll].find((f) => f.id === route.fileId) ?? null) : null;
 
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
@@ -8122,9 +8347,10 @@ function App() {
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
-                  localFiles={localFiles} dirName={localDirName} scanning={localScanning} progress={localProgress}
+                  localFiles={localFilesAll} dirName={localDirName} scanning={localScanning} progress={localProgress}
+                  needsPermission={localNeedsPermission} onReconnect={() => reconnectLocalFolder()}
                   onPickFolder={pickLocalFolder} onDisconnect={disconnectLocalFolder}
-                  onPlayAll={() => { if(localFiles.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
+                  onPlayAll={() => { if(localFilesAll.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
                   onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
                   currentId={currentTrackId} isPlaying={isPlaying} />
               )}
