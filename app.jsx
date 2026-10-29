@@ -594,12 +594,16 @@ function _getCoverWorker() {
     const src = `onmessage = async (e) => {
       const { id, blob, max, quality } = e.data;
       try {
-        const bmp = await createImageBitmap(blob);
+        let bmp = await createImageBitmap(blob);
         const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
         const w = Math.max(1, Math.round(bmp.width * scale));
         const h = Math.max(1, Math.round(bmp.height * scale));
+        if (scale < 1) {                       // reducción de calidad alta (evita portadas pixeladas/aliasadas)
+          try { const r = await createImageBitmap(bmp, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }); bmp.close(); bmp = r; } catch (e) {}
+        }
         const oc = new OffscreenCanvas(w, h);
         const ctx = oc.getContext('2d');
+        ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
         ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
         ctx.drawImage(bmp, 0, 0, w, h);
         if (bmp.close) bmp.close();
@@ -624,13 +628,17 @@ function _blobToDataURL(blob) {
 // fuerza un canvas por software y evita la espera a la GPU en toDataURL().
 async function _downscaleCoverMain(blob, max, quality) {
   try {
-    const bmp = await createImageBitmap(blob);
+    let bmp = await createImageBitmap(blob);
     const scale = Math.min(1, max / Math.max(bmp.width, bmp.height));
     const w = Math.max(1, Math.round(bmp.width * scale));
     const h = Math.max(1, Math.round(bmp.height * scale));
+    if (scale < 1) {
+      try { const r = await createImageBitmap(bmp, { resizeWidth: w, resizeHeight: h, resizeQuality: 'high' }); bmp.close(); bmp = r; } catch (e) {}
+    }
     const cv = document.createElement('canvas');
     cv.width = w; cv.height = h;
     const ctx = cv.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(bmp, 0, 0, w, h);
@@ -674,7 +682,7 @@ const _yieldToUI = () => new Promise(r => setTimeout(r, 0));
 //     covers: { [coverKey]: { thumbnail, coverArt } } }   ← las portadas se guardan una vez por álbum
 // fileName/fileSize/mtime/idx permiten reconstruir la lista al abrir la página SIN tocar los archivos
 // (ver _localItemsFromCache); idx es la posición original del escaneo (conserva el orden de la cola).
-const LOCAL_META_KEY = 'localMetaCache_v2';
+const LOCAL_META_KEY = 'localMetaCache_v3'; // v3: portadas a mayor resolución (360 / 1000 px)
 const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
   [dirName, pathPrefix, name, size, mtime].join('|');
 const _emptyLocalCache = () => ({ items: {}, covers: {} });
@@ -713,7 +721,30 @@ function _localItemsFromCache(cache, dirName) {
 // duración y difiere en más de 3 s se consideran versiones distintas (en vivo, remasterizada...).
 const _normSong = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+// Intérprete principal: quita colaboradores ("A feat. B", "A; B", "A / B"). No parte por "&" ni ","
+// para no romper nombres de grupos ("Simon & Garfunkel").
+const _primaryArtist = (s) => String(s || '').split(/\s*;\s*|\s*\/\s*|\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim();
 const _songKey = (f) => _normSong(f.artist || f.category) + '|' + _normSong(f.name);
+// Una misma canción de R2 puede estar en varias carpetas (p. ej. la del álbum de A y la de su colaborador B).
+// Se cuenta una sola vez, bajo el intérprete del álbum (`category` = albumArtist si existe).
+function _dedupeCollabs(remoteAll) {
+  const seen = new Map(); let dup = false;
+  const out = [];
+  for (const r of remoteAll) {
+    if (!r.r2Path || !isAudioFile(r)) { out.push(r); continue; }
+    const k = _normSong(r.category || r.artist) + '|' + _normSong(r.album) + '|' + _normSong(r.name);
+    if (_normSong(r.name) === '') { out.push(r); continue; }
+    const prev = seen.get(k);
+    if (prev === undefined) { seen.set(k, out.length); out.push(r); continue; }
+    dup = true;
+    // se conserva la copia cuya carpeta coincide con el intérprete del álbum
+    const keep = out[prev];
+    const own = (x) => _normSong(x.r2Path.split('/')[0]) === _normSong(x.category);
+    if (!own(keep) && own(r)) out[prev] = r;
+  }
+  return dup ? out : remoteAll;
+}
+
 // Si una canción existe en la carpeta local Y en R2, se usa la LOCAL (se lee del disco, mucho más fluida)
 // y se oculta la copia de R2. Devuelve el mismo array si no hay nada que ocultar.
 function _dedupeRemote(remoteAll, localAll) {
@@ -4059,17 +4090,46 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
 
 // Cola de reproducción unificada con cassette arriba
 const QUEUE_VISIBLE_NEXT = 30; // próximas canciones que muestra la cola
-function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, onJump, onReorder, onOpen }) {
+function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, onJump, onReorder, onOpen, onTogglePlay }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
   const hasCover = currentTrack && (currentTrack.coverArt || currentTrack.thumbnail);
-  const handleDragStart = (i) => setDragIdx(i);
-  const handleDragOver  = (e, i) => { e.preventDefault(); setOverIdx(i); };
-  const handleDrop = (e, i) => {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setOverIdx(null); return; }
-    const arr = [...queue]; const [moved] = arr.splice(dragIdx, 1); arr.splice(i, 0, moved);
-    onReorder(arr); setDragIdx(null); setOverIdx(null);
+  // Reordenar arrastrando con eventos de puntero (más fiable que el drag&drop nativo de HTML5, que se
+  // cancelaba al repintarse la lista mientras suena). Un movimiento < 6 px cuenta como clic normal.
+  const queueRef = useRef(queue); queueRef.current = queue;
+  const onReorderRef = useRef(onReorder); onReorderRef.current = onReorder;
+  const suppressClickRef = useRef(false);
+  const handlePointerDown = (e, i) => {
+    if (e.button !== 0) return;
+    if (e.pointerType !== 'mouse' && !(e.target.closest && e.target.closest('.pq-drag-handle'))) return; // táctil: solo desde el asa
+    const d = { from: i, x: e.clientX, y: e.clientY, active: false, over: i };
+    const move = (ev) => {
+      if (!d.active) {
+        if (Math.hypot(ev.clientX - d.x, ev.clientY - d.y) < 6) return;
+        d.active = true; setDragIdx(d.from); document.body.style.userSelect = 'none';
+      }
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const it = el && el.closest ? el.closest('.pq-item') : null;
+      if (it && it.dataset.qi !== undefined) { d.over = parseInt(it.dataset.qi, 10); setOverIdx(d.over); }
+    };
+    const up = (ev) => {
+      if (ev && d.active && ev.clientX !== undefined) move(ev);   // posición exacta al soltar
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      document.body.style.userSelect = '';
+      if (d.active) {
+        suppressClickRef.current = true; setTimeout(() => { suppressClickRef.current = false; }, 0);
+        if (d.over !== d.from) {
+          const arr = [...queueRef.current]; const [moved] = arr.splice(d.from, 1); arr.splice(d.over, 0, moved);
+          onReorderRef.current(arr);
+        }
+      }
+      setDragIdx(null); setOverIdx(null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
   };
   const handleJump = (f, i) => onJump(f, i);
   return (
@@ -4077,7 +4137,7 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
       <div className="widget-hd">◆ COLA DE REPRODUCCIÓN <span style={{color:'var(--fg-dim)',fontSize:'8px'}}>· {queue.length}</span></div>
       {/* Cassette con canción actual */}
       <div className={`cassette${!isPlaying ? ' paused' : ''}`}
-           onClick={() => currentTrack && onOpen(currentTrack.id)}
+           onClick={() => currentTrack && onTogglePlay && onTogglePlay()}
            style={{cursor: currentTrack ? 'pointer' : 'default'}}>
         <div className="label">TDK SA-90 ◆ VAULT MASTER ◆ NODE 01</div>
         <div className="reels">
@@ -4114,12 +4174,9 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
             return (
               <div key={f.id}
                 className={`pq-item${f.id===currentId?' pq-current':''}${overIdx===i&&dragIdx!==i?' pq-over':''}${dragIdx===i?' pq-dragging':''}`}
-                draggable
-                onDragStart={() => handleDragStart(i)}
-                onDragOver={e => handleDragOver(e, i)}
-                onDrop={e => handleDrop(e, i)}
-                onDragEnd={() => { setDragIdx(null); setOverIdx(null); }}
-                onClick={() => handleJump(f, i)}>
+                data-qi={i}
+                onPointerDown={e => handlePointerDown(e, i)}
+                onClick={() => { if (!suppressClickRef.current) handleJump(f, i); }}>
                 {f.id===currentId ? <span className="pq-playing-icon">▶</span> : <span className="pq-num">{di}</span>}
                 <div className="pq-info">
                   <div className="pq-name">{f.name}</div>
@@ -6932,7 +6989,7 @@ function App() {
   //                 y se usa la local (leída del disco).
   const [localFilesAll, setLocalFiles] = useState([]);
   const localFiles = localFilesAll;
-  const files = useMemo(() => _dedupeRemote(filesAll, localFilesAll), [filesAll, localFilesAll]);
+  const files = useMemo(() => _dedupeRemote(_dedupeCollabs(filesAll), localFilesAll), [filesAll, localFilesAll]);
   const [localDirName, setLocalDirName] = useState('');
   const [localScanning, setLocalScanning] = useState(false);
   const [localProgress, setLocalProgress] = useState({ done: 0, total: 0 });
@@ -7902,14 +7959,14 @@ function App() {
 
             let coverKey = null;
             if (tags.getCoverBlob) {
-              const albumKey = tags.album ? (tags.albumArtist || tags.artist || '') + '|' + tags.album : null;
+              const albumKey = tags.album ? (tags.albumArtist || _primaryArtist(tags.artist) || '') + '|' + tags.album : null;
               coverKey = albumKey || 'f|' + ckey;
               let p = albumKey ? coverCache.get(albumKey) : null;
               if (!p) {
                 // Solo aquí (primer archivo del álbum) se prepara la imagen; es un trozo del archivo, no una copia
                 const coverBlob = tags.getCoverBlob();
                 // null si no se pudo reducir (así no se guarda una portada vacía en la caché)
-                p = Promise.all([_downscaleCover(coverBlob, 128, 0.82), _downscaleCover(coverBlob, 480, 0.85)])
+                p = Promise.all([_downscaleCover(coverBlob, 360, 0.88), _downscaleCover(coverBlob, 1000, 0.9)])
                   .then(([t, c]) => (t || c) ? { thumbnail: t, coverArt: c } : null);
                 if (albumKey) coverCache.set(albumKey, p);
               }
@@ -7917,7 +7974,7 @@ function App() {
             }
             meta = {
               name: tags.title || name.replace(/\.[^.]+$/, ''),
-              artist: tags.albumArtist || tags.artist || '',
+              artist: tags.albumArtist || _primaryArtist(tags.artist) || '',
               album: tags.album || '',
               track: tags.track || '',
               disc: tags.disc || '',
@@ -8476,7 +8533,7 @@ function App() {
                 currentTrack={currentTrack} isPlaying={isPlaying}
                 onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
                 onReorder={arr => setManualQueue(arr)}
-                onOpen={openFile} />
+                onOpen={openFile} onTogglePlay={playPause} />
               <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
               <PlaysCounter playCounts={playCounts} />
               <RecentActivity log={log} />
