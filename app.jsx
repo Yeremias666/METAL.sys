@@ -1161,7 +1161,18 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
   const artistCount = allCats.length;
   const localConnected = localFiles.length > 0 || localDirName;
   const [showAllArtists, setShowAllArtists] = useState(false);
-  const ARTIST_LIMIT = 12;
+  // Dos filas COMPLETAS de portadas: se cuentan las columnas reales de la cuadrícula (depende del ancho)
+  const artistGridRef = useRef(null);
+  const [artistCols, setArtistCols] = useState(7);
+  useEffect(() => {
+    const el = artistGridRef.current; if (!el) return;
+    const upd = () => { const n = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length; if (n > 0) setArtistCols(n); };
+    upd();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(upd); ro.observe(el);
+    return () => ro.disconnect();
+  }, [artistCount === 0]);
+  const ARTIST_LIMIT = Math.max(2, artistCols) * 2;
 
   const [gQuery, setGQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
@@ -1329,7 +1340,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
               </div>
             ) : (
               <>
-                <div className="cat-grid">
+                <div className="cat-grid" ref={artistGridRef}>
                   {(showAllArtists ? allCats : allCats.slice(0, ARTIST_LIMIT)).map((artist, idx) => {
                     const allSongs = [...files, ...localFiles].filter(f => (f.category || f.artist) === artist);
                     const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
@@ -1510,6 +1521,13 @@ function TrackList({ files, onOpen, onPlay, likedIds = new Set(), onToggleLike, 
   );
 }
 
+// El scroll de la web vive en .crt-content (body no se desplaza), por eso window.scrollTo no hacía nada.
+function scrollPageTop() {
+  const sc = document.querySelector('.crt-content');
+  if (sc) sc.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
 const PAGE_SIZE = 25;
 
 function Pagination({ page, totalPages, onPage }) {
@@ -1603,7 +1621,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
                          likedIds={likedIds} onToggleLike={onToggleLike}
                          playlists={playlists} onAddToPlaylist={onAddToPlaylist}
                          onOpenCreatePlaylist={onOpenCreatePlaylist} onNav={onNav} tableMode />
-              <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
+              <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); scrollPageTop(); }} />
             </>
         }
       </div></div></div>
@@ -5144,7 +5162,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
                 );
               })}
             </div>
-            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
+            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); scrollPageTop(); }} />
           </div></div></div>
       }
     </div>
@@ -5374,7 +5392,7 @@ function MeGustaPage({ files, localFiles = [], likedIds, onOpenFile, onNav, onPl
                        onAddToPlaylist={onAddToPlaylist}
                        onOpenCreatePlaylist={onOpenCreatePlaylist}
                        onNav={onNav} tableMode />
-            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />
+            <Pagination page={page} totalPages={totalPages} onPage={p => { setPage(p); scrollPageTop(); }} />
           </div></div></div>
       }
     </div>
@@ -6806,7 +6824,7 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
         </div>
       </div>
 
-      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />}
+      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); scrollPageTop(); }} />}
       {Object.entries(visibleGroups).map(([artist, albums]) => (
         <div key={artist} className="panel section">
           <div className="panel-hd">{artist}</div>
@@ -6825,7 +6843,7 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
           </div>
         </div>
       ))}
-      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />}
+      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); scrollPageTop(); }} />}
     </div>
   );
 }
@@ -6878,6 +6896,9 @@ function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Al cambiar de página/artista/disco/canción/lista se empieza SIEMPRE desde arriba (antes se conservaba
+  // la altura de la página anterior). useLayoutEffect: antes de pintar, sin parpadeo.
+  React.useLayoutEffect(() => { scrollPageTop(); }, [route.page, route.cat, route.album, route.fileId, route.playlistId]);
   const [filesAll, setFiles] = useState(loadVault); // vault + R2 tal cual (lo que se guarda)
   const [customCats, setCustomCats] = useState(() => {
     const cats = loadCats();

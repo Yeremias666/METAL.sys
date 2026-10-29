@@ -665,7 +665,7 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
 }
 
 .col-left {
-  padding: 16px 14px 32px 16px;
+  padding: 16px 14px 0 16px;
   min-width: 0;
 }
 
@@ -675,7 +675,7 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
 .col-left, .col-right {
   align-self: stretch;
   height: 0;
-  min-height: calc(100% - 64px);   /* termina a la altura del pie (col-main lleva 64px de margen inferior) */
+  min-height: 100%;                /* llegan hasta el final de la página (justo debajo del pie) */
   padding-bottom: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -683,17 +683,22 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
   -ms-overflow-style: none;
 }
 .col-left::-webkit-scrollbar, .col-right::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* Línea roja que cierra el borde inferior de la columna aunque su contenido siga por debajo (scroll interno) */
+.col-left::after, .col-right::after {
+  content: ''; display: block; position: sticky; bottom: 0; height: 1px;
+  background: var(--fg-primary); box-shadow: 0 0 6px rgba(214,31,31,0.5);
+}
 
 .col-main {
   min-height: 75vh;      /* para que las columnas laterales siempre tengan una altura útil */
   min-width: 0;
-  padding: 0 20px 64px;
+  padding: 0 20px 10px;
   position: relative;
   z-index: 2;
 }
 
 .col-right {
-  padding: 16px 16px 32px 14px;
+  padding: 16px 16px 0 14px;
   min-width: 0;
 }
 
@@ -4827,3 +4832,6 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
   50%       { opacity: 0; }
 }
 
+
+/* Con el reproductor visible (fijo abajo) se deja hueco para que no tape el pie */
+@media (min-width: 601px) { body:has(.music-player) .col-main { padding-bottom: calc(var(--vu-bottom, 0px) + 10px); } }
