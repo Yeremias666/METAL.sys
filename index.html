@@ -34,6 +34,68 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://unpkg.com/marked@12.0.0/marked.min.js"></script>
+<script>
+/* Cursores adaptados al escalado de pantalla + scrollbar propia.
+   Chrome descarta los cursores personalizados de más de 32x32 px REALES si no caben enteros en la ventana
+   (junto al borde se ve el puntero de Windows). Se calcula el tamaño máximo según devicePixelRatio. */
+(function () {
+  var root = document.documentElement;
+  var SPEC = { '--cur-arrow': { h: 24, vb: [2, 2, 12, 20], hot: [0, 0] }, '--hand': { h: 28, vb: [0, 0, 24, 28], hot: [6, 0] }, '--cur-text': { h: 26, vb: [0, 0, 14, 26], hot: [7, 13] } };
+  var orig = {};
+  function fit() {
+    var cap = Math.max(12, Math.floor(32 / (window.devicePixelRatio || 1)));
+    Object.keys(SPEC).forEach(function (name) {
+      var sp = SPEC[name];
+      if (!orig[name]) orig[name] = getComputedStyle(root).getPropertyValue(name);
+      var v = orig[name]; if (!v) return;
+      var H = Math.min(sp.h, cap), W = Math.max(1, Math.round(H * sp.vb[2] / sp.vb[3]));
+      var k = H / sp.vb[3];
+      var out = v.replace(/width='\d+' height='\d+' viewBox='[^']*'/, "width='" + W + "' height='" + H + "' viewBox='" + sp.vb.join(' ') + "'")
+                 .replace(/\)\s+\d+\s+\d+\s*,/, ') ' + Math.round(sp.hot[0] * k) + ' ' + Math.round(sp.hot[1] * k) + ',');
+      root.style.setProperty(name, out);
+    });
+  }
+  fit(); window.addEventListener('resize', fit);
+
+  /* scrollbar propia (solo ratón) */
+  if (!window.matchMedia || !matchMedia('(pointer:fine)').matches) return;
+  var bar, thumb, sc;
+  function build() {
+    sc = document.querySelector('.crt-content'); if (!sc) return false;
+    bar = document.createElement('div'); bar.id = 'crt-sb';
+    thumb = document.createElement('div'); thumb.className = 'thumb'; bar.appendChild(thumb);
+    document.body.appendChild(bar); root.classList.add('has-csb');
+    function upd() {
+      var ch = sc.clientHeight, sh = sc.scrollHeight;
+      if (sh <= ch + 1) { bar.classList.add('hide'); return; }
+      bar.classList.remove('hide');
+      var th = Math.max(36, ch * ch / sh);
+      thumb.style.height = th + 'px';
+      thumb.style.top = (sc.scrollTop / (sh - ch)) * (ch - th) + 'px';
+    }
+    sc.addEventListener('scroll', upd, { passive: true });
+    window.addEventListener('resize', upd);
+    setInterval(upd, 300);
+    var drag = null;
+    thumb.addEventListener('pointerdown', function (e) {
+      drag = { y: e.clientY, top: sc.scrollTop }; thumb.classList.add('drag'); thumb.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    thumb.addEventListener('pointermove', function (e) {
+      if (!drag) return;
+      var ch = sc.clientHeight, sh = sc.scrollHeight, th = thumb.offsetHeight;
+      sc.scrollTop = drag.top + (e.clientY - drag.y) * (sh - ch) / Math.max(1, ch - th);
+    });
+    function end() { drag = null; thumb.classList.remove('drag'); }
+    thumb.addEventListener('pointerup', end); thumb.addEventListener('pointercancel', end);
+    bar.addEventListener('pointerdown', function (e) {
+      if (e.target !== bar) return;
+      sc.scrollTop += (e.clientY < thumb.getBoundingClientRect().top ? -1 : 1) * sc.clientHeight * 0.9;
+    });
+    upd(); return true;
+  }
+  var tries = setInterval(function () { if (build()) clearInterval(tries); }, 400);
+})();
+</script>
 <script type="text/babel" src="tweaks-panel.jsx"></script>
 <script type="text/babel" src="app.jsx"></script>
 <script>

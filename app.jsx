@@ -724,25 +724,36 @@ const _normSong = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, ''
 // Intérprete principal: quita colaboradores ("A feat. B", "A; B", "A / B"). No parte por "&" ni ","
 // para no romper nombres de grupos ("Simon & Garfunkel").
 const _primaryArtist = (s) => String(s || '').split(/\s*;\s*|\s*\/\s*|\s+(?:feat\.?|ft\.?|featuring)\s+/i)[0].trim();
-const _songKey = (f) => _normSong(f.artist || f.category) + '|' + _normSong(f.name);
-// Una misma canción de R2 puede estar en varias carpetas (p. ej. la del álbum de A y la de su colaborador B).
-// Se cuenta una sola vez, bajo el intérprete del álbum (`category` = albumArtist si existe).
+const _songKey = (f) => _normSong(_primaryArtist(f.artist || f.category)) + '|' + _normSong(f.name);
+// Colaboraciones: la misma canción puede estar en R2 bajo varios artistas ("Bala/Ana Curra" y "Bala", o en
+// la carpeta de cada colaborador). Cuenta UNA vez, bajo el intérprete principal; el colaborador no cuenta.
+// Misma canción = mismo intérprete principal + mismo título (si ambas duraciones se conocen y difieren más
+// de 3 s son versiones distintas). Se conserva la copia cuya carpeta coincide con el intérprete principal.
+// Funciona en el cliente: no depende de que el servidor ya envíe `albumArtist`.
 function _dedupeCollabs(remoteAll) {
-  const seen = new Map(); let dup = false;
+  let changed = false;
+  const kept = new Map();            // clave → copias conservadas (versiones distintas)
   const out = [];
-  for (const r of remoteAll) {
+  const own = (x) => _normSong(x.r2Path.split('/')[0]) === _normSong(x.artist);
+  for (let r of remoteAll) {
     if (!r.r2Path || !isAudioFile(r)) { out.push(r); continue; }
-    const k = _normSong(r.category || r.artist) + '|' + _normSong(r.album) + '|' + _normSong(r.name);
-    if (_normSong(r.name) === '') { out.push(r); continue; }
-    const prev = seen.get(k);
-    if (prev === undefined) { seen.set(k, out.length); out.push(r); continue; }
-    dup = true;
-    // se conserva la copia cuya carpeta coincide con el intérprete del álbum
-    const keep = out[prev];
-    const own = (x) => _normSong(x.r2Path.split('/')[0]) === _normSong(x.category);
-    if (!own(keep) && own(r)) out[prev] = r;
+    const aa = _primaryArtist(r.albumArtist || '');
+    const prim = aa || _primaryArtist(r.artist || r.category);        // intérprete del álbum, o el principal
+    const collab = !!r.artist && _primaryArtist(r.artist) !== r.artist;
+    if (prim && (prim !== r.artist || ((aa || collab) && _normSong(prim) !== _normSong(r.category)))) {
+      // se muestra y se agrupa por el intérprete principal (el colaborador no cuenta)
+      r = { ...r, artist: prim, category: (aa || collab) ? prim : r.category }; changed = true;
+    }
+    const nm = _normSong(r.name);
+    if (!nm) { out.push(r); continue; }
+    const k = _normSong(prim) + '|' + nm;
+    const list = kept.get(k) || [];
+    const hit = list.find(x => !(x.r.duration && r.duration && Math.abs(x.r.duration - r.duration) > 3));
+    if (!hit) { const e = { r, pos: out.length }; list.push(e); kept.set(k, list); out.push(r); continue; }
+    changed = true;
+    if (!own(hit.r) && own(r)) { out[hit.pos] = r; hit.r = r; }
   }
-  return dup ? out : remoteAll;
+  return changed ? out : remoteAll;
 }
 
 // Si una canción existe en la carpeta local Y en R2, se usa la LOCAL (se lee del disco, mucho más fluida)
