@@ -7022,6 +7022,48 @@ function App() {
   const [localFilesAll, setLocalFiles] = useState([]);
   const localFiles = localFilesAll;
   const files = useMemo(() => _dedupeRemote(_dedupeCollabs(filesAll), localFilesAll), [filesAll, localFilesAll]);
+
+  // Una canción oculta por duplicada (copia de R2 o de otra carpeta) conserva sus reproducciones, "me gusta" y
+  // sitio en las listas: todo se une bajo la copia visible. Vista no destructiva: no se modifica lo guardado,
+  // así que si la carpeta local se desconecta y reaparece la copia de R2, sigue contando.
+  const songGroups = useMemo(() => {            // id → ids de TODAS las copias de la misma canción
+    const m = new Map();
+    for (const f of [...filesAll, ...localFilesAll]) {
+      if (!isAudioFile(f)) continue;
+      const k = _songKey(f); if (k === '|') continue;
+      if (!m.has(k)) m.set(k, []);
+      m.get(k).push(f.id);
+    }
+    const byId = {};
+    m.forEach(ids => { if (ids.length > 1) ids.forEach(id => { byId[id] = ids; }); });
+    return byId;
+  }, [filesAll, localFilesAll]);
+  const visibleIdOf = useMemo(() => {           // id (aunque esté oculto) → id de la copia visible
+    const vis = new Set([...files, ...localFilesAll].map(f => f.id));
+    const out = {};
+    Object.keys(songGroups).forEach(id => { out[id] = songGroups[id].find(x => vis.has(x)) || id; });
+    return out;
+  }, [songGroups, files, localFilesAll]);
+  const playCountsView = useMemo(() => {
+    const out = { ...playCounts };
+    for (const f of [...files, ...localFilesAll]) {
+      const g = songGroups[f.id]; if (!g) continue;
+      out[f.id] = g.reduce((a, id) => a + (playCounts[id] || 0), 0);
+    }
+    return out;
+  }, [playCounts, songGroups, files, localFilesAll]);
+  const likedIdsView = useMemo(() => {
+    const out = new Set(likedIds);
+    for (const id of likedIds) { const v = visibleIdOf[id]; if (v) out.add(v); }
+    return out;
+  }, [likedIds, visibleIdOf]);
+  const playlistsView = useMemo(() => playlists.map(pl => {
+    const ids = pl.songIds || [];
+    if (!ids.some(id => visibleIdOf[id] && visibleIdOf[id] !== id)) return pl;
+    const seen = new Set(); const mapped = [];
+    for (const id of ids) { const v = visibleIdOf[id] || id; if (!seen.has(v)) { seen.add(v); mapped.push(v); } }
+    return { ...pl, songIds: mapped };
+  }), [playlists, visibleIdOf]);
   const [localDirName, setLocalDirName] = useState('');
   const [localScanning, setLocalScanning] = useState(false);
   const [localProgress, setLocalProgress] = useState({ done: 0, total: 0 });
@@ -7416,12 +7458,12 @@ function App() {
       const allAudio = [...files, ...localFiles].filter(isAudioFile);
       let originQueue = null;
       if (route.page === 'PLAYLIST' && route.playlistId) {
-        const pl = playlists.find(p => p.id === route.playlistId);
+        const pl = playlistsView.find(p => p.id === route.playlistId);
         if (pl) originQueue = (pl.songIds || []).map(x => allAudio.find(f => f.id === x)).filter(Boolean);
       } else if (route.page === 'TODO') {
         originQueue = [...allAudio].sort((a, b) => (a.name||'').localeCompare(b.name||'', 'es', { sensitivity: 'base' }));
       } else if (route.page === 'MESGUSTA') {
-        originQueue = allAudio.filter(f => likedIds.has(f.id));
+        originQueue = allAudio.filter(f => likedIdsView.has(f.id));
       } else if (route.page === 'CAT') {
         const artist = route.cat;
         if (route.album) originQueue = allAudio.filter(f => (f.category || f.artist) === artist && (f.album || 'SINGLE') === route.album).sort(sortByDiscTrack);
@@ -7506,7 +7548,7 @@ function App() {
     const all = files.filter(isAudioFile);
     const combined = [...all, ...localFiles.filter(isAudioFile)];
     if (context.type === 'playlist' && context.playlistId) {
-      const pl = playlists.find(p => p.id === context.playlistId);
+      const pl = playlistsView.find(p => p.id === context.playlistId);
       if (!pl) return [];
       const every = [...filesAll, ...localFilesAll].filter(isAudioFile); // las listas guardadas pueden apuntar a la copia de R2 oculta
       return (pl.songIds || []).map(id => combined.find(f => f.id === id) || every.find(f => f.id === id)).filter(Boolean);
@@ -7518,7 +7560,7 @@ function App() {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return [...combined].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-  }, [files, filesAll, localFiles, localFilesAll, playlists]);
+  }, [files, filesAll, localFiles, localFilesAll, playlistsView]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
@@ -7699,11 +7741,12 @@ function App() {
 
   // Like toggle
   const toggleLike = (fileId) => {
-    const wasLiked = likedIds.has(fileId);
+    const wasLiked = likedIdsView.has(fileId);
     const f = [...files, ...localFilesAll].find(x => x.id === fileId);
+    const group = songGroups[fileId] || [fileId];
     setLikedIds(prev => {
       const next = new Set(prev);
-      if (next.has(fileId)) next.delete(fileId); else next.add(fileId);
+      if (wasLiked) group.forEach(id => next.delete(id)); else next.add(fileId);
       return next;
     });
     addToLog({ kind: wasLiked ? 'UNLIKE' : 'LIKE', name: f?.name || fileId, artist: f?.artist || f?.category || '' });
@@ -7834,7 +7877,7 @@ function App() {
   const addSongToPlaylist = (fileId, playlistId) => {
     if (!fileId) return;
     setPlaylists(prev => prev.map(pl =>
-      pl.id === playlistId && !pl.songIds.includes(fileId)
+      pl.id === playlistId && !pl.songIds.some(id => (songGroups[fileId] || [fileId]).includes(id))
         ? { ...pl, songIds: [...pl.songIds, fileId] }
         : pl
     ));
@@ -7847,7 +7890,7 @@ function App() {
 
   const removeSongFromPlaylist = (playlistId, songId) => {
     setPlaylists(prev => prev.map(pl =>
-      pl.id === playlistId ? { ...pl, songIds: pl.songIds.filter(id => id !== songId) } : pl
+      pl.id === playlistId ? { ...pl, songIds: pl.songIds.filter(id => !(songGroups[songId] || [songId]).includes(id)) } : pl
     ));
   };
 
@@ -8388,13 +8431,13 @@ function App() {
                           onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
-                          artistMeta={artistMeta} playlists={playlists} />
+                          artistMeta={artistMeta} playlists={playlistsView} />
               )}
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
                               allCats={allCats} onNav={navigateTo}
-                              onOpenFile={openFile} playlists={playlists}
-                              likedIds={likedIds} onToggleLike={toggleLike}
+                              onOpenFile={openFile} playlists={playlistsView}
+                              likedIds={likedIdsView} onToggleLike={toggleLike}
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayAll={() => playScope({ type: 'all' }, false)}
@@ -8411,20 +8454,20 @@ function App() {
                             onNav={navigateTo} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={smartPlayArtist}
-                            artistMeta={artistMeta} playlists={playlists} />
+                            artistMeta={artistMeta} playlists={playlistsView} />
               )}
               {route.page === 'MESGUSTA' && (
                 <MeGustaPage
-                  files={files} localFiles={localFiles} likedIds={likedIds}
+                  files={files} localFiles={localFiles} likedIds={likedIdsView}
                   onOpenFile={openFile} onNav={navigateTo}
                   onPlayAll={() => {
-                    const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
+                    const likedAudio = [...files, ...localFiles].filter(f => likedIdsView.has(f.id) && isAudioFile(f));
                     if (likedAudio.length === 0) return;
                     setManualQueue(likedAudio);
                     startTrack(likedAudio[0], { type: 'all', shuffle: false });
                   }}
                   onPlayAllShuffle={() => {
-                    const likedAudio = [...files, ...localFiles].filter(f => likedIds.has(f.id) && isAudioFile(f));
+                    const likedAudio = [...files, ...localFiles].filter(f => likedIdsView.has(f.id) && isAudioFile(f));
                     if (likedAudio.length === 0) return;
                     const shuffled = shuffleArray(likedAudio);
                     setManualQueue(shuffled);
@@ -8440,12 +8483,12 @@ function App() {
                     setPlayContext(ctx);
                     startTrack(f, ctx);
                   }}
-                  playlists={playlists}
+                  playlists={playlistsView}
                   onAddToPlaylist={addSongToPlaylist}
                   onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }} />
               )}
               {route.page === 'PLAYLIST' && !route.playlistId && (
-                <PlaylistPage playlists={playlists} files={files} localFiles={localFiles}
+                <PlaylistPage playlists={playlistsView} files={files} localFiles={localFiles}
                               onOpenPlaylist={(id) => navigateTo({ page: 'PLAYLIST', playlistId: id })}
                               onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
                               onNav={navigateTo} onOpenFile={openFile} allCats={allCats}
@@ -8468,9 +8511,9 @@ function App() {
                   currentPlayingId={currentTrackId}
                   isPlaying={isPlaying}
                   onRemoveSong={removeSongFromPlaylist}
-                  likedIds={likedIds}
+                  likedIds={likedIdsView}
                   onToggleLike={toggleLike}
-                  playlists={playlists}
+                  playlists={playlistsView}
                   onAddToPlaylist={addSongToPlaylist}
                   onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                   onUpdatePlaylist={updatePlaylist}
@@ -8478,7 +8521,7 @@ function App() {
                 />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} localFiles={localFiles} playCounts={playCounts} log={log} likedIds={likedIds} playLog={playLog} artistMeta={artistMeta} />
+                <StatsPage files={files} localFiles={localFiles} playCounts={playCountsView} log={log} likedIds={likedIdsView} playLog={playLog} artistMeta={artistMeta} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
@@ -8504,8 +8547,8 @@ function App() {
                               selectedIds={selectedIds} toggleSel={toggleSel} clearSel={clearSel}
                               onBulkDownload={bulkDownload} onBulkDelete={bulkDelete} busy={bulkBusy}
                               artistMeta={artistMeta} onUpdateArtistMeta={updateArtistMeta}
-                              playlists={playlists}
-                              likedIds={likedIds} onToggleLike={toggleLike}
+                              playlists={playlistsView}
+                              likedIds={likedIdsView} onToggleLike={toggleLike}
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayArtist={smartPlayArtist}
@@ -8533,7 +8576,7 @@ function App() {
                                 currentPlayingId={currentTrackId} isPlaying={isPlaying}
                                 id3Tags={id3Cache[currentFile.id]} requestID3={requestID3}
                                 analyser={analyserRef}
-                                likedIds={likedIds} onToggleLike={toggleLike}
+                                likedIds={likedIdsView} onToggleLike={toggleLike}
                                 bookmarks={bookmarks} onAddBookmark={addBookmark}
                                 onDeleteBookmark={deleteBookmark} onUpdateBookmark={updateBookmark} onSeekBookmark={seekToBookmark}
                                 onSeekBookmarkInFile={seekBookmarkInFile}
@@ -8545,7 +8588,7 @@ function App() {
                                 onPrev={goDetailPrev} onNext={goDetailNext}
                                 hasPrev={hasPrevDetail} hasNext={hasNextDetail}
                                 allFiles={[...files, ...localFiles].filter(isAudioFile)}
-                                onOpenFile={openFile} onNav={navigateTo} playlists={playlists}
+                                onOpenFile={openFile} onNav={navigateTo} playlists={playlistsView}
                                 setPlaylistSongToAdd={setPlaylistSongToAdd} onAddToPlaylist={addSongToPlaylist}
                                 onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }} />
                   : <div className="panel"><div className="panel-body" style={{textAlign:'center',padding:40}}>
@@ -8566,7 +8609,7 @@ function App() {
                 onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
                 onReorder={arr => setManualQueue(arr)}
                 onOpen={openFile} onTogglePlay={playPause} />
-              <TopSongs files={files} localFiles={localFiles} playCounts={playCounts} onOpen={openFile} />
+              <TopSongs files={files} localFiles={localFiles} playCounts={playCountsView} onOpen={openFile} />
               <PlaysCounter playCounts={playCounts} />
               <RecentActivity log={log} />
             </div>
@@ -8604,12 +8647,12 @@ function App() {
                    onCloseMenu={() => setShowPlayerMenu(false)}
                    onCreateBookmark={() => { setShowPlayerMenu(false); setShowBookmarkModal(true); }}
                    onCreateClip={() => { setShowPlayerMenu(false); setShowClipModal(true); }}
-                   playlists={playlists}
+                   playlists={playlistsView}
                    onAddToPlaylist={(plId) => { setShowPlayerMenu(false); addToPlaylist(plId); }}
                    onOpenCreatePlaylist={() => { setShowPlayerMenu(false); setShowCreatePlaylistModal(true); }}
                    currentTrackId={currentTrackId}
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
-                   likedIds={likedIds} onToggleLike={toggleLike}
+                   likedIds={likedIdsView} onToggleLike={toggleLike}
                    vuEnabled={perf.vuMeter}
                    onNav={navigateTo} onOpenFile={openFile} />
 
