@@ -714,24 +714,28 @@ function _localItemsFromCache(cache, dirName) {
 const _normSong = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const _songKey = (f) => _normSong(f.artist || f.category) + '|' + _normSong(f.name);
-function _dedupeLocal(localAll, remote) {
-  if (!localAll.length || !remote.length) return localAll;
+// Si una canción existe en la carpeta local Y en R2, se usa la LOCAL (se lee del disco, mucho más fluida)
+// y se oculta la copia de R2. Devuelve el mismo array si no hay nada que ocultar.
+function _dedupeRemote(remoteAll, localAll) {
+  if (!localAll.length || !remoteAll.length) return remoteAll;
   const byKey = new Map();
-  for (const r of remote) {
-    if (!isAudioFile(r)) continue;
-    const k = _songKey(r);
+  for (const l of localAll) {
+    if (!isAudioFile(l)) continue;
+    const k = _songKey(l);
     if (k === '|') continue;
     if (!byKey.has(k)) byKey.set(k, []);
-    byKey.get(k).push(r);
+    byKey.get(k).push(l);
   }
-  if (!byKey.size) return localAll;
-  const out = localAll.filter(l => {
-    const cands = byKey.get(_songKey(l));
+  if (!byKey.size) return remoteAll;
+  const out = remoteAll.filter(r => {
+    if (!r.r2Path) return true;                       // solo se ocultan las copias de R2
+    const cands = byKey.get(_songKey(r));
     if (!cands) return true;
-    const same = cands.some(r => !(l.duration && r.duration && Math.abs(l.duration - r.duration) > 3));
+    // misma canción salvo que ambas duraciones se conozcan y difieran más de 3 s (otra versión)
+    const same = cands.some(l => !(l.duration && r.duration && Math.abs(l.duration - r.duration) > 3));
     return !same;
   });
-  return out.length === localAll.length ? localAll : out;
+  return out.length === remoteAll.length ? remoteAll : out;
 }
 
 let _catIconRegistry = {};
@@ -4054,6 +4058,7 @@ function DetailPage({ file, onBack, onDownload, onDelete, allCats, onUpdate, onP
 // ─── SIDEBAR WIDGETS ───────────────────────────────────────────
 
 // Cola de reproducción unificada con cassette arriba
+const QUEUE_VISIBLE_NEXT = 30; // próximas canciones que muestra la cola
 function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, onJump, onReorder, onOpen }) {
   const [dragIdx, setDragIdx] = useState(null);
   const [overIdx, setOverIdx] = useState(null);
@@ -4102,7 +4107,9 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
         {(() => {
           const curIdx = queue.findIndex(f => f.id === currentId);
           const startIdx = curIdx >= 0 ? curIdx : 0;
-          return queue.slice(startIdx).map((f, di) => {
+          // La pista actual + como mucho las 30 siguientes (con colas de ~1000 canciones montar todas era muy pesado)
+          const hidden = Math.max(0, queue.length - startIdx - 1 - QUEUE_VISIBLE_NEXT);
+          const rows = queue.slice(startIdx, startIdx + 1 + QUEUE_VISIBLE_NEXT).map((f, di) => {
             const i = startIdx + di;
             return (
               <div key={f.id}
@@ -4122,6 +4129,7 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
               </div>
             );
           });
+          return <>{rows}{hidden > 0 && <div className="pq-empty">··· y {hidden} más en la cola</div>}</>;
         })()}
       </div>
     </div>
@@ -4680,13 +4688,23 @@ function Footer() {
 function LibraryTree({ files, localFiles = [], allCats, onNav, onPlayArtist, onPlayAlbum, onOpenFile, onPlayFile }) {
   const [collapsed, setCollapsed] = useState({});
   const toggle = (key) => setCollapsed(p => ({ ...p, [key]: !p[key] }));
-  const allFiles = [...files, ...localFiles];
-  const byArtist = allCats.map(artist => {
-    const songs = allFiles.filter(f => (f.category || f.artist) === artist);
-    const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
-    const noAlbum = songs.filter(f => !f.album).sort(sortByDiscTrack);
-    return { artist, songs, albums, noAlbum };
-  });
+  // Agrupar por artista UNA vez por cambio de datos (antes se rehacía en cada render de App, que con el
+  // reproductor sonando ocurre varias veces por segundo: artistas × canciones filtrados cada vez).
+  const byArtist = useMemo(() => {
+    const groups = new Map();
+    for (const f of [...files, ...localFiles]) {
+      const a = f.category || f.artist;
+      if (!a) continue;
+      if (!groups.has(a)) groups.set(a, []);
+      groups.get(a).push(f);
+    }
+    return allCats.map(artist => {
+      const songs = groups.get(artist) || [];
+      const albums = [...new Set(songs.map(f => f.album).filter(Boolean))].sort();
+      const noAlbum = songs.filter(f => !f.album).sort(sortByDiscTrack);
+      return { artist, songs, albums, noAlbum };
+    });
+  }, [files, localFiles, allCats]);
   return (
     <div className="lib-tree-wrap">
       <div className="lib-tree">
@@ -4786,8 +4804,8 @@ function PlayQueue({ queue, currentId, onJump, onReorder }) {
 
 // ─── TOP SONGS (right sidebar) ──────────────────────────────
 function TopSongs({ files, localFiles = [], playCounts, onOpen }) {
-  const top = [...files, ...localFiles].filter(isAudioFile).filter(f => (playCounts[f.id]||0)>0)
-    .sort((a,b) => (playCounts[b.id]||0)-(playCounts[a.id]||0)).slice(0,10);
+  const top = useMemo(() => [...files, ...localFiles].filter(isAudioFile).filter(f => (playCounts[f.id]||0)>0)
+    .sort((a,b) => (playCounts[b.id]||0)-(playCounts[a.id]||0)).slice(0,10), [files, localFiles, playCounts]);
   return (
     <div className="widget">
       <div className="panel">
@@ -6653,6 +6671,26 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
     return out;
   }, [localFiles]);
 
+  // Paginación (igual que TODO): solo se montan PAGE_SIZE canciones a la vez. Con ~1000 filas en el DOM
+  // cada repintado (barras VU, efectos CRT) cuesta mucho más y el reproductor iba lento.
+  const [page, setPage] = useState(0);
+  const flat = useMemo(() => {
+    const out = [];
+    Object.entries(byArtist).forEach(([a, albums]) => Object.entries(albums).forEach(([al, songs]) => songs.forEach(f => out.push([a, al, f]))));
+    return out;
+  }, [byArtist]);
+  const totalPages = Math.max(1, Math.ceil(flat.length / PAGE_SIZE));
+  const curPage = Math.min(page, totalPages - 1);
+  const visibleGroups = useMemo(() => {
+    const g = {};
+    flat.slice(curPage * PAGE_SIZE, (curPage + 1) * PAGE_SIZE).forEach(([a, al, f]) => {
+      if (!g[a]) g[a] = {};
+      if (!g[a][al]) g[a][al] = [];
+      g[a][al].push(f);
+    });
+    return g;
+  }, [flat, curPage]);
+
   return (
     <div>
       <div className="panel">
@@ -6700,7 +6738,8 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
         </div>
       </div>
 
-      {Object.entries(byArtist).map(([artist, albums]) => (
+      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />}
+      {Object.entries(visibleGroups).map(([artist, albums]) => (
         <div key={artist} className="panel section">
           <div className="panel-hd">{artist}</div>
           <div className="panel-body" style={{padding:'0'}}>
@@ -6718,6 +6757,7 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
           </div>
         </div>
       ))}
+      {flat.length > PAGE_SIZE && <Pagination page={curPage} totalPages={totalPages} onPage={p => { setPage(p); window.scrollTo(0, 0); }} />}
     </div>
   );
 }
@@ -6770,7 +6810,7 @@ function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const [files, setFiles] = useState(loadVault);
+  const [filesAll, setFiles] = useState(loadVault); // vault + R2 tal cual (lo que se guarda)
   const [customCats, setCustomCats] = useState(() => {
     const cats = loadCats();
     _catIconRegistry = Object.fromEntries(cats.map(c => [c.name, c.icon]));
@@ -6887,10 +6927,12 @@ function App() {
 
   // Local music (File System Access — never stored in localStorage)
   // localFilesAll = todo lo que hay en la carpeta (página MÚSICA LOCAL y cola "local").
-  // localFiles    = lo mismo SIN las canciones que ya existen en R2/vault: es lo que ven y cuentan
-  //                 el resto de secciones, para que una misma canción no salga (ni cuente) dos veces.
+  // filesAll      = vault + R2 completo (se guarda tal cual); files = sin las copias de R2 que ya existen en local,
+  //                 que es lo que ven y cuentan las secciones: la misma canción no sale (ni cuenta) dos veces
+  //                 y se usa la local (leída del disco).
   const [localFilesAll, setLocalFiles] = useState([]);
-  const localFiles = useMemo(() => _dedupeLocal(localFilesAll, files), [localFilesAll, files]);
+  const localFiles = localFilesAll;
+  const files = useMemo(() => _dedupeRemote(filesAll, localFilesAll), [filesAll, localFilesAll]);
   const [localDirName, setLocalDirName] = useState('');
   const [localScanning, setLocalScanning] = useState(false);
   const [localProgress, setLocalProgress] = useState({ done: 0, total: 0 });
@@ -6901,7 +6943,7 @@ function App() {
   const startTrackRef = useRef(null);
   const [localNeedsPermission, setLocalNeedsPermission] = useState(false); // lista cargada de la caché, falta el permiso
 
-  useEffect(() => { saveVault(files); }, [files]);
+  useEffect(() => { saveVault(filesAll); }, [filesAll]);
   useEffect(() => { saveCats(customCats); }, [customCats]);
 
   // Pre-generar blob URLs para todos los archivos del vault en background
@@ -7168,7 +7210,7 @@ function App() {
   useEffect(() => { audioRef.current.volume = volume; }, [volume]);
 
   // Artistas derivados del vault y de la carpeta local
-  const allArtists = [...new Set([...files, ...localFiles].map(f => f.category || f.artist).filter(Boolean))].sort();
+  const allArtists = useMemo(() => [...new Set([...files, ...localFiles].map(f => f.category || f.artist).filter(Boolean))].sort(), [files, localFiles]);
   const allCats = allArtists;
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
@@ -7377,7 +7419,8 @@ function App() {
     if (context.type === 'playlist' && context.playlistId) {
       const pl = playlists.find(p => p.id === context.playlistId);
       if (!pl) return [];
-      return (pl.songIds || []).map(id => combined.find(f => f.id === id)).filter(Boolean);
+      const every = [...filesAll, ...localFilesAll].filter(isAudioFile); // las listas guardadas pueden apuntar a la copia de R2 oculta
+      return (pl.songIds || []).map(id => combined.find(f => f.id === id) || every.find(f => f.id === id)).filter(Boolean);
     }
     if (context.type === 'artist' && context.artist) {
       return combined.filter((f) => (f.category || f.artist) === context.artist).sort(sortByYearDiscTrack);
@@ -7386,11 +7429,11 @@ function App() {
       return combined.filter((f) => (f.category || f.artist) === context.artist && (f.album || 'SINGLE') === context.album).sort(sortByDiscTrack);
     }
     return [...combined].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-  }, [files, localFiles, localFilesAll, playlists]);
+  }, [files, filesAll, localFiles, localFilesAll, playlists]);
 
   const musicQueueBase = useMemo(() => getQueueForContext(playContext), [getQueueForContext, playContext]);
   const musicQueue = useMemo(() => playContext.shuffle ? shuffleArray(musicQueueBase) : musicQueueBase, [musicQueueBase, playContext.shuffle]);
-  const currentTrack = currentTrackId ? ([...files, ...localFilesAll].find((f) => f.id === currentTrackId) ?? null) : null;
+  const currentTrack = currentTrackId ? ([...filesAll, ...localFilesAll].find((f) => f.id === currentTrackId) ?? null) : null;
 
   const requestID3 = async (file) => {
     if (id3Cache[file.id] !== undefined) return id3Cache[file.id];
@@ -7957,13 +8000,16 @@ function App() {
 
       // En segundo plano, sin bloquear la lista: duraciones que faltan (de 3 en 3) y portadas que
       // aún se están reduciendo en el worker. Ambas se van aplicando a la lista como parches.
-      const missing = slots.filter(f => f && !f.duration);
+      // (las que ya fallaron una vez llevan `noDur` en la caché: no se reintentan en cada carga)
+      const missing = slots.filter(f => f && !f.duration && !(newCache.items[f._ckey] && newCache.items[f._ckey].noDur));
       const durationsDone = _runPool(missing, 3, async (f) => {
         if (stale()) return;
         const d = await probeLocalDuration(f.fileHandle);
         if (d) {
           if (newCache.items[f._ckey]) newCache.items[f._ckey].duration = d; // se guarda en la caché
           addPatch(f._ckey, { duration: d });
+        } else if (newCache.items[f._ckey]) {
+          newCache.items[f._ckey].noDur = true;
         }
       });
       await Promise.all([durationsDone, Promise.all(pendingCovers)]);
@@ -8195,7 +8241,7 @@ function App() {
 
   const totalBytes = [...files, ...localFiles].reduce((a, f) => a + (f.fileSize || 0), 0);
   const phosphorClass = `phosphor-${t.phosphor}`;
-  const currentFile = route.page === 'DETAIL' ? ([...files, ...localFilesAll].find((f) => f.id === route.fileId) ?? null) : null;
+  const currentFile = route.page === 'DETAIL' ? ([...filesAll, ...localFilesAll].find((f) => f.id === route.fileId) ?? null) : null;
 
   const detailNavQueue = useMemo(() => {
     if (!currentFile) return [];
