@@ -7052,6 +7052,19 @@ function App() {
     }
     return out;
   }, [playCounts, songGroups, files, localFilesAll]);
+  // Marcadores y clips de cualquier copia de la misma canción se ven en la copia visible
+  const mergeByGroup = (store) => {
+    const out = { ...store };
+    for (const f of [...files, ...localFilesAll]) {
+      const g = songGroups[f.id]; if (!g) continue;
+      const seen = new Set(); const arr = [];
+      g.forEach(id => (store[id] || []).forEach(x => { if (!seen.has(x.id)) { seen.add(x.id); arr.push(x); } }));
+      if (arr.length) out[f.id] = arr;
+    }
+    return out;
+  };
+  const bookmarksView = useMemo(() => mergeByGroup(bookmarks), [bookmarks, songGroups, files, localFilesAll]); // eslint-disable-line
+  const clipStoreView = useMemo(() => mergeByGroup(clipStore), [clipStore, songGroups, files, localFilesAll]); // eslint-disable-line
   const likedIdsView = useMemo(() => {
     const out = new Set(likedIds);
     for (const id of likedIds) { const v = visibleIdOf[id]; if (v) out.add(v); }
@@ -7805,11 +7818,13 @@ function App() {
   const addBookmark = (fileId, bm) => {
     setBookmarks(prev => ({ ...prev, [fileId]: [...(prev[fileId]||[]), bm] }));
   };
+  // borrar/editar actúan sobre todas las copias de la canción (el marcador puede estar guardado en otra copia)
+  const inGroup = (fileId) => songGroups[fileId] || [fileId];
   const deleteBookmark = (fileId, bmId) => {
-    setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(b => b.id !== bmId) }));
+    setBookmarks(prev => { const next = { ...prev }; inGroup(fileId).forEach(id => { if (next[id]) next[id] = next[id].filter(b => b.id !== bmId); }); return next; });
   };
   const updateBookmark = (fileId, bmId, name) => {
-    setBookmarks(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(b => b.id === bmId ? { ...b, name } : b) }));
+    setBookmarks(prev => { const next = { ...prev }; inGroup(fileId).forEach(id => { if (next[id]) next[id] = next[id].map(b => b.id === bmId ? { ...b, name } : b); }); return next; });
   };
   const seekToBookmark = (time) => {
     const audio = audioRef.current;
@@ -7855,11 +7870,11 @@ function App() {
     setClipStore(prev => ({ ...prev, [fileId]: [...(prev[fileId]||[]), clip] }));
   };
   const deleteClip = (fileId, clipId) => {
-    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).filter(c => c.id !== clipId) }));
+    setClipStore(prev => { const next = { ...prev }; inGroup(fileId).forEach(id => { if (next[id]) next[id] = next[id].filter(c => c.id !== clipId); }); return next; });
     setActiveClip(prev => (prev && prev.id === clipId) ? null : prev);
   };
   const updateClip = (fileId, clipId, { name, start, end }) => {
-    setClipStore(prev => ({ ...prev, [fileId]: (prev[fileId]||[]).map(c => c.id === clipId ? { ...c, name, start, end } : c) }));
+    setClipStore(prev => { const next = { ...prev }; inGroup(fileId).forEach(id => { if (next[id]) next[id] = next[id].map(c => c.id === clipId ? { ...c, name, start, end } : c); }); return next; });
     setActiveClip(prev => (prev && prev.id === clipId) ? { ...prev, name, start, end } : prev);
   };
   const playClip = (clip) => {
@@ -8496,7 +8511,7 @@ function App() {
               )}
               {route.page === 'PLAYLIST' && route.playlistId && (
                 <PlaylistDetailPage
-                  playlist={playlists.find(p => p.id === route.playlistId)}
+                  playlist={playlistsView.find(p => p.id === route.playlistId)}
                   allFiles={[...files, ...localFiles]}
                   onBack={() => navigateTo({ page: 'PLAYLIST' })}
                   onPlayAll={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
@@ -8577,10 +8592,10 @@ function App() {
                                 id3Tags={id3Cache[currentFile.id]} requestID3={requestID3}
                                 analyser={analyserRef}
                                 likedIds={likedIdsView} onToggleLike={toggleLike}
-                                bookmarks={bookmarks} onAddBookmark={addBookmark}
+                                bookmarks={bookmarksView} onAddBookmark={addBookmark}
                                 onDeleteBookmark={deleteBookmark} onUpdateBookmark={updateBookmark} onSeekBookmark={seekToBookmark}
                                 onSeekBookmarkInFile={seekBookmarkInFile}
-                                clipStore={clipStore} onAddClip={addClip}
+                                clipStore={clipStoreView} onAddClip={addClip}
                                 onDeleteClip={deleteClip} onUpdateClip={updateClip} onPlayClip={playClip}
                                 onPlayClipFromFile={playClipFromFile}
                                 onStopClip={stopClip} activeClip={activeClip}
