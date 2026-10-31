@@ -175,13 +175,6 @@ input:not([type=range]), textarea {
     var(--bg-deep);
 }
 .crt-content::-webkit-scrollbar { width: 10px; }
-/* El scrollbar nativo usa SIEMPRE el puntero de Windows; con JS se sustituye por uno propio (#crt-sb) */
-html.has-csb .crt-content { scrollbar-width: none; }
-html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
-#crt-sb { position: fixed; top: 0; right: 0; bottom: 0; width: 12px; z-index: 99990; cursor: var(--hand); touch-action: none; }
-#crt-sb .thumb { position: absolute; left: 2px; right: 2px; min-height: 36px; background: var(--fg-primary); opacity: 0.85; cursor: var(--hand); }
-#crt-sb:hover .thumb, #crt-sb .thumb.drag { opacity: 1; }
-#crt-sb.hide { display: none; }
 .crt-content::-webkit-scrollbar-track { background: transparent; }
 .crt-content::-webkit-scrollbar-thumb { background: var(--fg-primary); border-radius: 0; }
 
@@ -672,7 +665,7 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
 /* La altura de la página la marca la columna central (llega hasta el pie con GitHub/Steam/Spotify).
    Las columnas laterales no la alargan: ocupan como mucho esa altura y se desplazan por dentro con
    una barra invisible. (height:0 + min-height:100% = "tanto como la fila, nunca más") */
-.col-left, .col-right {
+.col-left {
   align-self: stretch;
   height: 0;
   min-height: calc(100% - 30px);   /* terminan a la altura de los iconos del pie, sin pegarse al borde */
@@ -682,9 +675,9 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-.col-left::-webkit-scrollbar, .col-right::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.col-left::-webkit-scrollbar { display: none; width: 0; height: 0; }
 /* Línea roja que cierra el borde inferior de la columna aunque su contenido siga por debajo (scroll interno) */
-.col-left::after, .col-right::after {
+.col-left::after {
   content: ''; display: block; position: sticky; bottom: 0; height: 1px;
   background: var(--fg-primary); box-shadow: 0 0 6px rgba(214,31,31,0.5);
 }
@@ -700,6 +693,7 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
 .col-right {
   padding: 16px 16px 0 14px;
   min-width: 0;
+  align-self: start;   /* altura natural: se desplaza con la página, sin scroll propio */
 }
 
 @media (max-width: 1500px) {
@@ -3137,7 +3131,6 @@ html.has-csb .crt-content::-webkit-scrollbar { display: none; width: 0; }
 }
 
 /* Push page content up when music player visible */
-body:has(.music-player) .crt-content { padding-bottom: 100px; }
 @media (max-width: 700px) { body:has(.music-player) .crt-content { padding-bottom: 100px; } }
 @media (max-width: 600px) { body:has(.music-player) .col-main { padding-bottom: 0; } }
 
@@ -4833,5 +4826,4 @@ body:has(.music-player) .crt-content { padding-bottom: 100px; }
 }
 
 
-/* Con el reproductor visible (fijo abajo) se deja hueco para que no tape el pie */
-@media (min-width: 601px) { body:has(.music-player) .col-main { padding-bottom: calc(var(--vu-bottom, 0px) + 10px); } }
+/* El reproductor flota encima del pie: no reserva espacio ni alarga la página */
