@@ -7044,7 +7044,8 @@ function App() {
   const audioSyncRef     = useRef(null);
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
-  const preloadRef       = useRef(null);  // { id, el } <audio> mudo con la siguiente pista ya cargada
+  const preloadRef       = useRef(new Map());  // id → <audio> mudo con las siguientes pistas ya (o casi) cargadas
+  const swapTokenRef     = useRef(0);          // invalida un cambio pendiente si llega otro más reciente
   const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
   const pauseTimerRef    = useRef(null);  // debounce para onPause — cancela false-pauses del OS antes de nexttrack
   const playNextRef      = useRef(null);  // ref a playNext siempre fresco — evita closures rancios en mediaSession handlers
@@ -7710,24 +7711,36 @@ function App() {
       waveformBufRef.current = new Float32Array(300);
       waveformIdRef.current  = file.id;
       waveformFrRef.current  = 0;
-      const pre = preloadRef.current;
-      if (pre && pre.id === file.id && pre.el.readyState >= 2 && pendingSeekRef.current === null) {
-        // Cambio instantáneo: en Android la notificación del sistema se oculta mientras el <audio> carga el
-        // nuevo src; con la pista ya en memoria el hueco desaparece.
-        const old = audioRef.current, el = pre.el;
-        preloadRef.current = null;
-        el.muted = false; el.volume = volume;
-        const ctx = audioCtxRef.current, an = analyserRef.current;
-        if (ctx && an) { try { ctx.createMediaElementSource(el).connect(an); } catch {} }
-        audioRef.current = el; window.__msAudio = el;
-        el.addEventListener('playing', () => { msTransitionRef.current = false; }, { once: true });
-        setDuration(el.duration || 0);
-        setIsPlaying(true);
-        try { old.pause(); } catch {}
-        setTimeout(() => { try { old.removeAttribute('src'); old.load(); } catch {} }, 3000);
-        doPlay(el);
+      const pooled = preloadRef.current.get(file.id);
+      if (pooled && pendingSeekRef.current === null) {
+        // Cambio sin recargar: la pista ya está (o casi) en memoria. Si aún está cargando se espera hasta 1,5 s
+        // con la actual sonando, para que la notificación del sistema no llegue a desaparecer.
+        preloadRef.current.delete(file.id);
+        const token = ++swapTokenRef.current;
+        const doSwap = () => {
+          if (token !== swapTokenRef.current) { try { pooled.removeAttribute('src'); pooled.load(); } catch {} return; }
+          const old = audioRef.current, el = pooled;
+          el.muted = false; el.volume = volume;
+          const ctx = audioCtxRef.current, an = analyserRef.current;
+          if (ctx && an) { try { ctx.createMediaElementSource(el).connect(an); } catch {} }
+          audioRef.current = el; window.__msAudio = el;
+          el.addEventListener('playing', () => { msTransitionRef.current = false; }, { once: true });
+          setDuration(el.duration || 0);
+          setIsPlaying(true);
+          try { old.pause(); } catch {}
+          setTimeout(() => { try { old.removeAttribute('src'); old.load(); } catch {} }, 3000);
+          doPlay(el);
+        };
+        if (pooled.readyState >= 2) doSwap();
+        else {
+          let done = false;
+          const go = () => { if (done) return; done = true; clearTimeout(t); pooled.removeEventListener('canplay', go); doSwap(); };
+          const t = setTimeout(go, 1500);
+          pooled.addEventListener('canplay', go);
+        }
         return;
       }
+      swapTokenRef.current++;   // cancela cualquier cambio pendiente
       audio.src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
       if (pendingSeekRef.current !== null) {
         const _t = pendingSeekRef.current; pendingSeekRef.current = null;
@@ -8430,29 +8443,38 @@ function App() {
   playNextRef.current = playNext;
   playPrevRef.current = playPrev;
 
-  // Precarga de la siguiente canción (solo R2). En Android la notificación del sistema desaparece al cambiar
-  // el src del <audio> y no vuelve hasta que la nueva pista empieza a sonar; cuanto antes arranque, menos dura
-  // el hueco. Un <audio> mudo con preload='auto' deja los primeros segundos en la caché de medios del
-  // navegador (mismo URL + Cache-Control del proxy) y el cambio de pista es casi instantáneo.
+  // Precarga de las dos siguientes canciones (solo R2). En Android la notificación del sistema desaparece al
+  // cambiar el src del <audio> y no vuelve hasta que la nueva pista suena. Cada pista de la cola siguiente
+  // se carga en un <audio> mudo (preload='auto'); al avanzar, startTrack lo convierte en el principal en vez
+  // de cambiar el src, y el hueco desaparece. Con dos pistas de margen también aguanta saltos rápidos.
   useEffect(() => {
     if (!isPlaying || !currentTrackId || repeatMode === 'one') return;
     const timer = setTimeout(() => {
       const q = (route.page === 'DETAIL' && detailOriginQueue && detailOriginQueue.length) ? detailOriginQueue : effectiveQueue;
       if (!q || !q.length) return;
       const idx = q.findIndex(f => f.id === currentTrackId);
-      const next = idx === -1 ? null : (q[idx + 1] || (repeatMode === 'all' ? q[0] : null));
-      if (!next || !next.r2Path || next.id === currentTrackId) return;
-      if (preloadRef.current && preloadRef.current.id === next.id) return;
-      try { if (preloadRef.current) { preloadRef.current.el.removeAttribute('src'); preloadRef.current.el.load(); } } catch {}
-      try {
-        const el = new Audio();
-        el.preload = 'auto';
-        el.muted = true;
-        el.src = `/api/audio?path=${encodeURIComponent(next.r2Path)}`;
-        el.load();
-        preloadRef.current = { id: next.id, el };
-      } catch {}
-    }, 4000);   // tras arrancar la actual: no compite con su descarga inicial
+      if (idx === -1) return;
+      const wanted = [];
+      for (let k = 1; k <= 2; k++) {
+        const n = q[idx + k] || (repeatMode === 'all' ? q[(idx + k) % q.length] : null);
+        if (n && n.r2Path && n.id !== currentTrackId && !wanted.some(w => w.id === n.id)) wanted.push(n);
+      }
+      const pool = preloadRef.current;
+      for (const [id, el] of pool) {
+        if (!wanted.some(w => w.id === id)) { try { el.removeAttribute('src'); el.load(); } catch {} pool.delete(id); }
+      }
+      wanted.forEach(n => {
+        if (pool.has(n.id)) return;
+        try {
+          const el = new Audio();
+          el.preload = 'auto';
+          el.muted = true;
+          el.src = `/api/audio?path=${encodeURIComponent(n.r2Path)}`;
+          el.load();
+          pool.set(n.id, el);
+        } catch {}
+      });
+    }, 600);   // deja que la pista actual empiece antes de pedir las siguientes
     return () => clearTimeout(timer);
   }, [currentTrackId, isPlaying, repeatMode]);
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
