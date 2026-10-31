@@ -28,6 +28,9 @@ const ARTIST_META_KEY = 'metalsys_artist_meta_v1';
 const PLAYLIST_KEY    = 'metalsys_playlists_v1';
 const PERF_KEY  = 'metalsys_perf_v1';
 const PERF_DEFAULTS = { scanlines:true, bloom:true, chroma:true, flicker:true, rollbar:true, jitter:true, vuMeter:true, marquee:true, audioPulse:true, perfGlobal:false };
+// En pantallas táctiles no hay hover: los efectos de inclinación 3D se quedarían pegados tras un toque
+const CAN_HOVER = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: hover)').matches;
+
 function loadPerf() {
   try { return { ...PERF_DEFAULTS, ...JSON.parse(localStorage.getItem(PERF_KEY) || '{}') }; }
   catch { return { ...PERF_DEFAULTS }; }
@@ -1117,6 +1120,7 @@ function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 })
   const cardRef = useRef(null);
 
   const onMove = useCallback((e) => {
+    if (!CAN_HOVER) return;
     const el = cardRef.current; if (!el) return;
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
@@ -2075,11 +2079,13 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
 
   const onEnter = useCallback(() => {
+    if (!CAN_HOVER) return;
     const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
 
   const onMove = useCallback((e) => {
+    if (!CAN_HOVER) return;
     const el = cardRef.current; if (!el) return;
     const r  = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width  * 0.5) / (r.width  * 0.5);
@@ -2169,6 +2175,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const meta = artistMeta[cat] || {};
 
   const onArtistThumbMove = useCallback((e) => {
+    if (!CAN_HOVER) return;
     if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
     const el = artistThumbRef.current;
     if (!el) return;
@@ -2192,6 +2199,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   useEffect(() => { setSelectedAlbum(prefillAlbum || null); }, [prefillAlbum]);
 
   const onAlbumThumbEnter = useCallback(() => {
+    if (!CAN_HOVER) return;
     if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
     const el = detailThumbRef.current;
     if (!el) return;
@@ -2205,6 +2213,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   }, []);
 
   const onAlbumThumbMove = useCallback((e) => {
+    if (!CAN_HOVER) return;
     if (typeof document !== 'undefined' && document.documentElement.classList.contains('is-touch')) return;
     const el = detailThumbRef.current;
     if (!el) return;
@@ -4969,10 +4978,12 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
 
   const onEnter = useCallback(() => {
+    if (!CAN_HOVER) return;
     const vinyl = cardRef.current?.querySelector('.album-card-vinyl');
     if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_IN; }
   }, []);
   const onMove = useCallback((e) => {
+    if (!CAN_HOVER) return;
     const el = cardRef.current; if (!el) return;
     const r = el.getBoundingClientRect();
     const dx = (e.clientX - r.left - r.width * 0.5) / (r.width * 0.5);

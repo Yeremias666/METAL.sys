@@ -312,7 +312,9 @@ input:not([type=range]), textarea {
   padding: 0;
   transition: background 0.15s;
 }
+@media (hover: hover){
 .user-btn:hover { background: var(--fg-primary); color: var(--bg-main); }
+}
 .user-btn--active { border-color: var(--fg-primary); color: var(--fg-primary); }
 .user-menu {
   position: absolute;
@@ -343,7 +345,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   letter-spacing: 0.04em;
 }
+@media (hover: hover){
 .user-menu button:hover { background: var(--fg-primary); color: var(--bg-deep); }
+}
 .user-menu button.active { color: var(--fg-primary); }
 .user-menu-sep { height: 1px; background: rgba(214,31,31,0.25); margin: 4px 0; }
 
@@ -364,7 +368,9 @@ input:not([type=range]), textarea {
   border-radius: 2px;
   gap: 16px;
 }
+@media (hover: hover){
 .perf-row:hover { background: rgba(214,31,31,0.08); }
+}
 .perf-label {
   font-family: var(--mono);
   font-size: 14px;
@@ -427,7 +433,9 @@ input:not([type=range]), textarea {
   opacity: 0;
   transition: opacity 0.15s;
 }
+@media (hover: hover){
 .profile-avatar:hover .profile-avatar-overlay { opacity: 1; }
+}
 
 /* Auth modal */
 .auth-modal-backdrop {
@@ -490,7 +498,9 @@ input:not([type=range]), textarea {
   padding: 9px 0;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .auth-submit:hover { opacity: 0.85; }
+}
 .auth-close {
   position: absolute;
   top: 10px; right: 14px;
@@ -594,7 +604,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   text-align: left;
 }
+@media (hover: hover){
 .nav-search-item:hover { background: rgba(214,31,31,0.12); }
+}
 .nav-search-name { font-family: var(--mono); font-size: 14px; color: var(--fg-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-search-meta { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); letter-spacing: 0.06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-search-empty { padding: 12px; font-family: var(--pixel); font-size: 11px; color: var(--fg-dim); }
@@ -612,11 +624,13 @@ input:not([type=range]), textarea {
   white-space: nowrap;
   flex-shrink: 0;
 }
+@media (hover: hover){
 .nav button:hover {
   background: var(--fg-primary);
   color: var(--bg-deep);
   border-color: var(--fg-primary);
   box-shadow: 0 0 12px var(--fg-primary);
+}
 }
 .nav button.active {
   background: var(--fg-primary);
@@ -763,9 +777,11 @@ input:not([type=range]), textarea {
   flex-shrink: 0;
   transition: background 0.12s, box-shadow 0.12s;
 }
+@media (hover: hover){
 .cat-upload-btn:hover {
   background: var(--fg-primary);
   box-shadow: none;
+}
 }
 
 /* Hero / welcome */
@@ -865,7 +881,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   padding: 0;
 }
+@media (hover: hover){
 .cassette .controls button:hover { background: var(--fg-secondary); color: var(--bg-deep); }
+}
 
 /* Visitor counter */
 .counter {
@@ -1127,7 +1145,9 @@ input:not([type=range]), textarea {
   transition: background 0.15s, border-color 0.15s;
   position: relative;
 }
+@media (hover: hover){
 .dropzone:hover { background: rgba(214,31,31,0.1); }
+}
 .dropzone.drag {
   border-color: var(--fg-success);
   background: rgba(196,255,0,0.08);
@@ -1177,9 +1197,13 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   text-transform: uppercase;
 }
+@media (hover: hover){
 .mini-btn:hover { background: var(--fg-success); color: #000; }
+}
 .mini-btn.alt { border-color: var(--fg-primary); color: var(--fg-primary); }
+@media (hover: hover){
 .mini-btn.alt:hover { background: var(--fg-primary); color: #fff; }
+}
 
 /* Two-col layout helper for new sections */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
@@ -1205,7 +1229,9 @@ input:not([type=range]), textarea {
   gap: 8px;
   line-height: 1;
 }
+@media (hover: hover){
 .big-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 rgba(214,31,31,0.4), 0 0 20px rgba(214,31,31,0.7); }
+}
 .big-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .big-btn.ghost {
   background: transparent;
@@ -1214,7 +1240,9 @@ input:not([type=range]), textarea {
   box-shadow: 0 0 10px rgba(184,182,173,0.3);
   text-shadow: none;
 }
+@media (hover: hover){
 .big-btn.ghost:hover { color: var(--fg-text); border-color: var(--fg-text); box-shadow: 0 0 14px rgba(232,226,212,0.4); }
+}
 
 /* ─── Nav glyphs ─────────────────────────────────────────── */
 .nav button {
@@ -1239,9 +1267,11 @@ input:not([type=range]), textarea {
   padding: 0;
   text-align: left;
 }
+@media (hover: hover){
 .cat-card:hover {
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 rgba(214,31,31,0.4), 0 0 16px rgba(214,31,31,0.55);
+}
 }
 .cat-card-img {
   position: relative;
@@ -1288,13 +1318,17 @@ input:not([type=range]), textarea {
   transition: opacity 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
   padding: 0;
 }
+@media (hover: hover){
 .cat-card:hover .cat-card-play {
   opacity: 1;
 }
+}
+@media (hover: hover){
 .cat-card-play:hover {
   background: var(--fg-primary);
   border-color: var(--fg-accent);
   box-shadow: 0 0 14px rgba(214,31,31,0.8);
+}
 }
 .cat-card-info {
   padding: 10px 12px 12px;
@@ -1336,7 +1370,9 @@ input:not([type=range]), textarea {
   transition: all 0.1s;
   text-transform: uppercase;
 }
+@media (hover: hover){
 .album-pill:hover { border-color: var(--fg-secondary); color: var(--fg-text); }
+}
 .album-pill.on {
   background: var(--fg-primary);
   color: #fff;
@@ -1366,10 +1402,12 @@ input:not([type=range]), textarea {
   transform-origin: center bottom;
   z-index: 1;
 }
+@media (hover: hover){
 .album-card:hover {
   z-index: 10;
   transform: translateY(-10px) scale(1.05);
   box-shadow: 0 18px 50px rgba(214,31,31,0.6), 0 0 30px rgba(214,31,31,0.3);
+}
 }
 .album-card-row {
   flex-direction: row;
@@ -1392,8 +1430,10 @@ input:not([type=range]), textarea {
   justify-content: center;
   overflow: visible;
 }
+@media (hover: hover){
 .album-card:hover .album-card-thumb {
   overflow: visible;
+}
 }
 .album-card-thumb img {
   width: 100%;
@@ -1450,15 +1490,19 @@ input:not([type=range]), textarea {
     /* base negra con tinte levemente morado (plástico PVC) */
     radial-gradient(circle, #14101a 0%, #0a080e 60%, #060408 100%);
 }
+@media (hover: hover){
 .album-card:hover .ac-vinyl-disc {
   animation-play-state: running;
+}
 }
 /* Brillo rojo detrás del vinilo cuando sale */
 .album-card-vinyl {
   transition: filter 0.45s ease-out;
 }
+@media (hover: hover){
 .album-card:hover .album-card-vinyl {
   filter: drop-shadow(0 0 18px rgba(214,31,31,0.9)) drop-shadow(0 0 8px rgba(214,31,31,0.6));
+}
 }
 @keyframes vinyl-spin {
   to { transform: rotate(360deg); }
@@ -1473,14 +1517,20 @@ input:not([type=range]), textarea {
   transform-style: preserve-3d;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
+@media (hover: hover){
 .album-detail-thumb:hover {
   box-shadow: 0 0 24px rgba(255,255,255,0.12), 0 0 34px rgba(214,31,31,0.45), inset 0 0 18px rgba(255,255,255,0.08);
 }
+}
+@media (hover: hover){
 .album-detail-thumb:hover .album-card-vinyl {
   filter: drop-shadow(0 0 24px rgba(214,31,31,0.9)) drop-shadow(0 0 12px rgba(255,255,255,0.2));
 }
+}
+@media (hover: hover){
 .album-detail-thumb:hover .ac-vinyl-disc {
   animation-play-state: running;
+}
 }
 .album-detail-cover-img {
   width: 100%;
@@ -1552,6 +1602,7 @@ input:not([type=range]), textarea {
   color: #fff !important;
   text-shadow: 0 0 6px rgba(255,255,255,0.4) !important;
 }
+@media (hover: hover){
 .album-play-btn:hover {
   border-color: var(--fg-primary);
   background: var(--fg-primary);
@@ -1561,18 +1612,23 @@ input:not([type=range]), textarea {
   transform: translate(-1px, -1px);
   text-shadow: 0 0 6px rgba(255,255,255,0.4) !important;
 }
+}
 
 /* Ensure like/playlist buttons also appear on hover inside album panels */
+@media (hover: hover){
 .panel .track-list-row:hover .like-btn,
 .panel .track-list-row:hover .playlist-btn {
   opacity: 1;
 }
+}
 
 /* More specific override for right-side action buttons inside album panels */
+@media (hover: hover){
 .panel .track-list-row:hover .track-list-right-actions .like-btn,
 .panel .track-list-row:hover .track-list-right-actions .playlist-btn {
   opacity: 1 !important;
   transform: none !important;
+}
 }
 
 /* Movil: ocultar vinilo, solo portada */
@@ -1657,9 +1713,11 @@ input:not([type=range]), textarea {
   color: var(--fg-text);
   transition: background 0.12s, border-color 0.12s;
 }
+@media (hover: hover){
 .search-suggestion:hover {
   background: rgba(214,31,31,0.18);
   border-color: var(--fg-primary);
+}
 }
 .search-suggestion.empty {
   border-color: rgba(255,255,255,0.05);
@@ -1717,9 +1775,11 @@ input:not([type=range]), textarea {
   flex-direction: column;
   transition: transform 0.1s, box-shadow 0.15s;
 }
+@media (hover: hover){
 .file-card:hover {
   transform: translate(-1px, -1px);
   box-shadow: 3px 3px 0 var(--fg-primary), 0 0 14px rgba(214,31,31,0.5);
+}
 }
 .file-card-thumb {
   position: relative;
@@ -1846,7 +1906,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   transition: all 0.1s;
 }
+@media (hover: hover){
 .cat-pill:hover { border-color: var(--fg-secondary); color: var(--fg-secondary); }
+}
 .cat-pill.on {
   background: var(--fg-primary);
   color: #fff;
@@ -1855,7 +1917,9 @@ input:not([type=range]), textarea {
   text-shadow: 0 0 4px rgba(255,255,255,0.4);
 }
 .cat-pill.new { border-style: dashed; color: var(--fg-accent); border-color: var(--fg-accent); }
+@media (hover: hover){
 .cat-pill.new:hover { background: rgba(255,59,59,0.15); }
+}
 
 .form-actions {
   display: flex;
@@ -1883,11 +1947,13 @@ input:not([type=range]), textarea {
   color: var(--fg-primary);
   transition: background 0.12s, border-color 0.12s;
 }
+@media (hover: hover){
 .thumb-zone:hover {
   border-color: var(--fg-accent);
   background:
     repeating-linear-gradient(45deg, rgba(214,31,31,0.18) 0 6px, transparent 6px 12px),
     rgba(214,31,31,0.05);
+}
 }
 .thumb-zone img {
   width: 100%; height: 100%; object-fit: cover;
@@ -2110,8 +2176,10 @@ input:not([type=range]), textarea {
 
 /* widget cassette clickable hover */
 .widget .cassette { transition: box-shadow 0.15s; }
+@media (hover: hover){
 .widget .cassette:hover {
   box-shadow: 0 0 16px var(--fg-primary);
+}
 }
 
 /* ─── Modal ──────────────────────────────────────────────── */
@@ -2163,7 +2231,9 @@ input:not([type=range]), textarea {
   padding: 0 4px;
   line-height: 1;
 }
+@media (hover: hover){
 .modal-x:hover { color: var(--fg-accent); }
+}
 .modal-body { padding: 18px 22px 22px; }
 
 /* ─── Tabs (detail page) ─────────────────────────────────── */
@@ -2187,9 +2257,11 @@ input:not([type=range]), textarea {
   margin-bottom: -2px;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
+@media (hover: hover){
 .tabs button:hover:not(.active) {
   color: var(--fg-text);
   border-color: var(--fg-secondary);
+}
 }
 .tabs button.active {
   background: var(--fg-primary);
@@ -2238,8 +2310,12 @@ input:not([type=range]), textarea {
   transition: background 0.08s, border-color 0.08s;
 }
 .zip-entry.is-dir { cursor: pointer; color: var(--fg-secondary); }
+@media (hover: hover){
 .zip-entry.is-dir:hover { background: rgba(214,31,31,0.1); border-left-color: var(--fg-primary); }
+}
+@media (hover: hover){
 .zip-entry.is-file:hover { background: rgba(184,182,173,0.06); }
+}
 .zip-toggle {
   font-family: var(--mono);
   font-size: 14px;
@@ -2329,7 +2405,9 @@ input:not([type=range]), textarea {
   -webkit-appearance: none;
   min-width: 140px;
 }
+@media (hover: hover){
 .sort-select:hover { border-color: var(--fg-secondary); }
+}
 .dir-btn {
   font-family: var(--mono);
   font-size: 20px;
@@ -2342,11 +2420,13 @@ input:not([type=range]), textarea {
   transition: all 0.08s;
   line-height: 1;
 }
+@media (hover: hover){
 .dir-btn:hover {
   background: var(--fg-primary);
   color: var(--bg-deep);
   border-color: var(--fg-primary);
   box-shadow: 0 0 8px var(--fg-primary);
+}
 }
 .view-toggle { display: flex; gap: 0; }
 .view-toggle button {
@@ -2420,7 +2500,9 @@ input:not([type=range]), textarea {
   user-select: none;
   white-space: nowrap;
 }
+@media (hover: hover){
 .file-list thead th:hover { background: rgba(214,31,31,0.15); }
+}
 .file-list thead th.active { color: var(--fg-primary); text-shadow: 0 0 8px var(--fg-primary); }
 .file-list .sort-dir { color: var(--fg-primary); }
 .file-list tbody tr {
@@ -2428,7 +2510,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   transition: background 0.08s;
 }
+@media (hover: hover){
 .file-list tbody tr:hover { background: rgba(214,31,31,0.08); }
+}
 .file-list tbody tr.sel { background: rgba(255,59,59,0.12); }
 .file-list td { padding: 8px 8px; vertical-align: middle; }
 .file-list .col-sel { width: 36px; text-align: center; }
@@ -2812,9 +2896,11 @@ input:not([type=range]), textarea {
     inset 0 2px 0 rgba(255,255,255,0.1);
   transition: transform 0.08s, box-shadow 0.12s;
 }
+@media (hover: hover){
 .radio-play-btn:hover {
   transform: scale(1.07);
   box-shadow: 0 0 28px rgba(214,31,31,0.8), inset 0 0 14px rgba(214,31,31,0.3);
+}
 }
 .radio-play-btn span { display: flex; line-height: 1; }
 
@@ -2832,9 +2918,11 @@ input:not([type=range]), textarea {
   transition: transform 0.08s ease-out, opacity 0.15s ease-out, box-shadow 0.12s;
   box-shadow: 0 0 8px rgba(214,31,31,0.3);
 }
+@media (hover: hover){
 .radio-nav-btn:hover:not(:disabled) {
   transform: scale(1.1);
   box-shadow: 0 0 16px rgba(214,31,31,0.6);
+}
 }
 .radio-nav-btn:disabled {
   opacity: 0.2;
@@ -2924,7 +3012,9 @@ input:not([type=range]), textarea {
 .md-preview pre code { border: none; padding: 0; background: transparent; }
 .md-preview a { color: var(--fg-accent); text-decoration: underline; }
 .panel-body a { color: var(--fg-accent); text-decoration: underline; cursor: pointer; }
+@media (hover: hover){
 .panel-body a:hover { color: var(--fg-primary); }
+}
 .md-preview blockquote {
   border-left: 4px solid var(--fg-primary);
   padding: 6px 14px;
@@ -3036,12 +3126,16 @@ input:not([type=range]), textarea {
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
 }
+@media (hover: hover){
 .mp-controls button:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); }
+}
 .mp-controls .mp-play {
   width: 38px; height: 38px;
   font-size: 14px;
 }
+@media (hover: hover){
 .mp-controls .mp-play:hover { background: var(--fg-primary); border-color: var(--fg-primary); box-shadow: 0 0 18px var(--fg-primary); color: #000; }
+}
 .music-player .like-btn {
   width: 38px; height: 38px;
   padding: 0;
@@ -3056,7 +3150,9 @@ input:not([type=range]), textarea {
   justify-content: center;
   line-height: 1;
 }
+@media (hover: hover){
 .music-player .like-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
+}
 .music-player .like-btn.liked { background: rgba(214,31,31,0.35); box-shadow: 0 0 10px var(--fg-primary); }
 .mp-volume { display: flex; align-items: center; gap: 6px; min-width: 110px; color: var(--fg-primary); }
 .mp-volume span { font-size: 16px; color: var(--fg-primary); }
@@ -3099,7 +3195,9 @@ input:not([type=range]), textarea {
   text-shadow: 0 0 6px var(--fg-primary);
   transition: all 0.08s;
 }
+@media (hover: hover){
 .mp-close:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
+}
 
 /* VU backdrop — separate fixed element, BEHIND the player */
 .vu-backdrop {
@@ -3632,7 +3730,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   transition: background 0.1s;
 }
+@media (hover: hover){
 .lib-artist-row:hover { background: rgba(214,31,31,0.1); }
+}
 .lib-toggle {
   color: var(--fg-dim);
   font-size: 10px;
@@ -3649,7 +3749,9 @@ input:not([type=range]), textarea {
   white-space: nowrap;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .lib-name:hover { color: var(--fg-accent); text-decoration: underline; }
+}
 .lib-album-name { color: var(--fg-secondary); font-weight: normal; font-size: 16px; }
 .lib-play {
   background: transparent;
@@ -3662,9 +3764,11 @@ input:not([type=range]), textarea {
   opacity: 0;
   transition: opacity 0.15s;
 }
+@media (hover: hover){
 .lib-artist-row:hover .lib-play,
 .lib-album-row:hover .lib-play,
 .lib-song-row:hover .lib-play { opacity: 1; }
+}
 .lib-album-row {
   display: flex;
   align-items: center;
@@ -3673,7 +3777,9 @@ input:not([type=range]), textarea {
   padding: 4px 8px 4px 22px;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .lib-album-row:hover { background: rgba(184,182,173,0.07); }
+}
 .lib-songs { padding-left: 10px; }
 .lib-song-row {
   display: flex;
@@ -3684,10 +3790,14 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   font-size: 16px;
 }
+@media (hover: hover){
 .lib-song-row:hover { background: rgba(214,31,31,0.08); color: var(--fg-text); }
+}
 .lib-song-row .lib-play { opacity: 0; }
 .lib-song-direct { padding-left: 22px !important; }
+@media (hover: hover){
 .lib-song-row:hover .lib-play { opacity: 1; }
+}
 .lib-song-num { color: var(--fg-dim); font-family: var(--pixel); font-size: 10px; width: 18px; flex-shrink: 0; text-align: right; }
 .lib-song-name { flex: 1; min-width: 0; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-empty { padding: 16px 12px; color: var(--fg-dim); font-size: 18px; }
@@ -3727,7 +3837,9 @@ input:not([type=range]), textarea {
   transition: background 0.1s;
   user-select: none;
 }
+@media (hover: hover){
 .pq-item:hover { background: rgba(214,31,31,0.1); }
+}
 .pq-item.pq-current {
   background: rgba(214,31,31,0.18);
   border-left: 2px solid var(--fg-accent);
@@ -3740,7 +3852,9 @@ input:not([type=range]), textarea {
 .pq-name { font-size: 17px; color: var(--fg-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pq-artist { font-size: 14px; color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pq-drag-handle { touch-action: none; color: var(--fg-dim); font-size: 16px; cursor: grab; flex-shrink: 0; opacity: 0.5; }
+@media (hover: hover){
 .pq-item:hover .pq-drag-handle { opacity: 1; }
+}
 .pq-empty { padding: 14px 12px; color: var(--fg-dim); font-size: 18px; }
 
 /* ─── Top Songs (right sidebar) ─────────────────────────────── */
@@ -3753,7 +3867,9 @@ input:not([type=range]), textarea {
   border-bottom: 1px dotted rgba(214,31,31,0.15);
   transition: background 0.1s;
 }
+@media (hover: hover){
 .top-song-row:hover { background: rgba(214,31,31,0.1); }
+}
 .top-rank {
   font-family: var(--pixel);
   font-size: 10px;
@@ -3782,7 +3898,9 @@ input:not([type=range]), textarea {
   align-items: center;
   justify-content: center;
 }
+@media (hover: hover){
 .like-btn:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
+}
 .like-btn.liked {
   color: var(--fg-primary);
   border-color: var(--fg-primary);
@@ -3860,9 +3978,11 @@ input:not([type=range]), textarea {
   gap: 6px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+@media (hover: hover){
 .stat-highlight:hover {
   border-color: var(--fg-primary);
   box-shadow: 0 0 12px rgba(214,31,31,0.3);
+}
 }
 .sh-icon { color: var(--fg-primary); }
 .sh-label {
@@ -3904,7 +4024,9 @@ input:not([type=range]), textarea {
   align-items: center;
   justify-content: center;
 }
+@media (hover: hover){
 .mp-menu-btn:hover { background: var(--fg-primary); color: #000; box-shadow: 0 0 12px var(--fg-primary); text-shadow: none; }
+}
 .mp-menu-dropdown {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -3936,7 +4058,9 @@ input:not([type=range]), textarea {
 }
 .mp-menu-dropdown { min-width: 240px; }
 .mp-menu-dropdown button:last-child { border-bottom: none; }
+@media (hover: hover){
 .mp-menu-dropdown button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
+}
 @media (max-width: 700px) {
   .mp-menu-dropdown { right: auto; left: 0; }
 }
@@ -3976,7 +4100,9 @@ input:not([type=range]), textarea {
   white-space: nowrap;
 }
 .mp-menu-submenu button:last-child { border-bottom: none; }
+@media (hover: hover){
 .mp-menu-submenu button:hover { background: rgba(214,31,31,0.18); color: var(--fg-accent); }
+}
 .mp-menu-submenu-create { color: var(--fg-primary) !important; font-weight: bold; }
 @media (max-width: 700px) {
   .mp-menu-submenu { right: auto; left: calc(100% + 2px); }
@@ -3999,7 +4125,9 @@ input:not([type=range]), textarea {
 
   /* Evita que la cuadrícula interna escale por separado al hacer hover;
     de este modo la portada y el cuerpo de la tarjeta se mueven como un bloque. */
+  @media (hover: hover){
   .album-card:hover .ac-auto-grid { transform: none; }
+}
 
 /* ─── Bookmarks + Clips (DetailPage tabs) ────────────────────── */
 .bm-list, .clip-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
@@ -4026,7 +4154,9 @@ input:not([type=range]), textarea {
   padding: 2px 8px;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .bm-item button:hover, .clip-item button:hover { border-color: var(--fg-primary); color: var(--fg-primary); }
+}
 .clip-item.active-clip { border-color: var(--fg-primary); background: rgba(214,31,31,0.10); }
 .clip-item.active-clip .clip-name { color: var(--fg-primary); }
 .bm-empty, .clip-empty { padding: 14px 0; color: var(--fg-dim); font-size: 19px; }
@@ -4074,7 +4204,9 @@ input:not([type=range]), textarea {
   content-visibility: auto;
   contain-intrinsic-size: auto 53px;
 }
+@media (hover: hover){
 .local-track-row:hover { background: rgba(214,31,31,0.1); }
+}
 .local-track-active { background: rgba(214,31,31,0.18) !important; border-left: 2px solid var(--fg-accent); }
 .local-track-thumb {
   width: 38px; height: 38px;
@@ -4209,13 +4341,17 @@ input:not([type=range]), textarea {
   padding-left: 2px;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .album-card:hover .ac-play-btn {
   opacity: 1;
 }
+}
+@media (hover: hover){
 .ac-play-btn:hover {
   background: var(--fg-primary);
   border-color: var(--fg-accent);
   box-shadow: 0 0 14px rgba(214,31,31,0.8);
+}
 }
 .ac-play-btn:active {
   transform: scale(0.95);
@@ -4223,10 +4359,12 @@ input:not([type=range]), textarea {
 
 
 /* ─── Invertir colores lib-play al hover (item 24) ─────────────── */
+@media (hover: hover){
 .lib-play:hover {
   background: var(--fg-primary) !important;
   color: var(--bg-deep) !important;
   opacity: 1;
+}
 }
 
 /* ─── Footer links sociales (item 16) ──────────────────────────── */
@@ -4238,9 +4376,11 @@ input:not([type=range]), textarea {
   transition: color 0.15s ease-out, transform 0.15s ease-out;
   padding: 4px;
 }
+@media (hover: hover){
 .footer-link:hover {
   color: var(--fg-primary);
   transform: translateY(-2px);
+}
 }
 
 /* ─── Activity log estilo tail -f (item 23) ────────────────────── */
@@ -4324,7 +4464,9 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
 }
 .track-list-row:nth-child(even) { background: rgba(214,31,31,0.03); }
+@media (hover: hover){
 .track-list-row:hover { background: rgba(214,31,31,0.07); }
+}
 .track-list-play {
   flex-shrink: 0;
   width: 28px; height: 28px;
@@ -4341,7 +4483,9 @@ input:not([type=range]), textarea {
   padding: 0;
   margin-left: 4px;
 }
+@media (hover: hover){
 .track-list-row:hover .track-list-play { opacity: 1; }
+}
 
 /* ── Track table (disc view, desktop columns) ── */
 .track-table { width: 100%; }
@@ -4371,10 +4515,16 @@ input:not([type=range]), textarea {
   background: transparent;
   padding: 0 4px;
 }
+@media (hover: hover){
 .track-table-row:hover .track-list-row-actions { background: linear-gradient(to right, transparent, #0d0508 22%); }
+}
+@media (hover: hover){
 .track-table-row:hover .like-btn,
 .track-table-row:hover .playlist-btn { opacity: 1; }
+}
+@media (hover: hover){
 .track-table-row:hover .track-list-row-actions .track-list-play { opacity: 1; }
+}
 .track-table-header span:first-child { text-align: center; }
 .tt-num { text-align: right; font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); padding-left: 4px; }
 .tt-thumb { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
@@ -4386,8 +4536,12 @@ input:not([type=range]), textarea {
 .track-table-header span:nth-child(4) { padding-left: 60px; }
 .tt-dur { font-family: var(--pixel); font-size: 10px; color: var(--fg-dim); text-align: left; }
 .playlist-remove-btn { flex-shrink: 0; width: 28px; height: 28px; background: transparent; border: 1px solid var(--fg-primary); color: var(--fg-primary); font-size: 14px; cursor: pointer; border-radius: 2px; opacity: 0; transition: opacity 0.15s; display: flex; align-items: center; justify-content: center; padding: 0; margin-left: 0; }
+@media (hover: hover){
 .playlist-remove-btn:hover { background: var(--fg-primary); color: #000; }
+}
+@media (hover: hover){
 .track-table-row:hover .playlist-remove-btn { opacity: 1; }
+}
 @media (max-width: 640px) {
   .track-table-header { display: none; }
   .track-table-row {
@@ -4419,7 +4573,9 @@ input:not([type=range]), textarea {
   .track-table-row .track-list-row-actions .playlist-btn,
   .track-table-row .track-list-row-actions .track-list-play,
   .track-table-row .track-list-row-actions .playlist-remove-btn { opacity: 1 !important; }
+  @media (hover: hover){
   .track-table-row:hover .track-list-row-actions { background: transparent !important; }
+  }
   .tt-num { width: 24px; flex-shrink: 0; }
 }
 
@@ -4431,9 +4587,13 @@ input:not([type=range]), textarea {
   margin-top: 4px;
 }
 .track-list-row-actions .track-list-play { opacity: 0; margin-left: 0; }
+@media (hover: hover){
 .track-list-row:hover .track-list-row-actions .track-list-play { opacity: 1; }
+}
 .track-list-row .track-list-right-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+@media (hover: hover){
 .track-list-play:hover { background: var(--fg-primary); color: #000; box-shadow: none; }
+}
 .track-list-row .like-btn,
 .track-list-row .playlist-btn {
   width: 28px; height: 28px;
@@ -4445,8 +4605,10 @@ input:not([type=range]), textarea {
   opacity: 0;
   transition: opacity 0.15s, color 0.15s, border-color 0.15s, text-shadow 0.15s, background 0.15s;
 }
+@media (hover: hover){
 .track-list-row:hover .like-btn,
 .track-list-row:hover .playlist-btn { opacity: 1; }
+}
 .track-list-row .like-btn {
   display: inline-flex;
   align-items: center;
@@ -4457,11 +4619,13 @@ input:not([type=range]), textarea {
   border-radius: 2px;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .track-list-row .like-btn:hover {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 8px var(--fg-primary);
   text-shadow: none;
+}
 }
 .track-list-row .playlist-btn {
   display: inline-flex;
@@ -4479,10 +4643,12 @@ input:not([type=range]), textarea {
   line-height: 1;
   text-shadow: none;
 }
+@media (hover: hover){
 .track-list-row .playlist-btn:hover {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 8px var(--fg-primary);
+}
 }
 /* Global playlist button styling so buttons placed outside track-list-row keep same look */
 .playlist-btn {
@@ -4500,10 +4666,12 @@ input:not([type=range]), textarea {
   border-radius: 2px;
   cursor: var(--hand);
 }
+@media (hover: hover){
 .playlist-btn:hover {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 8px var(--fg-primary);
+}
 }
 
 /* Player/detail-specific sizing: same button style as playlist button in song list, scaled to match the adjacent like button */
@@ -4523,10 +4691,12 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   text-shadow: 0 0 6px var(--fg-primary);
 }
+@media (hover: hover){
 .player-actions .playlist-btn:hover {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 12px var(--fg-primary);
+}
 }
 .player-actions .like-btn {
   width: 46px;
@@ -4544,12 +4714,19 @@ input:not([type=range]), textarea {
   cursor: var(--hand);
   text-shadow: 0 0 6px var(--fg-primary);
 }
-.player-actions .like-btn:hover,
 .player-actions .like-btn.liked {
   background: var(--fg-primary);
   color: #000;
   box-shadow: 0 0 12px var(--fg-primary);
   text-shadow: none;
+}
+@media (hover: hover){
+.player-actions .like-btn:hover {
+  background: var(--fg-primary);
+  color: #000;
+  box-shadow: 0 0 12px var(--fg-primary);
+  text-shadow: none;
+}
 }
 .detail-playlist-wrapper { position: relative; }
 .detail-playlist-dropdown {
@@ -4577,9 +4754,11 @@ input:not([type=range]), textarea {
   white-space: nowrap;
 }
 .detail-playlist-dropdown button:last-child { border-bottom: none; }
+@media (hover: hover){
 .detail-playlist-dropdown button:hover {
   background: rgba(214,31,31,0.18);
   color: var(--fg-accent);
+}
 }
 .detail-playlist-dropdown .has-track { color: var(--fg-primary); opacity: 0.85; cursor: default; }
 @media (max-width: 700px) {
@@ -4610,7 +4789,9 @@ input:not([type=range]), textarea {
   text-transform: uppercase;
   transition: all 0.08s;
 }
+@media (hover: hover){
 .news-fbtn:hover { color: var(--fg-primary); border-color: var(--fg-primary); }
+}
 .news-fbtn.active { background: var(--fg-primary); color: var(--bg-deep); border-color: var(--fg-primary); }
 
 .news-grid {
@@ -4627,7 +4808,9 @@ input:not([type=range]), textarea {
   transition: border-color 0.1s, background 0.1s;
   overflow: hidden;
 }
+@media (hover: hover){
 .news-card:hover { border-color: var(--fg-primary); background: rgba(214,31,31,0.09); }
+}
 .news-card-img-wrap {
   width: 100%;
   aspect-ratio: 16/9;
@@ -4664,7 +4847,9 @@ input:not([type=range]), textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+@media (hover: hover){
 .news-card:hover .news-card-title { color: var(--fg-primary); }
+}
 .news-card-desc {
   font-family: var(--mono);
   font-size: 11px;
@@ -4827,3 +5012,76 @@ input:not([type=range]), textarea {
 
 
 /* El reproductor flota encima del pie: no reserva espacio ni alarga la página */
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MÓVIL / TÁCTIL  (añadido 2026-10-31)
+   - Los :hover están envueltos en @media (hover: hover) más arriba.
+   - Aquí: lo que en táctil no tiene hover pasa a estar siempre visible,
+     navegación en una sola fila deslizable, tamaños de toque y ahorro de efectos.
+   ═══════════════════════════════════════════════════════════════ */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+@media (hover: none), (pointer: coarse) {
+  * { -webkit-tap-highlight-color: transparent; }
+  button, a, input, select, label, summary, .cat-card, .album-card, .track-list-row, .track-table-row { touch-action: manipulation; }
+
+  /* Controles que solo aparecían al pasar el ratón: siempre visibles */
+  .cat-card-play, .ac-play-btn, .lib-play, .track-list-play, .playlist-btn,
+  .playlist-remove-btn, .pq-drag-handle { opacity: 1 !important; }
+  .profile-avatar-overlay { opacity: 0.85; }
+
+  /* Menos coste de render: sin temblor del contenido ni destellos */
+  .crt-content { animation: none; }
+}
+
+@media (max-width: 700px) {
+  /* Evita el zoom automático de iOS al enfocar un campo */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* Cabecera compacta */
+  .banner { padding: 10px 12px; }
+  .banner > div .banner-sub + .banner-sub { display: none; }   /* línea larga de géneros */
+  .marquee { font-size: 15px; padding: 3px 0; margin-bottom: 12px; }
+  .nav { margin-bottom: 10px; font-size: 14px; }
+
+  /* Navegación: una sola fila deslizable con el dedo (.nav es el contenedor; .nav-system es display:contents) */
+  .nav {
+    flex-wrap: nowrap !important; overflow-x: auto; gap: 6px;
+    margin: 0 -10px 10px; padding: 0 10px 4px !important;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+  }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav .prompt { display: none; }
+  .nav button { flex: 0 0 auto !important; min-width: 0 !important; height: 40px !important; min-height: 40px; padding: 0 12px; font-size: 13px !important; scroll-snap-align: start; display: inline-flex; align-items: center; gap: 6px; }
+  .nav button svg { width: 14px !important; height: 14px !important; }
+  .nav button.active { color: #000; text-shadow: none; font-weight: 700; }
+
+  /* Portadas grandes de artista/disco: no ocupan media pantalla */
+  .artist-thumb { width: min(56vw, 220px) !important; height: min(56vw, 220px) !important; }
+  .album-detail-thumb:not(.artist-thumb) { width: min(60vw, 240px); height: min(60vw, 240px); }
+
+  /* Zonas de toque */
+  .mini-btn, .big-btn, .tabs button, .modal-x { min-height: 38px; }
+  .track-list-row, .track-table-row { min-height: 48px; }
+  .like-btn, .track-list-play, .playlist-btn { min-width: 38px; min-height: 38px; }
+
+  .nav { scroll-padding-left: 10px; }
+
+  /* Texto largo (URLs, comandos, tablas, código) no ensancha la página */
+  .col-main .panel-body { overflow-wrap: anywhere; }
+  .col-main pre, .col-main code { white-space: pre-wrap; word-break: break-word; overflow-wrap: anywhere; max-width: 100%; }
+  .col-main table { max-width: 100%; }
+  .col-main img, .col-main video, .col-main iframe { max-width: 100%; }
+
+  /* Reproductor: más compacto y respetando la zona segura del móvil */
+  .music-player { bottom: calc(2px + env(safe-area-inset-bottom)); padding: 6px 10px; }
+  .mp-controls button { width: 36px; height: 36px; }
+  .mp-controls .mp-play { width: 44px; height: 44px; }
+  .mp-close { width: 32px; height: 32px; }
+  body:has(.music-player) .crt-content { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+
+  /* Modales a pantalla casi completa */
+  .modal, .modal-box { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
+}
