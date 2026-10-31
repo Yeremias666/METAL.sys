@@ -5080,7 +5080,11 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   .mp-controls button { width: 36px; height: 36px; }
   .mp-controls .mp-play { width: 44px; height: 44px; }
   .mp-close { width: 32px; height: 32px; }
-  body:has(.music-player) .crt-content { padding-bottom: calc(150px + env(safe-area-inset-bottom)); }
+  /* Mismo remate que en PC: sin hueco bajo el footer, ni con reproductor (este flota encima) */
+  .page { padding-bottom: 0; }
+  .col-main { padding-bottom: 10px; }
+  body:has(.music-player) .crt-content { padding-bottom: 0; }
+  body:has(.music-player) .col-main { padding-bottom: 10px; }
 
   /* Modales a pantalla casi completa */
   .modal, .modal-box { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
