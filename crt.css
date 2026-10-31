@@ -5089,3 +5089,24 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   /* Modales a pantalla casi completa */
   .modal, .modal-box { max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
 }
+
+
+/* ─── Reproductor móvil: textos largos que se desplazan + barras VU ─── */
+@keyframes mp-scroll {
+  0%, 12%   { transform: translateX(0); }
+  88%, 100% { transform: translateX(var(--scroll-dist, 0px)); }
+}
+.scroll-text-inner { display: inline-block; white-space: nowrap; }
+@media (max-width: 700px) {
+  /* El hueco de la ✕ (38px) queda libre: el texto no pasa por detrás */
+  .mp-info { padding-right: 46px; }
+  .mp-title.is-scrolling, .mp-artist.is-scrolling { text-overflow: clip; }
+  .mp-title.is-scrolling .scroll-text-inner,
+  .mp-artist.is-scrolling .scroll-text-inner {
+    animation: mp-scroll var(--scroll-dur, 8s) ease-in-out infinite alternate;   /* va y vuelve */
+    will-change: transform;
+  }
+  /* Barras VU sobre el reproductor, ajustadas a su ancho */
+  .vu-backdrop { left: 2px; right: 2px; height: 60px; }
+  .vu-backdrop-bar { box-shadow: none; transition: none; }   /* sin sombra ni transición: más ligero */
+}

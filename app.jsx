@@ -3084,13 +3084,15 @@ function useVuBars(analyser, isPlaying, barCount) {
       setVuData(new Array(barCount).fill(4));
       return;
     }
-    // On mobile: skip the rAF loop entirely — 60x/s setState thrashes React on low-end devices
-    if (window.innerWidth <= 700) return;
     if (node.context.state === 'suspended') node.context.resume().catch(() => {});
     const data = new Uint8Array(node.frequencyBinCount);
-    const tick = () => {
-      setVuData(readVuBars(node, data, barCount));
+    const mobile = window.innerWidth <= 700;   // en móvil: ~20 fps para no saturar React
+    let last = 0;
+    const tick = (ts) => {
       frameRef.current = requestAnimationFrame(tick);
+      if (mobile && ts - last < 50) return;
+      last = ts;
+      setVuData(readVuBars(node, data, barCount));
     };
     frameRef.current = requestAnimationFrame(tick);
     return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
@@ -3431,14 +3433,68 @@ function StatsPanel({ files, allCats }) {
 // than the player (2147483625). The player paints on top, hiding the
 // bar overlap at the bottom. Only the portion above the player is visible.
 function VUBackdrop({ analyser, isPlaying, vuEnabled = true }) {
-  const BAR_COUNT = 90;
-  const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
+  // Móvil: menos barras y ~30 fps. Las alturas se escriben directamente en los elementos (sin setState por
+  // fotograma), así el hilo de React no se satura y las barras funcionan también en móviles modestos.
+  const mobile = window.innerWidth <= 700;
+  const BAR_COUNT = mobile ? 40 : 90;
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    const wrap = wrapRef.current; if (!wrap) return;
+    const bars = wrap.children;
+    const setAll = (h) => { for (let i = 0; i < bars.length; i++) bars[i].style.height = h + '%'; };
+    const node = analyser && analyser.current;
+    if (!node || !isPlaying || !vuEnabled) { setAll(4); return; }
+    if (node.context.state === 'suspended') node.context.resume().catch(() => {});
+    const data = new Uint8Array(node.frequencyBinCount);
+    let raf = 0, last = 0;
+    const tick = (ts) => {
+      raf = requestAnimationFrame(tick);
+      if (mobile && ts - last < 33) return;
+      last = ts;
+      const v = readVuBars(node, data, BAR_COUNT).slice(0, -1);
+      const m = v.length;
+      for (let i = 0; i < m; i++) {
+        const h = v[i] + '%';
+        if (bars[m - 1 - i]) bars[m - 1 - i].style.height = h;   // mitad izquierda (espejo)
+        if (bars[m + i])     bars[m + i].style.height = h;       // mitad derecha
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [analyser, isPlaying, vuEnabled, BAR_COUNT]);
   return (
-    <div className="vu-backdrop" aria-hidden="true">
-      {[...vuData.slice(0,-1)].reverse().concat(vuData.slice(0,-1)).map((h, i) => (
-        <div key={i} className="vu-backdrop-bar"
-             style={{ height: h + '%', opacity: isPlaying ? 1 : 0.18 }} />
+    <div className="vu-backdrop" aria-hidden="true" ref={wrapRef} style={{ opacity: isPlaying ? 1 : 0.18 }}>
+      {Array.from({ length: (BAR_COUNT - 1) * 2 }, (_, i) => (
+        <div key={i} className="vu-backdrop-bar" style={{ height: '4%' }} />
       ))}
+    </div>
+  );
+}
+
+// Texto de una línea: si no cabe, se desplaza de un extremo al otro (solo en móvil, vía CSS .is-scrolling)
+function ScrollText({ className, children, ...rest }) {
+  const outerRef = useRef(null);
+  const innerRef = useRef(null);
+  const [dist, setDist] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      const o = outerRef.current, i = innerRef.current;
+      if (!o || !i) return;
+      const d = i.offsetWidth - o.clientWidth;
+      setDist(d > 2 ? d : 0);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(outerRef.current); ro.observe(innerRef.current);
+    return () => ro.disconnect();
+  }, [children]);
+  return (
+    <div ref={outerRef} className={className + (dist ? ' is-scrolling' : '')} {...rest}>
+      <span ref={innerRef} className="scroll-text-inner"
+            style={dist ? { '--scroll-dist': `-${dist}px`, '--scroll-dur': `${Math.max(5, dist / 18 + 3)}s` } : undefined}>
+        {children}
+      </span>
     </div>
   );
 }
@@ -3515,8 +3571,6 @@ function IconVolume({ level }) {
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
 function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile }) {
   if (!track) return null;
-  const BAR_COUNT = 90;
-  const vuData = useVuBars(analyser, isPlaying && vuEnabled, BAR_COUNT);
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
   const draggingRef = useRef(false);
@@ -3569,8 +3623,8 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       </div>
       <div className="mp-info-wrap">
         <div key={track.id} className="mp-info mp-track-anim">
-          <div className="mp-title" onClick={() => onOpenFile && onOpenFile(track.id)} style={{cursor: onOpenFile ? 'pointer' : 'default'}}>{(tags && tags.title) || track.name}</div>
-          <div className="mp-artist">
+          <ScrollText className="mp-title" onClick={() => onOpenFile && onOpenFile(track.id)} style={{cursor: onOpenFile ? 'pointer' : 'default'}}>{(tags && tags.title) || track.name}</ScrollText>
+          <ScrollText className="mp-artist">
             {(() => {
               const displayArtist = (tags && tags.artist) || track.artist || '—';
               const displayAlbum  = (tags && tags.album)  || track.album  || null;
@@ -3581,7 +3635,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
                 {displayAlbum && <><span> · </span><span onClick={() => { if (navArtist && navAlbum && onNav) onNav({ page: 'CAT', cat: navArtist, album: navAlbum }); }} style={{cursor: navArtist && navAlbum && onNav ? 'pointer' : 'default'}}>{displayAlbum}</span></>}
               </>;
             })()}
-          </div>
+          </ScrollText>
         </div>
         <div className="mp-progress">
           <span className="mp-time">{fmtTime(position)}</span>
