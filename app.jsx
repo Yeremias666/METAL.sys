@@ -7044,6 +7044,7 @@ function App() {
   const audioSyncRef     = useRef(null);
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
+  const preloadRef       = useRef(null);  // { id, el } <audio> mudo con la siguiente pista ya cargada
   const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
   const pauseTimerRef    = useRef(null);  // debounce para onPause — cancela false-pauses del OS antes de nexttrack
   const playNextRef      = useRef(null);  // ref a playNext siempre fresco — evita closures rancios en mediaSession handlers
@@ -7331,7 +7332,7 @@ function App() {
     };
     audioSyncRef.current = requestAnimationFrame(tick);
     return () => { if (audioSyncRef.current) cancelAnimationFrame(audioSyncRef.current); };
-  }, [isPlaying, perf.audioPulse]);
+  }, [isPlaying, perf.audioPulse, currentTrackId]);
 
   // Audio element wiring
   useEffect(() => {
@@ -7709,6 +7710,24 @@ function App() {
       waveformBufRef.current = new Float32Array(300);
       waveformIdRef.current  = file.id;
       waveformFrRef.current  = 0;
+      const pre = preloadRef.current;
+      if (pre && pre.id === file.id && pre.el.readyState >= 2 && pendingSeekRef.current === null) {
+        // Cambio instantáneo: en Android la notificación del sistema se oculta mientras el <audio> carga el
+        // nuevo src; con la pista ya en memoria el hueco desaparece.
+        const old = audioRef.current, el = pre.el;
+        preloadRef.current = null;
+        el.muted = false; el.volume = volume;
+        const ctx = audioCtxRef.current, an = analyserRef.current;
+        if (ctx && an) { try { ctx.createMediaElementSource(el).connect(an); } catch {} }
+        audioRef.current = el; window.__msAudio = el;
+        el.addEventListener('playing', () => { msTransitionRef.current = false; }, { once: true });
+        setDuration(el.duration || 0);
+        setIsPlaying(true);
+        try { old.pause(); } catch {}
+        setTimeout(() => { try { old.removeAttribute('src'); old.load(); } catch {} }, 3000);
+        doPlay(el);
+        return;
+      }
       audio.src = `/api/audio?path=${encodeURIComponent(file.r2Path)}`;
       if (pendingSeekRef.current !== null) {
         const _t = pendingSeekRef.current; pendingSeekRef.current = null;
@@ -8410,6 +8429,32 @@ function App() {
   // Siempre frescos — los mediaSession handlers usan estos refs para evitar closures rancios
   playNextRef.current = playNext;
   playPrevRef.current = playPrev;
+
+  // Precarga de la siguiente canción (solo R2). En Android la notificación del sistema desaparece al cambiar
+  // el src del <audio> y no vuelve hasta que la nueva pista empieza a sonar; cuanto antes arranque, menos dura
+  // el hueco. Un <audio> mudo con preload='auto' deja los primeros segundos en la caché de medios del
+  // navegador (mismo URL + Cache-Control del proxy) y el cambio de pista es casi instantáneo.
+  useEffect(() => {
+    if (!isPlaying || !currentTrackId || repeatMode === 'one') return;
+    const timer = setTimeout(() => {
+      const q = (route.page === 'DETAIL' && detailOriginQueue && detailOriginQueue.length) ? detailOriginQueue : effectiveQueue;
+      if (!q || !q.length) return;
+      const idx = q.findIndex(f => f.id === currentTrackId);
+      const next = idx === -1 ? null : (q[idx + 1] || (repeatMode === 'all' ? q[0] : null));
+      if (!next || !next.r2Path || next.id === currentTrackId) return;
+      if (preloadRef.current && preloadRef.current.id === next.id) return;
+      try { if (preloadRef.current) { preloadRef.current.el.removeAttribute('src'); preloadRef.current.el.load(); } } catch {}
+      try {
+        const el = new Audio();
+        el.preload = 'auto';
+        el.muted = true;
+        el.src = `/api/audio?path=${encodeURIComponent(next.r2Path)}`;
+        el.load();
+        preloadRef.current = { id: next.id, el };
+      } catch {}
+    }, 4000);   // tras arrancar la actual: no compite con su descarga inicial
+    return () => clearTimeout(timer);
+  }, [currentTrackId, isPlaying, repeatMode]);
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
   const stopMusic = () => {
     audioRef.current.pause();
