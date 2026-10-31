@@ -3492,7 +3492,7 @@ function ScrollText({ className, children, ...rest }) {
   return (
     <div ref={outerRef} className={className + (dist ? ' is-scrolling' : '')} {...rest}>
       <span ref={innerRef} className="scroll-text-inner"
-            style={dist ? { '--scroll-dist': `-${dist}px`, '--scroll-dur': `${Math.max(5, dist / 18 + 3)}s` } : undefined}>
+            style={dist ? { '--scroll-dist': `-${dist}px`, '--scroll-dur': `${Math.max(3, dist / 45 + 1.5)}s` } : undefined}>
         {children}
       </span>
     </div>
