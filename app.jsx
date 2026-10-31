@@ -1553,8 +1553,12 @@ function useDurationProbe(visible) {
     if (!toProbe.length) return;
     let active = true;
     (async () => {
-      for (let i = 0; i < toProbe.length && active; i += 5) {
-        await Promise.all(toProbe.slice(i, i + 5).map(f => new Promise(resolve => {
+      const BATCH = window.innerWidth <= 700 ? 2 : 5;
+      for (let i = 0; i < toProbe.length && active; i += BATCH) {
+        // Mientras suena una canción no se descargan metadatos de otras: compiten por red y decodificadores
+        while (active && window.__msAudio && !window.__msAudio.paused) await new Promise(r => setTimeout(r, 2000));
+        if (!active) break;
+        await Promise.all(toProbe.slice(i, i + BATCH).map(f => new Promise(resolve => {
           const a = document.createElement('audio');
           a.preload = 'metadata';
           const done = () => { a.src = ''; resolve(); };
@@ -1569,7 +1573,7 @@ function useDurationProbe(visible) {
           a.onerror = done;
           a.src = `/api/audio?path=${encodeURIComponent(f.r2Path)}`;
         })));
-        if (active && i + 5 < toProbe.length) await new Promise(r => setTimeout(r, 200));
+        if (active && i + BATCH < toProbe.length) await new Promise(r => setTimeout(r, 200));
       }
     })();
     return () => { active = false; };
@@ -6743,7 +6747,7 @@ const LocalTrackRow = React.memo(function LocalTrackRow({ f, active, playing, on
   );
 });
 
-function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, needsPermission = false, onReconnect, onPickFolder, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
+function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, needsPermission = false, onReconnect, onPickFolder, onImportFiles, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
   const supported = 'showDirectoryPicker' in window;
   const connected = localFiles.length > 0 || dirName;
 
@@ -6794,7 +6798,28 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
         <div className="panel-hd">MÚSICA LOCAL <span className="dots">━━━━━━━</span></div>
         <div className="panel-body">
           {!supported && (
-            <div className="dz-err">File System Access API no disponible — usa Chrome o Edge.</div>
+            <div>
+              <div style={{display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
+                <label className="big-btn" style={{cursor:'pointer', display:'inline-block'}}>
+                  {scanning ? '◆ LEYENDO...' : '🎵 ELEGIR CANCIONES'}
+                  <input type="file" multiple accept="audio/*,.mp3,.m4a,.flac,.ogg,.opus,.wav,.aac"
+                         style={{display:'none'}} disabled={scanning}
+                         onChange={e => { onImportFiles && onImportFiles(e.target.files); e.target.value = ''; }} />
+                </label>
+                {localFiles.length > 0 && (
+                  <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+                )}
+                {localFiles.length > 0 && (
+                  <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-dim)', color:'var(--fg-dim)'}} onClick={onDisconnect}>✕ QUITAR</button>
+                )}
+                {localFiles.length > 0 && (
+                  <span style={{color:'var(--fg-dim)', fontSize:18}}><span style={{color:'var(--fg-success)'}}>{localFiles.length} canción{localFiles.length===1?'':'es'}</span></span>
+                )}
+              </div>
+              <p style={{marginTop:14, color:'var(--fg-dim)', fontSize:16}}>
+                Tu navegador no permite elegir carpetas (solo Chrome/Edge de escritorio). Aquí puedes elegir varias canciones a la vez; se leen del dispositivo sin copiarlas, pero hay que volver a elegirlas al recargar la página.
+              </p>
+            </div>
           )}
           {supported && (
             <div style={{display:'flex', alignItems:'center', gap:12, flexWrap:'wrap'}}>
@@ -6930,6 +6955,8 @@ function App() {
   const audioRef = useRef(null);
   if (!audioRef.current) {
     audioRef.current = new Audio();
+    audioRef.current.preload = 'auto';        // en móvil Chrome puede quedarse en 'metadata' y no bufferiza por adelantado
+    window.__msAudio = audioRef.current;      // lo consulta useDurationProbe para no competir con la reproducción
   }
   const analyserRef  = useRef(null);
   const audioCtxRef  = useRef(null);
@@ -6959,7 +6986,9 @@ function App() {
   const ensureAnalyser = () => {
     if (analyserRef.current) return analyserRef.current;
     try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      let ctx;
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'playback' }); }
+      catch { ctx = new (window.AudioContext || window.webkitAudioContext)(); }
       const source = ctx.createMediaElementSource(audioRef.current);
       const analyser = ctx.createAnalyser();
       analyser.fftSize = 256;
@@ -7673,7 +7702,8 @@ function App() {
     setPosition(0);
     setDuration(0);
     setActiveClip(null);
-    requestID3(file);
+    if (file.r2Path) setTimeout(() => requestID3(file), 1500);   // tras arrancar: no compite con el audio por el ancho de banda
+    else requestID3(file);
 
     if (file.r2Path) {
       waveformBufRef.current = new Float32Array(300);
@@ -8202,7 +8232,56 @@ function App() {
     }
   };
 
+  // Alternativa para navegadores sin showDirectoryPicker (Android, iOS): se eligen archivos de audio con un
+  // <input type=file multiple>. Se leen igual que los de carpeta (sin copiarlos), pero el permiso dura solo
+  // mientras la página está abierta: no hay manera de recordarlos entre sesiones.
+  const importLocalFiles = async (fileList) => {
+    const AUDIO_RE = /\.(mp3|wav|ogg|flac|m4a|aac|opus|aiff|wma)$/i;
+    const list = Array.from(fileList || []).filter(f => AUDIO_RE.test(f.name) || (f.type || '').startsWith('audio/'));
+    if (!list.length) return;
+    setLocalScanning(true);
+    setLocalDirName('ARCHIVOS DEL DISPOSITIVO');
+    const covers = new Map();
+    const items = [];
+    await _runPool(list, 4, async (file, i) => {
+      let tags = {};
+      try { tags = (await _readLocalTags(file)) || {}; } catch {}
+      let cover = null;
+      try {
+        if (tags.getCoverBlob) {
+          const key = tags.album ? (tags.albumArtist || _primaryArtist(tags.artist) || '') + '|' + tags.album : 'f|' + file.name;
+          if (!covers.has(key)) covers.set(key, _downscaleCover(tags.getCoverBlob(), 360, 0.85));
+          cover = await covers.get(key);
+        }
+      } catch {}
+      const handle = { kind: 'file', name: file.name, getFile: async () => file };
+      items[i] = {
+        id: 'local_' + file.name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+        name: tags.title || file.name.replace(/\.[^.]+$/, ''),
+        artist: tags.albumArtist || _primaryArtist(tags.artist) || '',
+        album: tags.album || '', track: tags.track || '', disc: tags.disc || '',
+        year: tags.year || '', genre: tags.genre || '',
+        thumbnail: cover || null, coverArt: cover || null,
+        fileName: file.name, fileSize: file.size, fileType: file.type || 'audio/mpeg',
+        fileData: null, isLocal: true, fileHandle: handle,
+        duration: tags.duration || null, uploadedAt: file.lastModified || Date.now(), downloads: 0,
+      };
+    });
+    const fresh = items.filter(Boolean);
+    setLocalFiles(prev => {
+      const ids = new Set(fresh.map(f => f.id));
+      return prev.filter(f => !ids.has(f.id)).concat(fresh);
+    });
+    setLocalScanning(false);
+    // Duraciones en segundo plano (de dos en dos)
+    _runPool(fresh.filter(f => !f.duration), 2, async (f) => {
+      const d = await probeLocalDuration(f.fileHandle);
+      if (d) setLocalFiles(prev => prev.map(x => x.id === f.id ? { ...x, duration: d } : x));
+    });
+  };
+
   const pickLocalFolder = async () => {
+    if (!('showDirectoryPicker' in window)) { navigateTo({ page: 'LOCAL' }); return; }   // Android/iOS: se eligen canciones sueltas en la página LOCAL
     if (!('showDirectoryPicker' in window)) return;
     try {
       const dh = await window.showDirectoryPicker({ mode: 'read' });
@@ -8553,7 +8632,7 @@ function App() {
                 <LocalPage
                   localFiles={localFilesAll} dirName={localDirName} scanning={localScanning} progress={localProgress}
                   needsPermission={localNeedsPermission} onReconnect={() => reconnectLocalFolder()}
-                  onPickFolder={pickLocalFolder} onDisconnect={disconnectLocalFolder}
+                  onPickFolder={pickLocalFolder} onImportFiles={importLocalFiles} onDisconnect={disconnectLocalFolder}
                   onPlayAll={() => { if(localFilesAll.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
                   onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
                   currentId={currentTrackId} isPlaying={isPlaying} />
