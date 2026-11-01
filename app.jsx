@@ -689,6 +689,22 @@ const LOCAL_META_KEY = 'localMetaCache_v3'; // v3: portadas a mayor resolución 
 const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
   [dirName, pathPrefix, name, size, mtime].join('|');
 const _emptyLocalCache = () => ({ items: {}, covers: {} });
+// fileHandle "perezoso" para canciones que vienen de la caché: localiza el archivo por su ruta (guardada en
+// la clave de caché dirName|ruta|nombre|tamaño|fecha) solo al reproducirlo. Así, tras conceder el permiso,
+// la lista guardada se puede reproducir al instante, sin esperar a reescanear toda la carpeta.
+function _lazyHandleFor(dirHandle, ckey) {
+  const parts = String(ckey || '').split('|');
+  if (parts.length < 5) return null;
+  const pathPrefix = parts[1];                              // las carpetas no pueden llevar '|' (sí un nombre de archivo)
+  const name = parts.slice(2, parts.length - 2).join('|');
+  let pending = null;
+  const resolve = () => pending || (pending = (async () => {
+    let cur = dirHandle;
+    for (const seg of pathPrefix.split('/').filter(Boolean)) cur = await cur.getDirectoryHandle(seg);
+    return cur.getFileHandle(name);
+  })());
+  return { kind: 'file', name, getFile: async () => { try { return await (await resolve()).getFile(); } catch (e) { pending = null; throw e; } } };
+}
 async function _loadLocalCache() {
   const c = await idbGet(LOCAL_META_KEY);
   return (c && c.items && c.covers) ? c : _emptyLocalCache();
@@ -1092,9 +1108,6 @@ function Nav({ current, onNav, allCats, files = [], localFiles = [], onOpenFile,
         <button className={current.page === 'INSTALACION' ? 'active' : ''} onClick={() => onNav({ page: 'INSTALACION' })}><NavGlyph kind="INSTALAR" />INSTALACIÓN</button>
         <button className={current.page === 'SPOTDL'      ? 'active' : ''} onClick={() => onNav({ page: 'SPOTDL' })}><NavGlyph kind="DOWNLOAD" />SPOTDL</button>
         <button className={current.page === 'ACERCA'      ? 'active' : ''} onClick={() => onNav({ page: 'ACERCA' })}><NavGlyph kind="INFO" />ACERCA DE</button>
-        {authUser?.role === 'admin' && (
-          <button className={current.page === 'DEBUG' ? 'active' : ''} onClick={() => onNav({ page: 'DEBUG' })} style={{color:'var(--fg-primary)'}}>⚑ ADMIN</button>
-        )}
       </div>
     </nav>
   );
@@ -8311,7 +8324,21 @@ function App() {
       if (perm !== 'granted') perm = await dh.requestPermission({ mode: 'read' });
       if (perm !== 'granted') { pendingLocalPlayRef.current = null; return; }
       setLocalNeedsPermission(false);
-      await scanLocalDir(dh, { hold: true });
+      // Al instante: handles perezosos para toda la lista guardada y reproducir ya la canción pulsada
+      setLocalFiles(prev => prev.map(f => (f.fileHandle || !f._ckey) ? f : { ...f, fileHandle: _lazyHandleFor(dh, f._ckey), needsPermission: false }));
+      const pid = pendingLocalPlayRef.current;
+      if (pid) {
+        pendingLocalPlayRef.current = null;
+        const f = localFilesAll.find(x => x.id === pid);
+        const fh = f && (f.fileHandle || _lazyHandleFor(dh, f._ckey));
+        if (f && fh && startTrackRef.current) {
+          const ctx = { type: 'local', shuffle: false };
+          setManualQueue(null); setPlayContext(ctx);
+          startTrackRef.current({ ...f, fileHandle: fh, needsPermission: false }, ctx);
+        }
+      }
+      // La revalidación de la carpeta (archivos nuevos, portadas, duraciones) va después, en segundo plano
+      setTimeout(() => { if (!localScanningRef.current) scanLocalDir(dh, { hold: true }); }, 1500);
     } catch (e) {
       pendingLocalPlayRef.current = null;
       if (e && e.name !== 'AbortError') console.error(e);
@@ -8409,10 +8436,15 @@ function App() {
         if (!dh) return;
         localDirHandleRef.current = dh;
         setLocalDirName(dh.name);
+        try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {}   // que el navegador no expulse la caché ni el handle
         const cached = _localItemsFromCache(await _loadLocalCache(), dh.name);
-        if (cached.length) setLocalFiles(prev => prev.length ? prev : cached);
         let perm = 'prompt';
         try { perm = await dh.queryPermission({ mode: 'read' }); } catch {}
+        if (perm === 'granted') {
+          // Con permiso: la lista guardada ya es reproducible (handles perezosos) mientras se revalida
+          cached.forEach(f => { const h = _lazyHandleFor(dh, f._ckey); if (h) { f.fileHandle = h; f.needsPermission = false; } });
+        }
+        if (cached.length) setLocalFiles(prev => prev.length ? prev : cached);
         if (perm === 'granted') {
           await scanLocalDir(dh, { hold: cached.length > 0 });   // revalida en segundo plano; la caché evita releer
         } else {
