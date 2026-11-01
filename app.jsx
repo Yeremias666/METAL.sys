@@ -6679,11 +6679,15 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         const fontSize = n <= 4 ? 20 : n <= 7 ? 18 : 16;
         const BAR_H = 90;
         const gap = n <= 4 ? 12 : n <= 7 ? 8 : 5;
+        // Ancho real de cada columna (según el ancho del panel): los números y los nombres se escalan con él
+        const colW = `max(${barW}px, calc((100cqw - ${gap * (n - 1)}px) / ${n}))`;
+        const numSize = (plays) => `min(22px, calc(${colW} / ${String(plays).length + 0.8}))`;
+        const nameSize = `max(7px, min(14px, calc(${colW} * 0.4)))`;
         return (
           <div className="panel section">
             <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// {playedArtists.length}</span></div>
             <div className="panel-body">
-              <div style={{overflowX:'auto'}}>
+              <div style={{overflowX:'auto', containerType:'inline-size'}}>
                 {/* Barras: área de altura fija para que todas se alineen desde abajo */}
                 <div style={{display:'flex', alignItems:'flex-end', gap, paddingBottom:0, width:'100%'}}>
                   {playedArtists.map(([artist,plays],i)=>{
@@ -6691,7 +6695,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     const color = artistColorMap[artist]||STAT_COLORS[i%STAT_COLORS.length];
                     return (
                       <div key={artist} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:3,flex:`1 1 ${barW}px`,minWidth:barW}}>
-                        <span style={{fontFamily:'var(--pixel)',fontSize:22,color}}>{plays}</span>
+                        <span style={{fontFamily:'var(--pixel)',fontSize:numSize(plays),color,lineHeight:1,whiteSpace:'nowrap'}}>{plays}</span>
                         <div style={{width:'100%',height:h,background:color,boxShadow:`0 0 6px ${color}44`}}/>
                       </div>
                     );
@@ -6706,7 +6710,7 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                     return (
                       <div key={artist} style={{flex:`1 1 ${barW}px`,minWidth:barW,display:'flex',justifyContent:'center'}}>
                         <span style={{
-                          fontFamily:'var(--pixel)', fontSize:14, color:'rgba(255,255,255,0.95)',
+                          fontFamily:'var(--pixel)', fontSize:nameSize, color:'rgba(255,255,255,0.95)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
                           display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
                           maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'normal'
