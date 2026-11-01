@@ -3582,7 +3582,7 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile, onToggleQueue, queueOpen }) {
   if (!track) return null;
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
@@ -3692,6 +3692,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
+        {onToggleQueue && (
+          <button className={`mp-queue-btn${queueOpen ? ' active' : ''}`} onClick={onToggleQueue} title="Cola" style={{fontSize:15}}>☰</button>
+        )}
         {likedIds && onToggleLike && (
           <button onClick={(e) => { e.stopPropagation(); onToggleLike(track.id); }}
                   title={liked ? 'Quitar de Me Gusta' : 'Me Gusta'}
@@ -4297,6 +4300,69 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
           });
           return <>{rows}{hidden > 0 && <div className="pq-empty">··· y {hidden} más en la cola</div>}</>;
         })()}
+      </div>
+    </div>
+  );
+}
+
+// Hoja inferior con la cola (solo móvil): tocar = saltar, ✕ = quitar de la cola
+function MobileQueueSheet({ queue, currentId, onJump, onRemove, onClear, onClose }) {
+  const [closing, setClosing] = useState(false);
+  const dragRef = useRef(null);
+  const sheetRef = useRef(null);
+  const listRef = useRef(null);
+  const [shown, setShown] = useState(QUEUE_VISIBLE_NEXT);
+  const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 200); };
+  useEffect(() => {
+    document.body.classList.add('queue-sheet-open');
+    return () => document.body.classList.remove('queue-sheet-open');
+  }, []);
+  const curIdx = queue.findIndex(f => f.id === currentId);
+  const startIdx = curIdx >= 0 ? curIdx : 0;
+  const upcoming = queue.slice(startIdx + 1);
+  const cur = queue[startIdx];
+  // Deslizar hacia abajo desde la cabecera para cerrar
+  const onTouchStart = (e) => { dragRef.current = { y: e.touches[0].clientY, dy: 0 }; };
+  const onTouchMove = (e) => {
+    const d = dragRef.current; if (!d) return;
+    d.dy = Math.max(0, e.touches[0].clientY - d.y);
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${d.dy}px)`;
+  };
+  const onTouchEnd = () => {
+    const d = dragRef.current; dragRef.current = null;
+    if (!d) return;
+    if (d.dy > 90) close();
+    else if (sheetRef.current) sheetRef.current.style.transform = '';
+  };
+  const onListScroll = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollTop + el.clientHeight > el.scrollHeight - 200 && shown < upcoming.length) setShown(n => n + 30);
+  };
+  return (
+    <div className={`qs-overlay${closing ? ' closing' : ''}`} onClick={close}>
+      <div ref={sheetRef} className="qs-sheet" onClick={e => e.stopPropagation()}>
+        <div className="qs-head" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+          <div className="qs-grip"></div>
+          <div className="qs-title">&gt; COLA <span>[{upcoming.length}]</span></div>
+          {upcoming.length > 0 && <button className="qs-clear" onClick={onClear}>VACIAR</button>}
+          <button className="qs-x" onClick={close} title="Cerrar">✕</button>
+        </div>
+        <div className="qs-list" ref={listRef} onScroll={onListScroll}>
+          {cur && (
+            <div className="qs-item qs-current">
+              <span className="qs-num">▶</span>
+              <div className="qs-info"><div className="qs-name">{cur.name}</div><div className="qs-artist">{cur.artist || cur.category || ''}</div></div>
+            </div>
+          )}
+          {upcoming.length === 0 && <div className="qs-empty">◇ No hay más canciones en la cola</div>}
+          {upcoming.slice(0, shown).map((f, i) => (
+            <div key={f.id} className="qs-item" onClick={() => onJump(f, startIdx + 1 + i)}>
+              <span className="qs-num">{i + 1}</span>
+              <div className="qs-info"><div className="qs-name">{f.name}</div><div className="qs-artist">{f.artist || f.category || ''}</div></div>
+              <button className="qs-remove" title="Quitar de la cola" onClick={e => { e.stopPropagation(); onRemove(f.id); }}>✕</button>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -7098,6 +7164,7 @@ function App() {
   }, []);
   const [artistMeta, setArtistMeta] = useState(loadArtistMeta); // {artistName: {image, description}}
   const [playlists, setPlaylists] = useState(loadPlaylists);   // playlist[]
+  const [showQueueSheet, setShowQueueSheet] = useState(false);
   const [manualQueue, setManualQueue] = useState(null);           // null = use musicQueue
   const [showPlayerMenu, setShowPlayerMenu] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
@@ -8912,7 +8979,16 @@ function App() {
                    waveform={currentTrackId ? waveforms[currentTrackId] : null}
                    likedIds={likedIdsView} onToggleLike={toggleLike}
                    vuEnabled={perf.vuMeter}
+                   onToggleQueue={isMobile ? () => setShowQueueSheet(v => !v) : null} queueOpen={showQueueSheet}
                    onNav={navigateTo} onOpenFile={openFile} />
+
+      {isMobile && showQueueSheet && currentTrack && (
+        <MobileQueueSheet queue={effectiveQueue} currentId={currentTrackId}
+          onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
+          onRemove={(id) => setManualQueue(effectiveQueue.filter(f => f.id !== id))}
+          onClear={() => setManualQueue(effectiveQueue.filter(f => f.id === currentTrackId))}
+          onClose={() => setShowQueueSheet(false)} />
+      )}
 
       {showCreateModal && (
         <CreateCategoryModal
