@@ -5182,3 +5182,11 @@ body.queue-sheet-open { overflow: hidden; }
 @media (max-width: 700px) {
   .sb-local { display: block; margin-left: 0; }   /* en móvil, en su propia fila */
 }
+
+/* Móvil: si el total local ocupa una segunda fila, las columnas se alinean por arriba (primera fila con primera fila) */
+@media (max-width: 700px) {
+  .statusbar .left { align-items: flex-start; }
+  .statusbar .left > span { line-height: 1.3; }
+  .statusbar .left > span:nth-child(-n+2) { white-space: nowrap; }   /* SYSTEM ONLINE y NODE 01 siempre en una línea */
+  .statusbar .blob { vertical-align: middle; margin-top: -2px; }
+}
