@@ -1164,7 +1164,18 @@ function Marquee({ allCats = [], active = true }) {
 }
 
 // ─── ARTIST CARD (reutilizable en INICIO y BANDAS) ─────────────
-function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 }) {
+// Imagen de portada con plan B: si la URL falla (firma caducada, objeto borrado, error de red) prueba las
+// alternativas y, si ninguna carga, muestra el hueco `fallback` en vez del icono de imagen rota.
+function CoverImg({ src, alts = [], alt, className, fallback = null }) {
+  const key = [src, ...alts].join('|');
+  const list = useMemo(() => [src, ...alts].filter((v, i, a) => v && a.indexOf(v) === i), [key]);
+  const [i, setI] = useState(0);
+  useEffect(() => { setI(0); }, [key]);
+  if (i >= list.length) return fallback;
+  return <img className={className} src={list[i]} alt={alt} onError={() => setI(n => n + 1)} />;
+}
+
+function ArtistCard({ artist, cover, coverAlts = [], subtitle, onNav, onPlayArtist, index = 0 }) {
   const cardRef = useRef(null);
 
   const onMove = useCallback((e) => {
@@ -1191,9 +1202,8 @@ function ArtistCard({ artist, cover, subtitle, onNav, onPlayArtist, index = 0 })
          onClick={() => onNav({ page: 'CAT', cat: artist })}
          onMouseMove={onMove} onMouseLeave={onLeave}>
       <div className="cat-card-img">
-        {cover
-          ? <img src={cover} alt={artist} />
-          : <div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>}
+        <CoverImg src={cover} alts={coverAlts} alt={artist}
+                  fallback={<div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>} />
         <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
       </div>
       <div className="cat-card-info">
@@ -1398,8 +1408,9 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
                     const albums   = [...new Set(allSongs.map(f => f.album).filter(Boolean))];
                     const cover    = allSongs.find(f => f.thumbnail);
                     const coverSrc = artistMeta[artist]?.image || cover?.thumbnail || null;
+                    const coverAlts = [...new Set(allSongs.map(f => f.thumbnail).filter(Boolean))].slice(0, 6);
                     return (
-                      <ArtistCard key={artist} artist={artist} cover={coverSrc}
+                      <ArtistCard key={artist} artist={artist} cover={coverSrc} coverAlts={coverAlts}
                         subtitle={`${allSongs.length} tema${allSongs.length===1?'':'s'} · ${albums.length} disco${albums.length===1?'':'s'}`}
                         onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
                     );
@@ -1772,8 +1783,9 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
           const songs = allFiles.filter((f) => (f.category || f.artist) === artist);
           const cover = songs.find((f) => f.thumbnail || f.coverArt);
           const artistImg = artistMeta[artist]?.image || cover?.thumbnail || cover?.coverArt || null;
+          const coverAlts = [...new Set(songs.map(f => f.thumbnail || f.coverArt).filter(Boolean))].slice(0, 6);
           return (
-            <ArtistCard key={artist} artist={artist} cover={artistImg}
+            <ArtistCard key={artist} artist={artist} cover={artistImg} coverAlts={coverAlts}
               subtitle={`${songs.length} tema${songs.length===1?'':'s'}`}
               onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
           );
@@ -2157,9 +2169,10 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
     if (vinyl) { vinyl.style.transition = 'transform 0.42s cubic-bezier(0.23,1,0.32,1)'; vinyl.style.transform = SLIDE_OUT; }
   }, []);
 
+  const albumEmpty = <div className="ac-img ac-img-empty"><IconGlyph iconId="disco" size={36} /></div>;
   const coverEl = album.cover
-    ? <img className="ac-img" src={album.cover.thumbnail || album.cover.coverArt} alt={album.name} />
-    : <div className="ac-img ac-img-empty"><IconGlyph iconId="disco" size={36} /></div>;
+    ? <CoverImg className="ac-img" src={album.cover.thumbnail} alts={[album.cover.coverArt]} alt={album.name} fallback={albumEmpty} />
+    : albumEmpty;
 
   const thumbClass = rowMode ? 'album-card-thumb album-card-row-thumb' : 'album-card-thumb';
   const subtitle   = searchMode
