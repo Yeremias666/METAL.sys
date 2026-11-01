@@ -7321,6 +7321,7 @@ function App() {
   const localScanningRef = useRef(false);     // true mientras se escanea (lo leen los manejadores, que ven estado viejo)
   const localDirHandleRef = useRef(null);     // carpeta guardada (puede estar sin permiso al abrir la página)
   const pendingLocalPlayRef = useRef(null);   // id de la canción que se pulsó antes de reconectar
+  const pendingLocalCtxRef  = useRef(null);   // contexto de reproducción (aleatorio, álbum...) con el que se pulsó
   const startTrackRef = useRef(null);
   const [localNeedsPermission, setLocalNeedsPermission] = useState(false); // lista cargada de la caché, falta el permiso
 
@@ -7867,7 +7868,12 @@ function App() {
   const startTrack = (file, nextContext, { skipLog = false } = {}) => {
     if (!file) return;
     // Canción de la lista guardada y carpeta aún sin reconectar: pedir permiso y reproducirla al terminar
-    if (file.isLocal && !file.fileHandle) { reconnectLocalFolder(file.id); return; }
+    if (file.isLocal && !file.fileHandle) {
+      const dh = localDirHandleRef.current;
+      if (dh && !localNeedsPermission && file._ckey) {
+        file = { ...file, fileHandle: _lazyHandleFor(dh, file._ckey), needsPermission: false };   // permiso ya concedido: abrir directamente
+      } else { reconnectLocalFolder(file.id, nextContext); return; }
+    }
     if (nextContext) setPlayContext(nextContext);
     const audio = audioRef.current;
     msTransitionRef.current = true;
@@ -8431,8 +8437,8 @@ function App() {
         pendingLocalPlayRef.current = null;
         const f = slots.find(x => x && x.id === pid);
         if (f && startTrackRef.current) {
-          const ctx = { type: 'local', shuffle: false };
-          setManualQueue(null); setPlayContext(ctx);
+          const ctx = pendingLocalCtxRef.current || { type: 'local', shuffle: false };
+          pendingLocalCtxRef.current = null;
           startTrackRef.current(f, ctx);
         }
       }
@@ -8465,8 +8471,8 @@ function App() {
 
   // Vuelve a pedir permiso de lectura (Chrome lo exige con un clic del usuario) y revalida la carpeta.
   // Se llama desde el botón RECONECTAR o al pulsar ▶ en una canción de la lista guardada.
-  const reconnectLocalFolder = async (playId = null) => {
-    if (playId) pendingLocalPlayRef.current = playId;
+  const reconnectLocalFolder = async (playId = null, playCtx = null) => {
+    if (playId) { pendingLocalPlayRef.current = playId; pendingLocalCtxRef.current = playCtx; }
     if (localScanningRef.current) return;     // ya se está revalidando: al terminar reproducirá la pendiente
     try {
       const dh = localDirHandleRef.current || await idbGet('localDirHandle');
@@ -8484,8 +8490,9 @@ function App() {
         const f = localFilesAll.find(x => x.id === pid);
         const fh = f && (f.fileHandle || _lazyHandleFor(dh, f._ckey));
         if (f && fh && startTrackRef.current) {
-          const ctx = { type: 'local', shuffle: false };
-          setManualQueue(null); setPlayContext(ctx);
+          // Mismo contexto y cola con los que se pulsó (p. ej. ALEATORIO): no se reinician
+          const ctx = pendingLocalCtxRef.current || { type: 'local', shuffle: false };
+          pendingLocalCtxRef.current = null;
           startTrackRef.current({ ...f, fileHandle: fh, needsPermission: false }, ctx);
         }
       }
