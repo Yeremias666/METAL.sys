@@ -4964,6 +4964,11 @@ input:not([type=range]), textarea {
   line-height: 1.75;
 }
 
+/* Móvil: la línea más larga (~62 caracteres) tiene que caber entera; el tamaño de letra se adapta al ancho */
+@media (max-width: 700px) {
+  .boot-screen { font-size: min(14px, calc((100vw - 28px) / 38)); padding: 8px 10px; line-height: 1.6; }
+}
+
 /* Limitar la anchura visual del bloque de texto sin quitar el overlay */
 .boot-screen > .boot-line, .boot-screen > .boot-cursor { max-width: 640px; }
 .boot-line {
