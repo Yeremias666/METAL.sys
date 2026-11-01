@@ -6713,8 +6713,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                           fontFamily:'var(--pixel)', fontSize:nameSize, color:'rgba(255,255,255,0.95)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
                           display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
-                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'normal'
-                        }}>
+                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'nowrap',
+                          maxHeight: 190   // nombres largos se recortan con "…" para no alargar la sección (el nombre completo sale al pasar el ratón)
+                        }} title={artist}>
                           {artist}
                         </span>
                       </div>
