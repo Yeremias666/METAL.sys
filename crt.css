@@ -4046,7 +4046,6 @@ input:not([type=range]), textarea {
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px dotted rgba(214,31,31,0.3);
   color: var(--fg-text);
   font-family: var(--mono);
   font-size: 20px;
@@ -4089,7 +4088,6 @@ input:not([type=range]), textarea {
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px dotted rgba(214,31,31,0.3);
   color: var(--fg-text);
   font-family: var(--mono);
   font-size: 20px;
@@ -4744,7 +4742,6 @@ input:not([type=range]), textarea {
   text-align: left;
   background: transparent;
   border: none;
-  border-bottom: 1px dotted rgba(214,31,31,0.3);
   color: var(--fg-text);
   font-family: var(--mono);
   font-size: 16px;
@@ -5115,13 +5112,17 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 /* ─── Cola en móvil: botón + hoja inferior ─── */
 .mp-queue-btn { display: none; }
 @media (max-width: 700px) {
-  .mp-queue-btn { display: inline-flex; align-items: center; justify-content: center; }
+  /* A la izquierda de la ✕, misma altura y tamaño: así los controles quedan simétricos */
+  .mp-queue-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: absolute; top: 8px; right: 38px; width: 24px; height: 24px; padding: 0;
+    font-size: 12px; line-height: 1; cursor: var(--hand);
+    background: rgba(214,31,31,0.15); border: 1px solid var(--fg-primary); color: var(--fg-primary);
+    text-shadow: 0 0 6px var(--fg-primary);
+  }
   .mp-queue-btn.active { background: rgba(214,31,31,0.35); box-shadow: 0 0 10px var(--fg-primary); }
-  .music-player .mp-controls { gap: 6px; }
-}
-@media (max-width: 380px) {
-  .mp-controls button { width: 33px; height: 33px; }
-  .mp-controls .mp-play { width: 40px; height: 40px; }
+  .mp-queue-btn:active { background: rgba(214,31,31,0.4); }
+  .mp-info { padding-right: 70px; }   /* hueco para ☰ y ✕ */
 }
 .qs-overlay { position: fixed; inset: 0; z-index: 2147483626; background: rgba(0,0,0,0.6); display: flex; align-items: flex-end; animation: qs-fade .18s ease-out; }
 .qs-overlay.closing { opacity: 0; transition: opacity .2s; }
@@ -5139,9 +5140,9 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .qs-grip { position: absolute; top: 6px; left: 50%; width: 40px; height: 4px; margin-left: -20px; background: var(--fg-dim); border-radius: 2px; }
 .qs-title { flex: 1; font-family: var(--pixel); font-size: 11px; color: var(--fg-primary); text-shadow: 0 0 6px var(--fg-primary); }
 .qs-title span { color: var(--fg-dim); }
-.qs-clear, .qs-x { min-height: 36px; background: transparent; border: 1px solid var(--fg-secondary); color: var(--fg-primary); font-family: var(--pixel); font-size: 9px; padding: 0 10px; }
+.qs-refresh, .qs-x { min-height: 36px; background: transparent; border: 1px solid var(--fg-secondary); color: var(--fg-primary); font-family: var(--pixel); font-size: 9px; padding: 0 10px; }
 .qs-x { width: 36px; padding: 0; font-size: 13px; }
-.qs-clear:active, .qs-x:active, .qs-remove:active { background: rgba(214,31,31,0.35); }
+.qs-refresh:active, .qs-x:active, .qs-remove:active { background: rgba(214,31,31,0.35); }
 .qs-list { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 4px 0 10px; }
 .qs-item { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 4px 8px 4px 12px; border-bottom: 1px solid rgba(214,31,31,0.15); }
 .qs-item:active { background: rgba(214,31,31,0.15); }
@@ -5155,3 +5156,20 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 .qs-empty { padding: 24px; text-align: center; color: var(--fg-dim); }
 body.queue-sheet-open { overflow: hidden; }
 @media (min-width: 701px) { .qs-overlay { display: none; } }
+
+
+/* ─── Modales: efecto CRT propio (líneas de barrido + brillo de cristal) ───
+   Los modales cuelgan fuera de la pantalla CRT, así que no heredaban sus efectos. */
+.modal { position: relative; }
+.modal::before, .modal::after { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+.modal::before {
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,var(--scanline-opacity, 0.35)) 0px, rgba(0,0,0,var(--scanline-opacity, 0.35)) 1px, transparent 1px, transparent 3px);
+  mix-blend-mode: multiply;
+}
+.modal::after {
+  background: radial-gradient(ellipse 60% 50% at 30% 10%, rgba(255,255,255,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse 90% 90% at 50% 50%, transparent 60%, rgba(0,0,0,0.35) 100%);
+}
+.modal-body { text-shadow: 0 0 4px rgba(214,31,31,0.35); }
+.modal .field-label { text-shadow: 0 0 6px var(--fg-primary); }
+.modal .field-input { background: rgba(0,0,0,0.6); box-shadow: inset 0 0 10px rgba(214,31,31,0.15); text-shadow: 0 0 4px rgba(232,226,212,0.35); }

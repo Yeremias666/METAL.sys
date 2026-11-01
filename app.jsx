@@ -3692,9 +3692,6 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
         <button onClick={onRepeat} title="Repetir" style={{lineHeight:0}}>
           {repeatMode === 'off' ? <IconRepeatOff /> : repeatMode === 'all' ? <IconRepeatAll /> : <IconRepeatOne />}
         </button>
-        {onToggleQueue && (
-          <button className={`mp-queue-btn${queueOpen ? ' active' : ''}`} onClick={onToggleQueue} title="Cola" style={{fontSize:15}}>☰</button>
-        )}
         {likedIds && onToggleLike && (
           <button onClick={(e) => { e.stopPropagation(); onToggleLike(track.id); }}
                   title={liked ? 'Quitar de Me Gusta' : 'Me Gusta'}
@@ -3713,6 +3710,9 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
                onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) prevVolumeRef.current = v; onVolume(v); }}
                style={{cursor:'pointer'}} />
       </div>
+      {onToggleQueue && (
+        <button className={`mp-queue-btn${queueOpen ? ' active' : ''}`} onClick={onToggleQueue} title="Cola">☰</button>
+      )}
       <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
     </div>
   );
@@ -4306,8 +4306,10 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
 }
 
 // Hoja inferior con la cola (solo móvil): tocar = saltar, ✕ = quitar de la cola
-function MobileQueueSheet({ queue, currentId, onJump, onRemove, onClear, onClose }) {
+function MobileQueueSheet({ queue, currentId, shuffleActive, onJump, onRemove, onRefresh, onClose }) {
   const [closing, setClosing] = useState(false);
+  const [refreshed, setRefreshed] = useState(false);
+  const doRefresh = () => { onRefresh(); setRefreshed(true); setTimeout(() => setRefreshed(false), 900); };
   const dragRef = useRef(null);
   const sheetRef = useRef(null);
   const listRef = useRef(null);
@@ -4344,7 +4346,7 @@ function MobileQueueSheet({ queue, currentId, onJump, onRemove, onClear, onClose
         <div className="qs-head" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
           <div className="qs-grip"></div>
           <div className="qs-title">&gt; COLA <span>[{upcoming.length}]</span></div>
-          {upcoming.length > 0 && <button className="qs-clear" onClick={onClear}>VACIAR</button>}
+          {upcoming.length > 1 && <button className="qs-refresh" onClick={doRefresh} title={shuffleActive ? 'Volver a barajar la cola' : 'Actualizar la cola'}>{refreshed ? '✓ LISTO' : '↻ ACTUALIZAR'}</button>}
           <button className="qs-x" onClick={close} title="Cerrar">✕</button>
         </div>
         <div className="qs-list" ref={listRef} onScroll={onListScroll}>
@@ -7959,6 +7961,15 @@ function App() {
   // Effective queue: manual reorder overrides the derived queue
   const effectiveQueue = manualQueue || musicQueue;
 
+  // "Actualizar" de la cola móvil: en aleatorio vuelve a barajar lo que queda tras la canción actual;
+  // en modo normal la cola se queda como está
+  const refreshQueue = () => {
+    if (!playContext.shuffle) return;
+    const cur = effectiveQueue.find(f => f.id === currentTrackId);
+    const rest = effectiveQueue.filter(f => f.id !== currentTrackId);
+    setManualQueue(cur ? [cur, ...shuffleArray(rest)] : shuffleArray(effectiveQueue));
+  };
+
   // Like toggle
   const toggleLike = (fileId) => {
     const wasLiked = likedIdsView.has(fileId);
@@ -8986,7 +8997,8 @@ function App() {
         <MobileQueueSheet queue={effectiveQueue} currentId={currentTrackId}
           onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
           onRemove={(id) => setManualQueue(effectiveQueue.filter(f => f.id !== id))}
-          onClear={() => setManualQueue(effectiveQueue.filter(f => f.id === currentTrackId))}
+          shuffleActive={playContext.shuffle}
+          onRefresh={refreshQueue}
           onClose={() => setShowQueueSheet(false)} />
       )}
 
