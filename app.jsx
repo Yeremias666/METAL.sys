@@ -4306,8 +4306,49 @@ function PlayQueueWithNowPlaying({ queue, currentId, currentTrack, isPlaying, on
 }
 
 // Hoja inferior con la cola (solo móvil): tocar = saltar, ✕ = quitar de la cola
-function MobileQueueSheet({ queue, currentId, shuffleActive, onJump, onRemove, onRefresh, onClose }) {
+function MobileQueueSheet({ queue, currentId, shuffleActive, onJump, onReorder, onRefresh, onClose }) {
   const [closing, setClosing] = useState(false);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [overIdx, setOverIdx] = useState(null);
+  const queueRef = useRef(queue); queueRef.current = queue;
+  const onReorderRef = useRef(onReorder); onReorderRef.current = onReorder;
+  const suppressClickRef = useRef(false);
+  // Reordenar arrastrando el asa ⠿ (igual que en PC); la lista se desplaza sola al acercarse a los bordes
+  const startDrag = (e, i) => {
+    e.preventDefault(); e.stopPropagation();
+    const d = { from: i, over: i, y: e.clientY, raf: 0 };
+    setDragIdx(i); setOverIdx(i);
+    const pick = () => {
+      const el = document.elementFromPoint(window.innerWidth / 2, d.y);
+      const it = el && el.closest ? el.closest('.qs-item[data-qi]') : null;
+      if (it) { d.over = parseInt(it.dataset.qi, 10); setOverIdx(d.over); }
+    };
+    const tick = () => {
+      const list = listRef.current;
+      if (list) {
+        const r = list.getBoundingClientRect();
+        if (d.y < r.top + 50) list.scrollTop -= 8; else if (d.y > r.bottom - 50) list.scrollTop += 8;
+      }
+      pick(); d.raf = requestAnimationFrame(tick);
+    };
+    d.raf = requestAnimationFrame(tick);
+    const move = (ev) => { d.y = ev.clientY; };
+    const up = () => {
+      cancelAnimationFrame(d.raf);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', up);
+      suppressClickRef.current = true; setTimeout(() => { suppressClickRef.current = false; }, 0);
+      if (d.over !== d.from) {
+        const arr = [...queueRef.current]; const [moved] = arr.splice(d.from, 1); arr.splice(d.over, 0, moved);
+        onReorderRef.current(arr);
+      }
+      setDragIdx(null); setOverIdx(null);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+    window.addEventListener('pointercancel', up);
+  };
   const [refreshed, setRefreshed] = useState(false);
   const doRefresh = () => { onRefresh(); setRefreshed(true); setTimeout(() => setRefreshed(false), 900); };
   const dragRef = useRef(null);
@@ -4358,10 +4399,12 @@ function MobileQueueSheet({ queue, currentId, shuffleActive, onJump, onRemove, o
           )}
           {upcoming.length === 0 && <div className="qs-empty">◇ No hay más canciones en la cola</div>}
           {upcoming.slice(0, shown).map((f, i) => (
-            <div key={f.id} className="qs-item" onClick={() => onJump(f, startIdx + 1 + i)}>
+            <div key={f.id} data-qi={startIdx + 1 + i}
+                 className={`qs-item${dragIdx === startIdx + 1 + i ? ' qs-dragging' : ''}${overIdx === startIdx + 1 + i && dragIdx !== overIdx ? ' qs-over' : ''}`}
+                 onClick={() => { if (!suppressClickRef.current) onJump(f, startIdx + 1 + i); }}>
               <span className="qs-num">{i + 1}</span>
               <div className="qs-info"><div className="qs-name">{f.name}</div><div className="qs-artist">{f.artist || f.category || ''}</div></div>
-              <button className="qs-remove" title="Quitar de la cola" onClick={e => { e.stopPropagation(); onRemove(f.id); }}>✕</button>
+              <span className="qs-handle" title="Arrastrar para reordenar" onPointerDown={e => startDrag(e, startIdx + 1 + i)} onClick={e => e.stopPropagation()}>⠿</span>
             </div>
           ))}
         </div>
@@ -8996,7 +9039,7 @@ function App() {
       {isMobile && showQueueSheet && currentTrack && (
         <MobileQueueSheet queue={effectiveQueue} currentId={currentTrackId}
           onJump={(file, idx) => { setManualQueue(effectiveQueue.slice(idx)); startTrack(file); }}
-          onRemove={(id) => setManualQueue(effectiveQueue.filter(f => f.id !== id))}
+          onReorder={arr => setManualQueue(arr)}
           shuffleActive={playContext.shuffle}
           onRefresh={refreshQueue}
           onClose={() => setShowQueueSheet(false)} />
