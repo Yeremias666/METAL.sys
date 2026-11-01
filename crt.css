@@ -5188,7 +5188,8 @@ body.queue-sheet-open { overflow: hidden; }
   .sb-local { display: block; margin-left: 0; }   /* en móvil, en su propia fila */
 }
 
-/* Móvil: solo alinea las columnas por la línea base de su primera fila (el resto del layout no cambia) */
+/* Móvil: SYSTEM ONLINE y NODE 01 centrados en vertical, a la altura de la fecha y la hora (no de la columna del total) */
 @media (max-width: 700px) {
-  .statusbar .left { align-items: baseline; }
+  .statusbar .left > span:nth-child(-n+2) { align-self: center; line-height: 1.2; }
+  .statusbar .blob { vertical-align: middle; position: relative; top: -1px; }
 }
