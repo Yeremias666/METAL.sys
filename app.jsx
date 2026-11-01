@@ -690,6 +690,29 @@ const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
   [dirName, pathPrefix, name, size, mtime].join('|');
 const _emptyLocalCache = () => ({ items: {}, covers: {} });
 
+// Parte un texto largo en líneas de como máximo `perLine` caracteres (por palabras; una palabra más larga
+// se corta). Si no caben en `maxLines`, la última línea acaba en "…".
+function _wrapLabel(text, perLine, maxLines) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for (let w of words) {
+    while (w.length > perLine) {                       // palabra más larga que una línea
+      if (cur) { lines.push(cur); cur = ''; }
+      lines.push(w.slice(0, perLine)); w = w.slice(perLine);
+    }
+    if (!cur) cur = w;
+    else if ((cur + ' ' + w).length <= perLine) cur += ' ' + w;
+    else { lines.push(cur); cur = w; }
+  }
+  if (cur) lines.push(cur);
+  if (lines.length <= maxLines) return lines;
+  const out = lines.slice(0, maxLines);
+  const last = out[maxLines - 1];
+  out[maxLines - 1] = (last.length >= perLine ? last.slice(0, perLine - 1) : last).replace(/\s+$/, '') + '…';
+  return out;
+}
+
 // WAV silencioso de 10 s (8 kHz, 8 bits, mono) para el elemento "ancla" de la notificación del sistema
 function _silentWavUrl() {
   const n = 80000, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
@@ -6683,6 +6706,13 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
         const colW = `max(${barW}px, calc((100cqw - ${gap * (n - 1)}px) / ${n}))`;
         const numSize = (plays) => `min(22px, calc(${colW} / ${String(plays).length + 0.8}))`;
         const nameSize = `max(7px, min(14px, calc(${colW} * 0.4)))`;
+        // Nombres largos: se reparten en varias líneas (columnas verticales) y solo si aun así no caben se recortan con "…"
+        const wide = typeof window !== 'undefined' && window.innerWidth > 700;
+        const estW = wide ? window.innerWidth * 0.65 : window.innerWidth - 60;
+        const estCol = Math.max(barW, (estW - gap * (n - 1)) / n);
+        const estFont = Math.max(7, Math.min(14, estCol * 0.4));
+        const labelCols = Math.max(1, Math.min(3, Math.floor(estCol / (estFont * 1.2))));
+        const labelLines = (name) => _wrapLabel(name, 16, labelCols);
         return (
           <div className="panel section">
             <div className="panel-hd">REPRODUCCIONES POR ARTISTA <span className="dots">/// {playedArtists.length}</span></div>
@@ -6712,11 +6742,9 @@ function StatsPage({ files, localFiles = [], playCounts, log, likedIds, playLog 
                         <span style={{
                           fontFamily:'var(--pixel)', fontSize:nameSize, color:'rgba(255,255,255,0.95)',
                           writingMode:'vertical-rl', transform:'rotate(180deg)',
-                          display:'block', paddingTop:6, paddingBottom:4, lineHeight:1,
-                          maxWidth: (barW) + 'px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace: 'nowrap',
-                          maxHeight: 190   // nombres largos se recortan con "…" para no alargar la sección (el nombre completo sale al pasar el ratón)
+                          display:'block', paddingTop:6, paddingBottom:4, lineHeight:1.15, whiteSpace:'pre'
                         }} title={artist}>
-                          {artist}
+                          {labelLines(artist).join('\n')}
                         </span>
                       </div>
                     );
