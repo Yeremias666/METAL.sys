@@ -689,6 +689,18 @@ const LOCAL_META_KEY = 'localMetaCache_v3'; // v3: portadas a mayor resolución 
 const _localMetaKey = (dirName, pathPrefix, name, size, mtime) =>
   [dirName, pathPrefix, name, size, mtime].join('|');
 const _emptyLocalCache = () => ({ items: {}, covers: {} });
+
+// WAV silencioso de 10 s (8 kHz, 8 bits, mono) para el elemento "ancla" de la notificación del sistema
+function _silentWavUrl() {
+  const n = 80000, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  str(36, 'data'); v.setUint32(40, n, true);
+  new Uint8Array(buf, 44).fill(128);   // 128 = silencio en 8 bits sin signo
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
 // fileHandle "perezoso" para canciones que vienen de la caché: localiza el archivo por su ruta (guardada en
 // la clave de caché dirName|ruta|nombre|tamaño|fecha) solo al reproducirlo. Así, tras conceder el permiso,
 // la lista guardada se puede reproducir al instante, sin esperar a reescanear toda la carpeta.
@@ -6925,7 +6937,7 @@ const LocalTrackRow = React.memo(function LocalTrackRow({ f, active, playing, on
   );
 });
 
-function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, needsPermission = false, onReconnect, onPickFolder, onImportFiles, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
+function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total: 0 }, needsPermission = false, onReconnect, onRescan, onPickFolder, onImportFiles, onDisconnect, onPlayAll, onPlayFile, currentId, isPlaying }) {
   const supported = 'showDirectoryPicker' in window;
   const connected = localFiles.length > 0 || dirName;
 
@@ -7008,6 +7020,9 @@ function LocalPage({ localFiles, dirName, scanning, progress = { done: 0, total:
               </button>
               {connected && localFiles.length > 0 && (
                 <button className="big-btn" onClick={onPlayAll}>▶ REPRODUCIR TODO</button>
+              )}
+              {connected && !needsPermission && onRescan && (
+                <button className="big-btn" onClick={onRescan} disabled={scanning} title="Buscar canciones nuevas o borradas en la carpeta">↻ REESCANEAR</button>
               )}
               {connected && (
                 <button className="big-btn" style={{background:'transparent', borderColor:'var(--fg-dim)', color:'var(--fg-dim)'}}
@@ -7224,6 +7239,7 @@ function App() {
   const localBlobRef     = useRef(null);
   const playStartRef     = useRef(null);
   const preloadRef       = useRef(new Map());  // id → <audio> mudo con las siguientes pistas ya (o casi) cargadas
+  const keepAliveRef     = useRef(null);       // <audio> silencioso en bucle: mientras suena, la notificación nunca desaparece entre pistas
   const swapTokenRef     = useRef(0);          // invalida un cambio pendiente si llega otro más reciente
   const msTransitionRef  = useRef(false); // true mientras se cambia de pista — evita ocultar la notificación del OS
   const pauseTimerRef    = useRef(null);  // debounce para onPause — cancela false-pauses del OS antes de nexttrack
@@ -7824,7 +7840,18 @@ function App() {
   };
 
   // skipLog: true cuando el llamador (playNext/playPrev) ya ha añadido su propia entrada al log
+  // Elemento ancla: el sistema (Android) quita la notificación de medios cuando el <audio> activo cambia de
+  // src o termina. Con este otro elemento sonando sin parar (silencio) la notificación se mantiene como en Spotify.
+  const keepAliveOn = () => {
+    try {
+      if (!keepAliveRef.current) { const a = new Audio(); a.loop = true; a.preload = 'auto'; a.src = _silentWavUrl(); keepAliveRef.current = a; }
+      keepAliveRef.current.play().catch(() => {});
+    } catch {}
+  };
+  const keepAliveOff = () => { try { keepAliveRef.current && keepAliveRef.current.pause(); } catch {} };
+
   const doPlay = (audio) => {
+    keepAliveOn();
     const ctx = audioCtxRef.current;
     const go = () => {
       console.log('[doPlay] src:', audio.src.slice(0,80), '| readyState:', audio.readyState, '| ctx:', ctx?.state);
@@ -7872,7 +7899,11 @@ function App() {
             audio.addEventListener('loadeddata', _seek);
           }
           doPlay(audio);
-        } catch (e) { console.error('Local file read error:', e); }
+        } catch (e) {
+          console.error('Local file read error:', e);
+          // El archivo ya no está donde decía la lista guardada: se actualiza la lista desde la carpeta
+          if (e && e.name === 'NotFoundError' && localDirHandleRef.current && !localScanningRef.current) scanLocalDir(localDirHandleRef.current, { hold: true });
+        }
       })();
       setCurrentTrackId(file.id);
       setPosition(0); setDuration(0); setActiveClip(null);
@@ -8458,8 +8489,9 @@ function App() {
           startTrackRef.current({ ...f, fileHandle: fh, needsPermission: false }, ctx);
         }
       }
-      // La revalidación de la carpeta (archivos nuevos, portadas, duraciones) va después, en segundo plano
-      setTimeout(() => { if (!localScanningRef.current) scanLocalDir(dh, { hold: true }); }, 1500);
+      // Con lista guardada NO se reescanea la carpeta (en el móvil leerla entera tarda minutos y compite con la
+      // reproducción): los archivos nuevos se incorporan con el botón REESCANEAR. Solo se escanea si no hay lista.
+      if (!localFilesAll.length) setTimeout(() => { if (!localScanningRef.current) scanLocalDir(dh); }, 300);
     } catch (e) {
       pendingLocalPlayRef.current = null;
       if (e && e.name !== 'AbortError') console.error(e);
@@ -8567,7 +8599,7 @@ function App() {
         }
         if (cached.length) setLocalFiles(prev => prev.length ? prev : cached);
         if (perm === 'granted') {
-          await scanLocalDir(dh, { hold: cached.length > 0 });   // revalida en segundo plano; la caché evita releer
+          if (!cached.length) await scanLocalDir(dh);   // primera vez / sin caché; con caché la lista sale al instante y no se reescanea
         } else {
           setLocalNeedsPermission(true);
         }
@@ -8686,6 +8718,8 @@ function App() {
   }, [currentTrackId, isPlaying, repeatMode]);
   const seek = (sec) => { audioRef.current.currentTime = sec; setPosition(sec); };
   const stopMusic = () => {
+    keepAliveOff();
+    if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = 'none'; } catch {} }
     audioRef.current.pause();
     audioRef.current.src = '';
     setCurrentTrackId(null);
@@ -8719,7 +8753,7 @@ function App() {
   useEffect(() => {
     if (!('mediaSession' in navigator)) return;
     navigator.mediaSession.setActionHandler('play',          () => { const a = audioRef.current; if (a) doPlay(a); });
-    navigator.mediaSession.setActionHandler('pause',         () => audioRef.current?.pause());
+    navigator.mediaSession.setActionHandler('pause',         () => { audioRef.current?.pause(); });
     navigator.mediaSession.setActionHandler('previoustrack', () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playPrevRef.current?.(); });
     navigator.mediaSession.setActionHandler('nexttrack',     () => { msTransitionRef.current = true; navigator.mediaSession.playbackState = 'playing'; playNextRef.current?.(); });
     navigator.mediaSession.setActionHandler('seekto',        e  => { if (e.seekTime != null) { audioRef.current.currentTime = e.seekTime; } });
@@ -8735,10 +8769,19 @@ function App() {
     if (isPlaying) {
       msTransitionRef.current = false;
       navigator.mediaSession.playbackState = 'playing';
+      keepAliveOn();
       if (currentTrack) _applyMSMetadata(currentTrack);
+    } else if (!msTransitionRef.current) {
+      // Pausa real del usuario
+      navigator.mediaSession.playbackState = currentTrack ? 'paused' : 'none';
+      keepAliveOff();
     } else {
-      // Ignorar el pause que el navegador emite al cambiar de src entre pistas
-      if (!msTransitionRef.current) navigator.mediaSession.playbackState = 'paused';
+      // Ignorar el pause que el navegador emite al cambiar de src entre pistas; el ancla sigue sonando.
+      // Si el cambio no llega a completarse en 6 s, se da por pausado.
+      setTimeout(() => {
+        const a = audioRef.current;
+        if (msTransitionRef.current && a && a.paused) { msTransitionRef.current = false; keepAliveOff(); navigator.mediaSession.playbackState = 'paused'; }
+      }, 6000);
     }
   }, [isPlaying]);
 
@@ -8906,6 +8949,7 @@ function App() {
                 <LocalPage
                   localFiles={localFilesAll} dirName={localDirName} scanning={localScanning} progress={localProgress}
                   needsPermission={localNeedsPermission} onReconnect={() => reconnectLocalFolder()}
+                  onRescan={() => { const dh = localDirHandleRef.current; if (dh && !localScanningRef.current) scanLocalDir(dh, { hold: true }); }}
                   onPickFolder={pickLocalFolder} onImportFiles={importLocalFiles} onDisconnect={disconnectLocalFolder}
                   onPlayAll={() => { if(localFilesAll.length===0)return; setManualQueue(null); playScope({type:'local',shuffle:false},false); }}
                   onPlayFile={f => { setManualQueue(null); setPlayContext({type:'local',shuffle:false}); startTrack(f,{type:'local',shuffle:false}); }}
