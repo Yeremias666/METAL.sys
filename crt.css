@@ -5175,3 +5175,10 @@ body.queue-sheet-open { overflow: hidden; }
 .modal-body { text-shadow: 0 0 4px rgba(214,31,31,0.35); }
 .modal .field-label { text-shadow: 0 0 6px var(--fg-primary); }
 .modal .field-input { background: rgba(0,0,0,0.6); box-shadow: inset 0 0 10px rgba(214,31,31,0.15); text-shadow: 0 0 4px rgba(232,226,212,0.35); }
+
+
+/* Barra de estado: total R2 y total local */
+.sb-local { color: var(--fg-dim); margin-left: 8px; }
+@media (max-width: 700px) {
+  .sb-local { display: block; margin-left: 0; }   /* en móvil, en su propia fila */
+}

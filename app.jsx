@@ -1043,7 +1043,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
         <span>NODE 01</span>
         <span>
           {total} CANCIÓN{total===1?'':'ES'} :: {fmtBytes(totalBytes)}
-          {localCount > 0 && <span style={{color:'var(--fg-dim)', marginLeft:8}}>(Local {localCount} canción{localCount===1?'':'es'}, {fmtBytes(localBytes)})</span>}
+          {localCount > 0 && <span className="sb-local">(Local {localCount} canción{localCount===1?'':'es'}, {fmtBytes(localBytes)})</span>}
         </span>
       </div>
       <div className="right">
