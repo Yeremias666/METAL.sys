@@ -88,6 +88,400 @@ function loadPlaylists() { try { return JSON.parse(localStorage.getItem(PLAYLIST
 function savePlaylists(p) { try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(p)); } catch {} }
 function saveArtistMeta(m) { try { localStorage.setItem(ARTIST_META_KEY, JSON.stringify(m)); } catch {} }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// SINCRONIZACIÓN DE LA CUENTA CON CLOUDFLARE R2
+//   /api/userdata     → stats, likes, playlists, marcadores, clips, portadas de artista, perf, historial
+//   /api/userlibrary  → índice de canciones escaneadas (metadatos, sin audio) para que STATS coincida entre dispositivos
+//   /api/userimage    → imágenes propias (portadas de artista y de playlist)
+//
+// Reglas de fusión entre dispositivos (el servidor aplica las mismas):
+//   · ACUMULATIVOS (playCounts, playLog, log, listenSecs): nunca retroceden. Contadores = máximo,
+//     historiales = unión. Un dispositivo desfasado no puede borrar reproducciones de otro.
+//   · EDITABLES (likedIds, playlists, bookmarks, clipStore, artistMeta, perf): gana la modificación más reciente
+//     de cada sección (marca de tiempo por sección, meta.ts). Un dispositivo con datos viejos no pisa a otro.
+//   · Primera sincronización de una cuenta en un dispositivo: lo local no se pierde, se UNE con lo de la nube.
+//   · Si otra cuenta usó antes el dispositivo, sus datos locales se descartan (no se mezclan entre cuentas).
+//
+// SYNC-BEGIN — Las pruebas extraen el código entre SYNC-BEGIN y SYNC-END y lo ejecutan en Node:
+// aquí dentro no debe usarse nada propio de la app ni de React (solo fetch/localStorage inyectables).
+const SYNC_META_KEY = 'metalsys_sync_v1';   // { user, ts:{sección:ms}, hash:{}, seen:{}, lib }
+const SYNC_SECTIONS = ['likedIds', 'playlists', 'bookmarks', 'clipStore', 'artistMeta', 'perf'];
+const USER_IMAGE_API = '/api/userimage';
+
+const _isPlain    = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
+const _isEmptyVal = (v) => v == null || (Array.isArray(v) ? v.length === 0 : _isPlain(v) && Object.keys(v).length === 0);
+const _isDataUrl  = (u) => typeof u === 'string' && u.startsWith('data:');
+
+// Huella corta de un valor (FNV-1a sobre su JSON): sirve para saber si una sección ha cambiado.
+function _syncHash(v) {
+  const s = JSON.stringify(v === undefined ? null : v);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36) + ':' + s.length;
+}
+
+// id de una imagen propia (/api/userimage?u=...&id=...) o null si la URL no es de las nuestras
+function _userImageId(url) {
+  if (typeof url !== 'string' || !url.startsWith(USER_IMAGE_API + '?')) return null;
+  const m = url.match(/[?&]id=([a-f0-9]{24})(?:&|$)/);
+  return m ? m[1] : null;
+}
+
+// Una imagen en base64 (aún sin subir a R2) no viaja en el JSON de la cuenta: pesa MB y se subiría en cada cambio.
+function _cloudSafeArtistMeta(m) {
+  const out = {};
+  for (const [a, v] of Object.entries(m || {})) {
+    if (!v) continue;
+    const c = { ...v };
+    if (_isDataUrl(c.image)) delete c.image;
+    out[a] = c;
+  }
+  return out;
+}
+function _cloudSafePlaylists(list) {
+  return (list || []).map(pl => (_isDataUrl(pl.coverArt) ? { ...pl, coverArt: null } : pl));
+}
+
+// Al adoptar datos de la nube se conservan las imágenes locales que todavía están esperando a subirse.
+function _reattachPending(k, local, val) {
+  if (k === 'artistMeta' && _isPlain(local) && _isPlain(val)) {
+    let out = val;
+    for (const [a, m] of Object.entries(local)) {
+      if (m && _isDataUrl(m.image) && !(val[a] && val[a].image)) {
+        if (out === val) out = { ...val };
+        out[a] = { ...(val[a] || {}), image: m.image };
+      }
+    }
+    return out;
+  }
+  if (k === 'playlists' && Array.isArray(local) && Array.isArray(val)) {
+    const pend = new Map(local.filter(p => p && _isDataUrl(p.coverArt)).map(p => [p.id, p.coverArt]));
+    if (!pend.size) return val;
+    return val.map(p => (pend.has(p.id) && !p.coverArt ? { ...p, coverArt: pend.get(p.id) } : p));
+  }
+  return val;
+}
+
+// Primera sincronización: une lo local con lo de la nube. Devuelve null si no hay nada que añadir.
+function _unionFirstSync(k, local, cloud) {
+  if (_isEmptyVal(local)) return null;
+  switch (k) {
+    case 'likedIds': {
+      const base = Array.isArray(cloud) ? cloud : [];
+      const u = [...new Set([...base, ...local])];
+      return u.length === base.length ? null : u;
+    }
+    case 'playlists': {
+      const base = Array.isArray(cloud) ? cloud : [];
+      const have = new Set(base.map(p => p && p.id));
+      const extra = local.filter(p => p && !have.has(p.id));
+      return extra.length ? [...base, ...extra] : null;
+    }
+    case 'bookmarks':
+    case 'clipStore': {
+      const out = { ...(_isPlain(cloud) ? cloud : {}) };
+      let changed = false;
+      for (const [fid, arr] of Object.entries(local)) {
+        const have = new Set((out[fid] || []).map(x => x && x.id));
+        const extra = (arr || []).filter(x => x && !have.has(x.id));
+        if (extra.length) { out[fid] = [...(out[fid] || []), ...extra]; changed = true; }
+      }
+      return changed ? out : null;
+    }
+    case 'artistMeta': {
+      const out = { ...(_isPlain(cloud) ? cloud : {}) };
+      let changed = false;
+      for (const [a, v] of Object.entries(local)) {
+        const cur = out[a] || {};
+        const merged = { ...v, ...cur };                       // si hay conflicto manda la nube
+        if (JSON.stringify(merged) !== JSON.stringify(cur)) { out[a] = merged; changed = true; }
+      }
+      return changed ? out : null;
+    }
+    default: return null;
+  }
+}
+
+// Fusión de acumulativos en el cliente (misma lógica que el servidor). Devuelve `a` si no cambia nada.
+function _mergeCounts(a, b) {
+  const out = { ...(a || {}) };
+  let changed = false;
+  for (const [id, n] of Object.entries(b || {})) {
+    const v = Number(n);
+    if (Number.isFinite(v) && v > (out[id] || 0)) { out[id] = v; changed = true; }
+  }
+  return changed ? out : a;
+}
+function _mergeEntries(a, b, keyOf, cap) {
+  const map = new Map();
+  for (const list of [b, a]) for (const e of (list || [])) if (e && Number.isFinite(e.ts)) map.set(keyOf(e), e);
+  const out = [...map.values()].sort((x, y) => y.ts - x.ts).slice(0, cap);
+  return JSON.stringify(out) === JSON.stringify(a) ? a : out;
+}
+const _playLogKey = (e) => `${e.id}|${e.ts}`;
+const _actLogKey  = (e) => `${e.kind}|${e.ts}|${e.name}`;
+
+// Sube una imagen (data URL u otra URL) a R2. Devuelve la URL definitiva o null si no se pudo.
+// `replaceUrl`: imagen anterior propia que el servidor debe borrar. opts.toBlob / opts.fetch: para pruebas.
+async function uploadUserImage(token, src, replaceUrl, opts = {}) {
+  if (!token || typeof src !== 'string' || !src) return null;
+  if (_userImageId(src)) return src;                           // ya es una imagen propia en R2
+  const doFetch = opts.fetch || ((...a) => fetch(...a));
+  try {
+    const blob = await (opts.toBlob || _imageToBlob)(src);
+    if (!blob || !blob.size) return null;
+    const oldId = _userImageId(replaceUrl);
+    const res = await doFetch(USER_IMAGE_API + (oldId ? `?replace=${oldId}` : ''), {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/jpeg' },
+      body: blob,
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j && typeof j.url === 'string' ? j.url : null;
+  } catch { return null; }
+}
+
+// Motor de sincronización. Todo lo que toca de la app llega por `deps`:
+//   getState() → { likedIds:Set, playlists, bookmarks, clipStore, artistMeta, perf, playCounts, playLog, log, listenSecs }
+//   getAuth()  → { token, username }
+//   set        → { likedIds, playlists, bookmarks, clipStore, artistMeta, perf  (reemplazan el valor),
+//                  playCounts, playLog, log, listenSecs  (reciben el valor de la nube y lo fusionan),
+//                  cloudLibrary(songs) }
+//   resetUserData() → vacía los datos de usuario locales (cuando entra otra cuenta)
+//   onAuthError()   → la sesión ya no es válida
+function createCloudSync(deps) {
+  const doFetch = deps.fetch || ((...a) => fetch(...a));
+  const store   = deps.storage || localStorage;
+  const tmSet   = deps.setTimeout   || ((f, ms) => setTimeout(f, ms));
+  const tmClear = deps.clearTimeout || ((t) => clearTimeout(t));
+  const set     = deps.set;
+  const blank   = () => ({ user: null, ts: {}, hash: {}, seen: {}, lib: null });
+  const loadMeta = () => {
+    try { const m = JSON.parse(store.getItem(SYNC_META_KEY) || 'null'); return _isPlain(m) ? { ...blank(), ...m } : blank(); }
+    catch { return blank(); }
+  };
+  let meta = loadMeta();
+  const saveMeta = () => { try { store.setItem(SYNC_META_KEY, JSON.stringify(meta)); } catch {} };
+
+  let ready = false, pushing = false, pushAgain = false, dirty = false, timer = null, lastPull = 0, lastLibPull = 0, pulling = null;
+  const authH = (token, extra) => ({ Authorization: `Bearer ${token}`, ...(extra || {}) });
+  const sameSession = (token) => deps.getAuth().token === token;
+
+  // Valor de una sección tal como viaja a la nube (undefined = esta sección no se sincroniza ahora)
+  function serialize(k, st) {
+    switch (k) {
+      case 'likedIds':   return [...st.likedIds];
+      case 'playlists':  return _cloudSafePlaylists(st.playlists);
+      case 'artistMeta': return _cloudSafeArtistMeta(st.artistMeta);
+      case 'perf': {                                          // el perf solo se sincroniza con "perfGlobal" activado
+        const p = st.perf;
+        if (!p || !p.perfGlobal) return undefined;
+        const { perfGlobal, ...rest } = p;
+        return rest;
+      }
+      default: return st[k];
+    }
+  }
+
+  // Anota la hora de modificación de las secciones que han cambiado respecto a lo último que la nube conoce.
+  function stamp() {
+    const { username } = deps.getAuth();
+    if (!username || meta.user !== username) return false;
+    const st = deps.getState();
+    let changed = false, touched = false;
+    for (const k of SYNC_SECTIONS) {
+      const v = serialize(k, st);
+      if (v === undefined) continue;
+      const h = _syncHash(v);
+      if (h === meta.seen[k]) continue;
+      meta.seen[k] = h; touched = true;
+      if (h === meta.hash[k]) continue;                                   // vuelve a coincidir con la nube
+      if (meta.hash[k] === undefined && _isEmptyVal(v)) continue;         // vacío y nunca sincronizado: no reclama nada
+      meta.ts[k] = Date.now(); changed = true;
+    }
+    if (touched) saveMeta();
+    return changed;
+  }
+
+  // Aplica un documento de la nube (de un GET o de la respuesta de un PUT).
+  function applyCloud(d, username) {
+    let st = deps.getState();
+    if (meta.user && meta.user !== username) {                // otra cuenta usó antes este dispositivo
+      deps.resetUserData();
+      meta = blank();
+      st = { ...st, likedIds: new Set(), playlists: [], bookmarks: {}, clipStore: {}, artistMeta: {}, perf: null };
+    }
+    const first = meta.user !== username;                     // primera sincronización de esta cuenta aquí
+    if (!first) stamp();                                      // proteger ediciones locales aún sin anotar
+
+    for (const k of SYNC_SECTIONS) {
+      const cloudVal = d[k];
+      const hasCloud = cloudVal !== undefined && cloudVal !== null;
+      const cts = hasCloud ? (Number(d.ts && d.ts[k]) || 0) : 0;
+      const lts = meta.ts[k] || 0;
+      const localVal = serialize(k, st);
+
+      if (hasCloud && cts > lts) {                            // la nube es más reciente → se adopta
+        let val = cloudVal, h = _syncHash(cloudVal);
+        if (first) {
+          const u = _unionFirstSync(k, localVal, cloudVal);
+          if (u !== null) { val = u; h = undefined; }         // h indefinido → se volverá a subir la unión
+        }
+        set[k](_reattachPending(k, st[k], val));
+        meta.ts[k] = cts; meta.hash[k] = h; meta.seen[k] = h;
+      } else if (localVal !== undefined) {                    // lo local es igual o más reciente
+        const lh = _syncHash(localVal);
+        if (hasCloud && lh === _syncHash(cloudVal)) {
+          meta.hash[k] = lh; meta.seen[k] = lh;               // la nube ya tiene exactamente esto
+        } else if (first && !_isEmptyVal(localVal)) {         // lo local de antes de iniciar sesión → se sube
+          meta.hash[k] = undefined; meta.seen[k] = lh; meta.ts[k] = Date.now();
+        }
+      }
+    }
+
+    if (_isPlain(d.playCounts)) set.playCounts(d.playCounts);
+    if (Array.isArray(d.playLog)) set.playLog(d.playLog);
+    if (Array.isArray(d.log)) set.log(d.log);
+    if (Number.isFinite(d.listenSecs)) set.listenSecs(d.listenSecs);
+
+    meta.user = username;
+    saveMeta();
+  }
+
+  async function pull() {
+    if (pulling) return pulling;
+    pulling = (async () => {
+      const { token, username } = deps.getAuth();
+      if (!token || !username) return false;
+      const res = await doFetch('/api/userdata', { headers: authH(token) });
+      if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return false; }
+      if (!res.ok) throw new Error('userdata ' + res.status);
+      const d = await res.json();
+      if (!sameSession(token)) return false;
+      applyCloud(d, username);
+      lastPull = Date.now();
+      return true;
+    })();
+    try { return await pulling; } finally { pulling = null; }
+  }
+
+  async function push() {
+    timer = null;
+    const { token, username } = deps.getAuth();
+    if (!token || !ready || meta.user !== username) return;
+    if (pushing) { pushAgain = true; return; }
+    pushing = true; dirty = false;
+    try {
+      stamp();
+      const st = deps.getState();
+      const body = { v: 2, ts: {}, playCounts: st.playCounts, playLog: st.playLog, log: st.log, listenSecs: st.listenSecs };
+      for (const k of SYNC_SECTIONS) {
+        const v = serialize(k, st);
+        if (v === undefined || !meta.ts[k]) continue;         // sin marca de tiempo = nunca se tocó
+        if (_syncHash(v) === meta.hash[k]) continue;          // la nube ya tiene exactamente esto: no se reenvía
+        body[k] = v; body.ts[k] = meta.ts[k];
+      }
+      const res = await doFetch('/api/userdata', {
+        method: 'PUT', headers: authH(token, { 'Content-Type': 'application/json' }), body: JSON.stringify(body),
+      });
+      if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return; }
+      if (!res.ok) throw new Error('userdata ' + res.status);
+      const merged = await res.json();
+      if (sameSession(token)) applyCloud(merged, username);
+    } catch { dirty = true; }                                 // se reintenta con el siguiente cambio / al volver a la pestaña
+    finally { pushing = false; if (pushAgain) { pushAgain = false; schedulePush(500); } }
+  }
+
+  function schedulePush(ms = 2000) {
+    if (timer) tmClear(timer);
+    timer = tmSet(push, ms);
+  }
+
+  // Carga inicial tras iniciar sesión o abrir la app con sesión. Hasta que no termina bien no se sube nada:
+  // así un dispositivo sin conexión no puede pisar con datos viejos lo que otro dispositivo ya guardó.
+  async function start() {
+    ready = false;
+    try {
+      if (await pull()) {
+        ready = true;
+        deps.onReady && deps.onReady();
+        dirty = true; schedulePush(500);
+        pullLibrary().catch(() => {});
+      }
+    } catch {}                                                // sin conexión: se reintenta en refresh()
+  }
+
+  // Al volver a la pestaña / recuperar conexión: traer lo que hayan cambiado otros dispositivos.
+  async function refresh(force) {
+    const { token } = deps.getAuth();
+    if (!token) return;
+    if (!ready) return start();
+    if (!force && Date.now() - lastPull < 15000) return;
+    try {
+      if (await pull() && dirty) schedulePush(500);
+      if (Date.now() - lastLibPull > 300000) pullLibrary().catch(() => {});   // el índice de canciones cambia poco: cada 5 min
+    } catch {}
+  }
+
+  // Sube ya lo pendiente (p. ej. al ocultar la pestaña) en vez de esperar al debounce.
+  function flush() {
+    if (!dirty || !ready) return;
+    if (timer) { tmClear(timer); timer = null; }
+    return push();
+  }
+
+  // Llamar cuando cambie cualquier dato de usuario.
+  function onChange() {
+    dirty = true;
+    stamp();
+    if (ready) schedulePush(2000);
+  }
+
+  function stop() {
+    if (timer) tmClear(timer);
+    timer = null; ready = false; pushAgain = false;
+  }
+
+  async function pullLibrary() {
+    const { token } = deps.getAuth();
+    if (!token) return;
+    const res = await doFetch('/api/userlibrary', { headers: authH(token) });
+    if (!res.ok) return;
+    lastLibPull = Date.now();
+    const lib = await res.json();
+    if (sameSession(token) && lib && Array.isArray(lib.songs)) set.cloudLibrary(lib.songs);
+  }
+
+  async function pushLibrary(songs) {
+    const { token } = deps.getAuth();
+    if (!token || !ready || !Array.isArray(songs) || !songs.length) return false;
+    const h = _syncHash(songs);
+    if (meta.lib === h) return false;                         // el índice no ha cambiado desde la última subida
+    try {
+      const res = await doFetch('/api/userlibrary', {
+        method: 'PUT', headers: authH(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ songs }),
+      });
+      if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return false; }
+      if (!res.ok) return false;
+      meta.lib = h; saveMeta();
+      if (sameSession(token)) set.cloudLibrary(songs);
+      return true;
+    } catch { return false; }
+  }
+
+  return { start, stop, refresh, flush, onChange, schedulePush, push, pull, pullLibrary, pushLibrary, isReady: () => ready, getMeta: () => meta };
+}
+// SYNC-END
+
+// Reduce una imagen a un JPEG de como mucho `max` px (reutiliza el Worker de portadas) para subirla a R2.
+async function _imageToBlob(src, max = 900, quality = 0.86) {
+  const input = await (await fetch(src)).blob();
+  const out = await _downscaleCover(input, max, quality);       // data URL JPEG
+  if (!out) throw new Error('No se pudo reducir la imagen');
+  return await (await fetch(out)).blob();
+}
+
 // IndexedDB: se usa exclusivamente para guardar el handle de carpeta local
 // (localStorage no admite objetos FileSystemDirectoryHandle)
 function getIDB() {
@@ -7260,8 +7654,8 @@ function App() {
   const [authToken, setAuthToken]   = useState(() => localStorage.getItem('metalsys_auth_token') || null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const syncTimerRef = useRef(null);
-  const syncReadyRef = useRef(false); // blocks scheduleSync until initial cloud load completes
+  const [syncReady, setSyncReady] = useState(false);       // la primera carga desde R2 ha terminado
+  const [cloudLibrary, setCloudLibrary] = useState([]);       // canciones de la cuenta (índice en R2), de cualquier dispositivo
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 700);
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 700);
@@ -7462,6 +7856,7 @@ function App() {
 
   useEffect(() => { saveLikes(likedIds); }, [likedIds]);
   useEffect(() => { saveCounts(playCounts); }, [playCounts]);
+  useEffect(() => { savePLog(playLog); }, [playLog]);   // también cuando llega de la nube (antes solo al reproducir)
   useEffect(() => { saveBookmarks(bookmarks); }, [bookmarks]);
   useEffect(() => { saveClipStore(clipStore); }, [clipStore]);
   useEffect(() => { saveArtistMeta(artistMeta); }, [artistMeta]);
@@ -7471,9 +7866,53 @@ function App() {
   useEffect(() => { saveLog(log); }, [log]);
   useEffect(() => { savePlaylists(playlists); }, [playlists]);
 
-  // Fetch cloud user data on startup if already authenticated
+  // ── Sincronización de la cuenta con R2 (stats, likes, playlists, portadas…) ─────────────────────────
+  // El motor (createCloudSync) está definido arriba; aquí solo se le conecta el estado de la app.
+  const stateRef = useRef(null);
+  stateRef.current = { likedIds, playlists, bookmarks, clipStore, artistMeta, perf, playCounts, playLog, log, listenSecs };
+  const authRef = useRef({ token: null, username: null });
+  authRef.current = { token: authToken, username: authUser?.username || null };
+  const cloudSyncRef = useRef(null);
+  if (!cloudSyncRef.current) {
+    cloudSyncRef.current = createCloudSync({
+      getState: () => stateRef.current,
+      getAuth: () => authRef.current,
+      set: {
+        likedIds:   v => setLikedIds(new Set(v)),
+        playlists:  v => setPlaylists(v),
+        bookmarks:  v => setBookmarks(v),
+        clipStore:  v => setClipStore(v),
+        artistMeta: v => setArtistMeta(v),
+        perf:       v => setPerfState(prev => ({ ...PERF_DEFAULTS, ...v, perfGlobal: prev.perfGlobal })),
+        playCounts: v => setPlayCounts(prev => _mergeCounts(prev, v)),
+        playLog:    v => setPlayLog(prev => _mergeEntries(prev, v, _playLogKey, 2000)),
+        log:        v => setLog(prev => _mergeEntries(prev, v, _actLogKey, 200)),
+        listenSecs: v => {
+          const next = Math.max(stateRef.current.listenSecs || 0, v);
+          if (next > (stateRef.current.listenSecs || 0)) {
+            try { localStorage.setItem('metalsys_listen_secs_v1', String(next)); } catch {}
+            setListenSecs(next);
+          }
+        },
+        cloudLibrary: songs => setCloudLibrary(songs),
+      },
+      // Otra cuenta usó antes este dispositivo: se vacían sus datos para no mezclarlos con los de la nueva
+      resetUserData: () => {
+        setLikedIds(new Set()); setPlaylists([]); setBookmarks({}); setClipStore({}); setArtistMeta({});
+        setPlayCounts({}); setPlayLog([]); setLog([]); setListenSecs(0);
+        try { localStorage.setItem('metalsys_listen_secs_v1', '0'); } catch {}
+      },
+      onReady: () => setSyncReady(true),
+      onAuthError: () => {                                    // sesión caducada o invalidada en el servidor
+        setAuthUser(null); setAuthToken(null); setSyncReady(false);
+        try { localStorage.removeItem('metalsys_auth_token'); localStorage.removeItem('metalsys_auth_user'); } catch {}
+      },
+    });
+  }
+
+  // Al abrir la app con sesión: refrescar el perfil (rol) y cargar los datos de la cuenta desde R2
   useEffect(() => {
-    if (!authToken) { syncReadyRef.current = true; return; }
+    if (!authToken) return;
     // Refresh profile to pick up role (needed for existing sessions created before role system)
     fetch('/api/auth/profile', { headers: { Authorization: `Bearer ${authToken}` } })
       .then(r => r.ok ? r.json() : null)
@@ -7484,28 +7923,75 @@ function App() {
           localStorage.setItem('metalsys_auth_user', JSON.stringify(updated));
         }
       }).catch(() => {});
-    fetch('/api/userdata', { headers: { Authorization: `Bearer ${authToken}` } })
-      .then(r => r.ok ? r.json() : null)
-      .then(d => {
-        if (d) {
-          if (d.bookmarks)  setBookmarks(d.bookmarks);
-          if (d.clipStore)  setClipStore(d.clipStore);
-          if (d.likedIds)   setLikedIds(new Set(d.likedIds));
-          if (d.playCounts) setPlayCounts(d.playCounts);
-          if (d.playLog)    setPlayLog(d.playLog);
-          if (d.playlists)  setPlaylists(d.playlists);
-          if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
-          if (d.listenSecs != null) {
-            const local = parseFloat(localStorage.getItem('metalsys_listen_secs_v1') || '0');
-            const merged = Math.max(local, d.listenSecs);
-            localStorage.setItem('metalsys_listen_secs_v1', String(merged));
-            setListenSecs(merged);
-          }
-        }
-      })
-      .catch(() => {})
-      .finally(() => { syncReadyRef.current = true; });
+    cloudSyncRef.current.start();
   }, []);
+
+  // Subir (debounce de 2 s) cualquier cambio de datos de la cuenta
+  useEffect(() => { cloudSyncRef.current.onChange(); },
+    [bookmarks, clipStore, likedIds, playCounts, playLog, log, perf, playlists, artistMeta, listenSecs]);
+
+  // Traer lo que hayan cambiado otros dispositivos al volver a la pestaña / recuperar la conexión,
+  // y subir lo pendiente al ocultarla.
+  useEffect(() => {
+    const cs = cloudSyncRef.current;
+    const onVis = () => { if (document.visibilityState === 'visible') cs.refresh(); else cs.flush(); };
+    const onOnline = () => cs.refresh(true);
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('online', onOnline);
+    const iv = setInterval(() => { if (document.visibilityState === 'visible') cs.refresh(); }, 60000);
+    return () => { document.removeEventListener('visibilitychange', onVis); window.removeEventListener('online', onOnline); clearInterval(iv); };
+  }, []);
+
+  // Portadas subidas por el usuario (artistas y playlists): de base64 local a una imagen en R2,
+  // para que se vea la misma en todos los dispositivos de la cuenta.
+  const imgJobsRef = useRef(new Set());       // trabajos en curso o ya intentados con esta imagen
+  const cloudImgRef = useRef({});             // "tipo|clave" → última URL en R2 conocida (para que el servidor borre la anterior)
+  useEffect(() => {
+    if (!authToken || !syncReady) return;
+    const jobs = [];
+    for (const [a, m] of Object.entries(artistMeta)) {
+      if (!m || !m.image) continue;
+      if (_isDataUrl(m.image)) jobs.push({ kind: 'artist', key: a, src: m.image });
+      else if (_userImageId(m.image)) cloudImgRef.current['artist|' + a] = m.image;
+    }
+    for (const pl of playlists) {
+      if (!pl || !pl.coverArt) continue;
+      if (_isDataUrl(pl.coverArt)) jobs.push({ kind: 'playlist', key: pl.id, src: pl.coverArt });
+      else if (_userImageId(pl.coverArt)) cloudImgRef.current['playlist|' + pl.id] = pl.coverArt;
+    }
+    jobs.forEach(async (j) => {
+      const sig = `${j.kind}|${j.key}|${j.src.length}|${j.src.slice(-40)}`;
+      if (imgJobsRef.current.has(sig)) return;
+      imgJobsRef.current.add(sig);
+      const url = await uploadUserImage(authRef.current.token, j.src, cloudImgRef.current[j.kind + '|' + j.key]);
+      if (!url) { imgJobsRef.current.delete(sig); return; }   // sin red / error: se reintenta en el próximo cambio o inicio de sesión
+      cloudImgRef.current[j.kind + '|' + j.key] = url;
+      if (j.kind === 'artist') setArtistMeta(prev => (prev[j.key] && prev[j.key].image === j.src) ? { ...prev, [j.key]: { ...prev[j.key], image: url } } : prev);
+      else setPlaylists(prev => prev.map(p => (p.id === j.key && p.coverArt === j.src) ? { ...p, coverArt: url } : p));
+    });
+  }, [artistMeta, playlists, authToken, syncReady]);
+
+  // Índice de canciones escaneadas → R2 (solo metadatos), para que STATS coincida en todos los dispositivos
+  useEffect(() => {
+    if (!authToken || !syncReady || localScanning) return;
+    const t = setTimeout(() => {
+      const songs = localFilesAll.filter(isAudioFile).map(f => ({
+        id: f.id, name: f.name, artist: f.artist, category: f.category, album: f.album, track: f.track, year: f.year,
+        genre: f.genre, fileName: f.fileName, fileType: f.fileType, fileSize: f.fileSize, duration: f.duration, uploadedAt: f.uploadedAt,
+      }));
+      if (songs.length) cloudSyncRef.current.pushLibrary(songs);
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [authToken, syncReady, localScanning, localFilesAll]);
+
+  // Canciones de la cuenta que NO están en este dispositivo (escaneadas en otro): solo cuentan en STATS
+  const cloudOnlySongs = useMemo(() => {
+    if (!cloudLibrary.length) return [];
+    const have = new Set([...filesAll, ...localFilesAll].map(f => f.id));
+    return cloudLibrary.filter(s => !have.has(s.id)).map(s => ({
+      ...s, fileType: s.fileType || 'audio/mpeg', thumbnail: null, coverArt: null, isLocal: true, isCloudOnly: true, fileData: null,
+    }));
+  }, [cloudLibrary, filesAll, localFilesAll]);
 
   // Cargar biblioteca de Cloudflare R2 al arrancar
   useEffect(() => {
@@ -8116,47 +8602,22 @@ function App() {
     localStorage.setItem('metalsys_auth_token', data.token);
     localStorage.setItem('metalsys_auth_user', JSON.stringify({ username: data.username, email: data.email, avatar: data.avatar, role: data.role || 'user' }));
     setShowAuthModal(false);
-    // Load cloud data after login
-    fetch('/api/userdata', { headers: { Authorization: `Bearer ${data.token}` } })
-      .then(r => r.json()).then(d => {
-        if (d.bookmarks)  setBookmarks(d.bookmarks);
-        if (d.clipStore)  setClipStore(d.clipStore);
-        if (d.likedIds)   setLikedIds(new Set(d.likedIds));
-        if (d.playCounts) setPlayCounts(d.playCounts);
-        if (d.playLog)    setPlayLog(d.playLog);
-        if (d.playlists)  setPlaylists(d.playlists);
-        if (d.perf)       setPerfState(prev => ({ ...PERF_DEFAULTS, ...d.perf, perfGlobal: prev.perfGlobal }));
-      }).catch(() => {});
+    // Cargar y fusionar los datos de la cuenta desde R2 (el estado de React aún no se ha actualizado: se fija la sesión a mano)
+    authRef.current = { token: data.token, username: data.username };
+    setSyncReady(false);
+    cloudSyncRef.current.start();
   };
 
   const handleLogout = async () => {
     if (authToken) {
       fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: `Bearer ${authToken}` } }).catch(() => {});
     }
+    cloudSyncRef.current.stop();
+    setSyncReady(false);
     setAuthUser(null); setAuthToken(null);
     localStorage.removeItem('metalsys_auth_token');
     localStorage.removeItem('metalsys_auth_user');
   };
-
-  // Sync to cloud with debounce
-  const scheduleSync = React.useCallback(() => {
-    if (!authToken || !syncReadyRef.current) return;
-    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
-    syncTimerRef.current = setTimeout(() => {
-      const body = { bookmarks, clipStore, likedIds: [...likedIds], playCounts, playLog, playlists, listenSecs };
-      if (perf.perfGlobal) {
-        const { perfGlobal: _, ...cloudPerf } = perf;
-        body.perf = cloudPerf;
-      }
-      fetch('/api/userdata', {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      }).catch(() => {});
-    }, 2000);
-  }, [authToken, bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists, listenSecs]);
-
-  useEffect(() => { scheduleSync(); }, [bookmarks, clipStore, likedIds, playCounts, playLog, perf, playlists, listenSecs]);
 
   // Bookmark handlers
   const addBookmark = (fileId, bm) => {
@@ -8996,7 +9457,7 @@ function App() {
                 />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} localFiles={localFiles} playCounts={playCountsView} log={log} likedIds={likedIdsView} playLog={playLog} artistMeta={artistMeta} />
+                <StatsPage files={files} localFiles={[...localFiles, ...cloudOnlySongs]} playCounts={playCountsView} log={log} likedIds={likedIdsView} playLog={playLog} artistMeta={artistMeta} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage

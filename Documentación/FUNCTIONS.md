@@ -155,3 +155,26 @@ Todas las funciones de `app.jsx` documentadas. Actualiza cuando añadas o modifi
 |---|---|
 | `handleCreateCat()` | Abre modal `CreateCategoryModal` |
 | `submitCreateCat({name, icon})` | Añade categoría, navega a ella |
+
+
+## Sincronización de la cuenta con R2
+
+Código en `app.jsx` entre `SYNC-BEGIN` y `SYNC-END` (sin dependencias de React: se puede probar en Node). Backend en `functions/api/userdata.js`, `userlibrary.js`, `userimage.js` y `functions/_lib/r2.js`.
+
+| Función | Descripción |
+|---|---|
+| `createCloudSync(deps)` | Motor de sincronización. Devuelve `{ start, stop, refresh, flush, onChange, pushLibrary, pullLibrary, … }`. Todo lo de la app entra por `deps` (`getState`, `getAuth`, `set`, `resetUserData`, `onAuthError`) |
+| `cloudSync.start()` | Carga inicial tras iniciar sesión / abrir la app con sesión: GET `/api/userdata`, fusiona y habilita las subidas |
+| `cloudSync.onChange()` | Se llama al cambiar cualquier dato de la cuenta: anota qué secciones cambiaron y programa la subida (debounce 2 s) |
+| `cloudSync.refresh(force)` | Trae cambios de otros dispositivos (vuelta a la pestaña, `online`, cada 60 s); mínimo 15 s entre llamadas salvo `force` |
+| `cloudSync.flush()` | Sube ya lo pendiente (al ocultar la pestaña) |
+| `cloudSync.pushLibrary(songs)` / `pullLibrary()` | Sube / baja el índice de canciones (`/api/userlibrary`); solo sube si cambió |
+| `uploadUserImage(token, src, replaceUrl)` | Sube una imagen (data URL) a `/api/userimage` y devuelve su URL; el servidor borra `replaceUrl`. `null` si falla |
+| `_imageToBlob(src, max, quality)` | Reduce una imagen a JPEG (Worker de portadas) antes de subirla |
+| `_cloudSafeArtistMeta(m)` / `_cloudSafePlaylists(l)` | Quitan las imágenes en base64 (aún sin subir) del JSON que viaja a la nube |
+| `_unionFirstSync(k, local, cloud)` | Une lo local con lo de la nube en la primera sincronización de una cuenta en un dispositivo |
+| `_mergeCounts(a, b)` / `_mergeEntries(a, b, keyOf, cap)` | Fusión de acumulativos (máximo / unión), igual que en el servidor |
+| `_syncHash(v)` | Huella FNV-1a de un valor, para detectar qué secciones cambiaron |
+| `_userImageId(url)` | Id de una URL `/api/userimage?…` propia, o `null` |
+
+Estado nuevo en `App()`: `syncReady` (primera carga terminada), `cloudLibrary` (índice de canciones de la cuenta), `cloudOnlySongs` (las que no están en este dispositivo; solo cuentan en STATS). Clave `metalsys_sync_v1` en `localStorage`: `{ user, ts, hash, seen, lib }`.

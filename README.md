@@ -49,7 +49,7 @@ Abrir `http://localhost:8000/`. Abrir `index.html` directamente via `file://` fa
 | ZIP | JSZip 3.10.1 (CDN) |
 | Markdown | marked 12.0.0 (CDN) |
 | Almacenamiento local | `localStorage` + IndexedDB |
-| Almacenamiento en nube | Cloudflare R2 (audio) + Cloudflare KV (usuarios, sesiones, datos) |
+| Almacenamiento en nube | Cloudflare R2 (portadas y datos de cada cuenta) + Cloudflare KV (usuarios, sesiones) |
 | Audio | Web Audio API nativa |
 | Backend | Cloudflare Pages Functions |
 
@@ -64,12 +64,16 @@ METAL.sys/
 ├── crt.css                     — Estilos completos + efectos CRT
 ├── tweaks-panel.jsx            — Panel flotante de ajustes visuales
 ├── functions/
+│   ├── _lib/
+│   │   └── r2.js               — Helpers compartidos de R2 (firma SigV4, get/put/delete/list, sesión)
 │   └── api/
 │       ├── audio.js            — Proxy streaming R2 con soporte Range
 │       ├── files.js            — Lista MP3 con metadatos ID3 y portadas presignadas
 │       ├── reindex-meta.js     — Extrae etiquetas ID3 → _meta/index.json (8/llamada)
 │       ├── reindex-covers.js   — Extrae portadas → _covers/*.jpg (8/llamada)
-│       ├── userdata.js         — Sincroniza bookmarks, clips, likes, playCounts en KV
+│       ├── userdata.js         — Datos de la cuenta (stats, likes, playlists, historial…) en R2: _users/<u>/data.json
+│       ├── userlibrary.js      — Índice de canciones escaneadas de la cuenta en R2: _users/<u>/library.json
+│       ├── userimage.js        — Portadas de artista/playlist subidas por el usuario: _users/<u>/images/<id>
 │       ├── admin/
 │       │   ├── users.js        — Gestión de usuarios (GET/PUT/DELETE, solo admin)
 │       │   └── r2.js           — Gestión de objetos R2 (GET/DELETE, solo admin)
@@ -98,7 +102,9 @@ METAL.sys/
 | `/api/audio?path=…` | GET, HEAD | Proxy streaming con cabecera Range desde R2 |
 | `/api/reindex-meta` | GET | Reindexar metadatos ID3 (8 archivos/llamada) |
 | `/api/reindex-covers` | GET | Reindexar portadas en `_covers/` (8 álbumes/llamada) |
-| `/api/userdata` | GET, PUT | Sincronizar bookmarks, clips, likes, playCounts, playlists |
+| `/api/userdata` | GET, PUT | Datos de la cuenta en R2 (stats, likes, playlists, marcadores, clips, historial, datos de artista). El PUT se fusiona con lo guardado |
+| `/api/userlibrary` | GET, PUT | Índice de canciones escaneadas (solo metadatos) para que STATS coincida entre dispositivos |
+| `/api/userimage` | GET (público), PUT, DELETE | Imágenes propias: PUT sube (máx. 3 MB, JPEG/PNG/GIF/WebP) y devuelve `{id,url}`; `?replace=<id>` borra la anterior |
 | `/api/auth/register` | POST | Registro — PBKDF2 SHA-256, 100k iteraciones, salt aleatorio |
 | `/api/auth/login` | POST | Login — devuelve token de 30 días |
 | `/api/auth/logout` | POST | Invalida sesión en KV |

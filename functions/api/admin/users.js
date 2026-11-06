@@ -1,6 +1,8 @@
 // GET  /api/admin/users          — list all users
 // PUT  /api/admin/users          — update role  { username, role }
-// DELETE /api/admin/users?u=xxx  — delete user
+// DELETE /api/admin/users?u=xxx  — delete user (y sus datos en R2: _users/<usuario>/)
+
+import { r2Configured, r2ListKeys, r2Delete, isValidUsername } from '../../_lib/r2.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -75,7 +77,19 @@ export async function onRequest(context) {
     const user = JSON.parse(raw);
     await KV.delete(`user:${username}`);
     if (user.email) await KV.delete(`email:${user.email}`);
-    return json({ ok: true });
+    await KV.delete(`data:${username}`);   // datos antiguos (versión previa a R2), si existen
+
+    // Datos del usuario en R2 (stats, biblioteca, imágenes). Si falla no se bloquea el borrado de la cuenta.
+    let r2Removed = 0;
+    if (isValidUsername(username) && r2Configured(context.env)) {
+      try {
+        for (const key of await r2ListKeys(context.env, `_users/${username}/`)) {
+          await r2Delete(context.env, key);
+          r2Removed++;
+        }
+      } catch (err) { console.error('[admin/users] limpieza R2', err); }
+    }
+    return json({ ok: true, r2Removed });
   }
 
   return new Response('Method not allowed', { status: 405 });

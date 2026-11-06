@@ -5,6 +5,58 @@ Cada sesión debe añadir su entrada al inicio de este archivo.
 
 ---
 
+## 2026-11-06 — Cuenta sincronizada en R2: stats, likes, playlists, historial y portadas en todos los dispositivos
+
+**Autor:** Claude (claude-sonnet-5-5) por instrucción del usuario  
+**Archivos creados:** `functions/_lib/r2.js`, `functions/api/userlibrary.js`, `functions/api/userimage.js`  
+**Archivos modificados:** `functions/api/userdata.js`, `functions/api/admin/users.js`, `app.jsx`, `README.md`, `FUNCTIONS.md`, `Documentación/FUNCTIONS.md`, `Documentación/FEATURES.md`
+
+### Contexto
+
+La música ya no vive en R2: se escanea siempre desde la carpeta local de cada dispositivo. R2 pasa a guardar portadas y los datos de cada cuenta, de modo que al iniciar sesión en otro dispositivo se vea lo mismo.
+
+### Qué se guarda ahora en R2 (por usuario, bajo `_users/<usuario>/`)
+
+- `data.json` — likes, playlists, marcadores, clips, datos de artista (`artistMeta`), rendimiento (si `perfGlobal`), contadores de reproducción, historial de reproducciones (`playLog`), actividad (`log`) y tiempo escuchado. Antes esto estaba en KV (`data:<usuario>`); el servidor lo migra solo la primera vez que se lee (el dato de KV no se borra).
+- `library.json` — **índice de canciones escaneadas** (solo metadatos: id, título, artista, disco, año, género, tamaño, duración…; sin audio ni portadas). Hace que la pestaña STATS muestre las mismas canciones, discos y artistas en cualquier dispositivo, aunque ahí no se haya escaneado la carpeta. Esas canciones "solo en la nube" cuentan en STATS pero no aparecen como reproducibles.
+- `images/<id>` — portadas de artista y de playlist subidas por el usuario. `/api/userimage?u=<usuario>&id=<id>` las sirve (público, cacheable para siempre: cada subida genera un id nuevo).
+
+### Cómo se fusionan los dispositivos
+
+- **Acumulativos** (`playCounts`, `playLog`, `log`, `listenSecs`): nunca retroceden. Contadores = máximo; historiales = unión (2000 / 200 más recientes).
+- **Editables** (likes, playlists, marcadores, clips, `artistMeta`, `perf`): gana la modificación más reciente **de cada sección** (marca de tiempo por sección). Un dispositivo con datos viejos no pisa a otro; quitar un me gusta no "resucita".
+- **Primera sincronización de una cuenta en un dispositivo:** lo que ya había en local se une con lo de la nube (no se pierde).
+- **Otra cuenta en el mismo dispositivo:** se vacían los datos locales de la anterior (no se mezclan entre cuentas).
+- Hasta que no termina la primera carga desde la nube no se sube nada, así un dispositivo sin conexión no puede pisar datos con los suyos viejos. Subida con debounce de 2 s; se reintenta con el siguiente cambio; se refresca al volver a la pestaña, al recuperar la conexión y cada 60 s con la pestaña visible.
+
+### Portadas propias
+
+Al elegir una imagen para un artista o playlist con sesión iniciada, se reduce a JPEG (≤ 900 px, en el Worker de portadas) y se sube a R2; en el JSON de la cuenta solo viaja la URL (nunca base64). La imagen anterior se borra de R2. Si no hay conexión, la imagen queda local y se sube después.
+
+### Seguridad
+
+- Las claves de R2 se construyen solo con `[a-z0-9_]` / ids hex de 24 caracteres validados (sin path traversal); cada usuario solo escribe y borra bajo su propia carpeta.
+- `userimage` detecta el formato por los bytes (JPEG/PNG/GIF/WebP), no por la cabecera del cliente; rechaza SVG/HTML; máx. 3 MB por imagen y 400 imágenes por usuario; sirve con `nosniff`.
+- `userlibrary` solo conserva campos conocidos y acotados.
+- Borrar un usuario desde el panel admin elimina también `_users/<usuario>/` en R2.
+- Si el servidor responde 401 (sesión caducada) la app cierra la sesión local en vez de fallar en silencio.
+
+### Otros cambios
+
+- `playLog` ahora se guarda en `localStorage` cada vez que cambia (antes solo al reproducir), para que lo recibido de la nube sobreviva a una recarga sin conexión.
+- Código común de R2 (firma AWS SigV4, get/put/delete/list) extraído a `functions/_lib/r2.js`. No es una ruta; no requiere variables de entorno nuevas (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` ya existentes).
+
+### Pruebas realizadas
+
+Backend (handlers reales con R2/KV simulados): 33 comprobaciones; firmas SigV4 verificadas contra `botocore`. Motor de sincronización (extraído de `app.jsx`) con varios dispositivos simulados, sin conexión, cambio de cuenta e imágenes: 22 comprobaciones. App real en Chromium (Playwright) con tres dispositivos: 12 comprobaciones, incluido STATS mostrando canciones de otro dispositivo.
+
+### Pendiente / a tener en cuenta
+
+- Las portadas extraídas de los MP3 (`_covers/`) y la carga de música de R2 (`/api/files`) no se han tocado.
+- Una canción borrada del disco sigue contando en STATS mientras esté en el índice (se conserva el historial).
+
+---
+
 ## 2026-10-27 — Fix real del congelamiento (medido en Chromium) + service worker con caché obsoleta
 
 **Autor:** Claude (claude-sonnet-5-5) por instrucción del usuario  

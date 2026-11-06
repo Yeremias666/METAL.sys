@@ -88,6 +88,13 @@ Lista actualizada de todas las funcionalidades del proyecto. Añade una línea c
 - **Log de actividad**: últimas 200 acciones (UP / DL / DEL)
 - **Play counts**: contador de reproducciones por canción (persistido)
 
+## Cuenta sincronizada (R2)
+
+- **Mismos datos en todos los dispositivos**: con sesión iniciada, stats, historial, contadores, me gusta, playlists, marcadores, clips y datos de artista se guardan en R2 por usuario
+- **Biblioteca en STATS**: las canciones, discos y artistas escaneados en otro dispositivo también cuentan en la pestaña STATS
+- **Portadas propias en la nube**: la imagen subida para un artista o una playlist se sube a R2 y se ve igual en todos los dispositivos
+- **Fusión sin pérdidas**: contadores e historial nunca retroceden; en lo editable gana el cambio más reciente; lo que había en local antes de iniciar sesión se conserva
+
 ## Tweaks visuales
 
 - **TweaksPanel flotante**: ajuste en tiempo real de todos los efectos CRT
