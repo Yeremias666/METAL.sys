@@ -110,7 +110,8 @@ const USER_IMAGE_API = '/api/userimage';
 
 const _isPlain    = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const _isEmptyVal = (v) => v == null || (Array.isArray(v) ? v.length === 0 : _isPlain(v) && Object.keys(v).length === 0);
-const _isDataUrl  = (u) => typeof u === 'string' && u.startsWith('data:');
+// Imagen que solo existe en este dispositivo (base64 o blob:) y aún hay que subir a R2
+const _isDataUrl  = (u) => typeof u === 'string' && (u.startsWith('data:') || u.startsWith('blob:'));
 
 // Huella corta de un valor (FNV-1a sobre su JSON): sirve para saber si una sección ha cambiado.
 function _syncHash(v) {
@@ -236,10 +237,14 @@ async function uploadUserImage(token, src, replaceUrl, opts = {}) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': blob.type || 'image/jpeg' },
       body: blob,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      let msg = ''; try { msg = (await res.text()).slice(0, 200); } catch {}
+      console.warn('[sync] no se pudo subir la imagen:', res.status, msg);
+      return null;
+    }
     const j = await res.json();
     return j && typeof j.url === 'string' ? j.url : null;
-  } catch { return null; }
+  } catch (e) { console.warn('[sync] no se pudo subir la imagen:', e && e.message); return null; }
 }
 
 // Motor de sincronización. Todo lo que toca de la app llega por `deps`:
@@ -389,7 +394,7 @@ function createCloudSync(deps) {
       if (!res.ok) throw new Error('userdata ' + res.status);
       const merged = await res.json();
       if (sameSession(token)) applyCloud(merged, username);
-    } catch { dirty = true; }                                 // se reintenta con el siguiente cambio / al volver a la pestaña
+    } catch (e) { dirty = true; console.warn('[sync] no se pudo guardar la cuenta en R2:', e && e.message); }   // se reintenta con el siguiente cambio / al volver a la pestaña
     finally { pushing = false; if (pushAgain) { pushAgain = false; schedulePush(500); } }
   }
 
@@ -409,7 +414,7 @@ function createCloudSync(deps) {
         dirty = true; schedulePush(500);
         pullLibrary().catch(() => {});
       }
-    } catch {}                                                // sin conexión: se reintenta en refresh()
+    } catch (e) { console.warn('[sync] no se pudo cargar la cuenta desde R2:', e && e.message); }   // se reintenta en refresh()
   }
 
   // Al volver a la pestaña / recuperar conexión: traer lo que hayan cambiado otros dispositivos.
@@ -470,7 +475,8 @@ function createCloudSync(deps) {
     } catch { return false; }
   }
 
-  return { start, stop, refresh, flush, onChange, schedulePush, push, pull, pullLibrary, pushLibrary, isReady: () => ready, getMeta: () => meta };
+  const debug = () => ({ ready, pushing, dirty, user: meta.user, ts: { ...meta.ts }, pendiente: SYNC_SECTIONS.filter(k => meta.ts[k] && meta.hash[k] === undefined) });
+  return { debug, start, stop, refresh, flush, onChange, schedulePush, push, pull, pullLibrary, pushLibrary, isReady: () => ready, getMeta: () => meta };
 }
 // SYNC-END
 
@@ -7925,6 +7931,9 @@ function App() {
       }).catch(() => {});
     cloudSyncRef.current.start();
   }, []);
+
+  // Para diagnosticar desde la consola del navegador: metalSync.debug()
+  useEffect(() => { window.metalSync = cloudSyncRef.current; }, []);
 
   // Subir (debounce de 2 s) cualquier cambio de datos de la cuenta
   useEffect(() => { cloudSyncRef.current.onChange(); },
