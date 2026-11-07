@@ -7,8 +7,8 @@
 //
 // Estructura de claves que usa la app para datos de usuario:
 //   _users/<usuario>/data.json            → stats, likes, playlists, bookmarks, clips, artistMeta, perf, log
-//   _users/<usuario>/library.json         → índice de canciones escaneadas (para que las stats coincidan entre dispositivos)
 //   _users/<usuario>/images/<id>          → imágenes subidas por el usuario (portadas de artista y de playlist)
+//   _covers/<Artista>/<Disco>.jpg         → portadas de disco (ya se guardan solas; las lee /api/cover, files.js y reindex-covers.js)
 
 export const BUCKET   = 'metalsys';
 export const ENDPOINT = 'https://97bd5e1fe0734dd2a333126bb65abbf8.r2.cloudflarestorage.com';

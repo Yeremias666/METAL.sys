@@ -86,12 +86,13 @@ function saveClipStore(c) { try { localStorage.setItem(CLIPS_KEY, JSON.stringify
 function loadArtistMeta() { try { return JSON.parse(localStorage.getItem(ARTIST_META_KEY) || '{}'); } catch { return {}; } }
 function loadPlaylists() { try { return JSON.parse(localStorage.getItem(PLAYLIST_KEY) || '[]'); } catch { return []; } }
 function savePlaylists(p) { try { localStorage.setItem(PLAYLIST_KEY, JSON.stringify(p)); } catch {} }
+// Portada de un disco en R2 (_covers/Artista/Disco.jpg, ya guardada ahí): sirve para la foto del artista en cualquier dispositivo
+const albumCoverUrl = (artist, album) => `/api/cover?artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}`;
 function saveArtistMeta(m) { try { localStorage.setItem(ARTIST_META_KEY, JSON.stringify(m)); } catch {} }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SINCRONIZACIÓN DE LA CUENTA CON CLOUDFLARE R2
 //   /api/userdata     → stats, likes, playlists, marcadores, clips, portadas de artista, perf, historial
-//   /api/userlibrary  → índice de canciones escaneadas (metadatos, sin audio) para que STATS coincida entre dispositivos
 //   /api/userimage    → imágenes propias (portadas de artista y de playlist)
 //
 // Reglas de fusión entre dispositivos (el servidor aplica las mismas):
@@ -104,7 +105,7 @@ function saveArtistMeta(m) { try { localStorage.setItem(ARTIST_META_KEY, JSON.st
 //
 // SYNC-BEGIN — Las pruebas extraen el código entre SYNC-BEGIN y SYNC-END y lo ejecutan en Node:
 // aquí dentro no debe usarse nada propio de la app ni de React (solo fetch/localStorage inyectables).
-const SYNC_META_KEY = 'metalsys_sync_v1';   // { user, ts:{sección:ms}, hash:{}, seen:{}, lib }
+const SYNC_META_KEY = 'metalsys_sync_v1';   // { user, ts:{sección:ms}, hash:{}, seen:{} }
 const SYNC_SECTIONS = ['likedIds', 'playlists', 'bookmarks', 'clipStore', 'artistMeta', 'perf'];
 const USER_IMAGE_API = '/api/userimage';
 
@@ -251,8 +252,7 @@ async function uploadUserImage(token, src, replaceUrl, opts = {}) {
 //   getState() → { likedIds:Set, playlists, bookmarks, clipStore, artistMeta, perf, playCounts, playLog, log, listenSecs }
 //   getAuth()  → { token, username }
 //   set        → { likedIds, playlists, bookmarks, clipStore, artistMeta, perf  (reemplazan el valor),
-//                  playCounts, playLog, log, listenSecs  (reciben el valor de la nube y lo fusionan),
-//                  cloudLibrary(songs) }
+//                  playCounts, playLog, log, listenSecs  (reciben el valor de la nube y lo fusionan) }
 //   resetUserData() → vacía los datos de usuario locales (cuando entra otra cuenta)
 //   onAuthError()   → la sesión ya no es válida
 function createCloudSync(deps) {
@@ -261,7 +261,7 @@ function createCloudSync(deps) {
   const tmSet   = deps.setTimeout   || ((f, ms) => setTimeout(f, ms));
   const tmClear = deps.clearTimeout || ((t) => clearTimeout(t));
   const set     = deps.set;
-  const blank   = () => ({ user: null, ts: {}, hash: {}, seen: {}, lib: null });
+  const blank   = () => ({ user: null, ts: {}, hash: {}, seen: {} });
   const loadMeta = () => {
     try { const m = JSON.parse(store.getItem(SYNC_META_KEY) || 'null'); return _isPlain(m) ? { ...blank(), ...m } : blank(); }
     catch { return blank(); }
@@ -269,7 +269,7 @@ function createCloudSync(deps) {
   let meta = loadMeta();
   const saveMeta = () => { try { store.setItem(SYNC_META_KEY, JSON.stringify(meta)); } catch {} };
 
-  let ready = false, pushing = false, pushAgain = false, dirty = false, timer = null, lastPull = 0, lastLibPull = 0, pulling = null;
+  let ready = false, pushing = false, pushAgain = false, dirty = false, timer = null, lastPull = 0, pulling = null;
   const authH = (token, extra) => ({ Authorization: `Bearer ${token}`, ...(extra || {}) });
   const sameSession = (token) => deps.getAuth().token === token;
 
@@ -412,7 +412,6 @@ function createCloudSync(deps) {
         ready = true;
         deps.onReady && deps.onReady();
         dirty = true; schedulePush(500);
-        pullLibrary().catch(() => {});
       }
     } catch (e) { console.warn('[sync] no se pudo cargar la cuenta desde R2:', e && e.message); }   // se reintenta en refresh()
   }
@@ -423,10 +422,7 @@ function createCloudSync(deps) {
     if (!token) return;
     if (!ready) return start();
     if (!force && Date.now() - lastPull < 15000) return;
-    try {
-      if (await pull() && dirty) schedulePush(500);
-      if (Date.now() - lastLibPull > 300000) pullLibrary().catch(() => {});   // el índice de canciones cambia poco: cada 5 min
-    } catch {}
+    try { if (await pull() && dirty) schedulePush(500); } catch {}
   }
 
   // Sube ya lo pendiente (p. ej. al ocultar la pestaña) en vez de esperar al debounce.
@@ -448,35 +444,10 @@ function createCloudSync(deps) {
     timer = null; ready = false; pushAgain = false;
   }
 
-  async function pullLibrary() {
-    const { token } = deps.getAuth();
-    if (!token) return;
-    const res = await doFetch('/api/userlibrary', { headers: authH(token) });
-    if (!res.ok) return;
-    lastLibPull = Date.now();
-    const lib = await res.json();
-    if (sameSession(token) && lib && Array.isArray(lib.songs)) set.cloudLibrary(lib.songs);
-  }
-
-  async function pushLibrary(songs) {
-    const { token } = deps.getAuth();
-    if (!token || !ready || !Array.isArray(songs) || !songs.length) return false;
-    const h = _syncHash(songs);
-    if (meta.lib === h) return false;                         // el índice no ha cambiado desde la última subida
-    try {
-      const res = await doFetch('/api/userlibrary', {
-        method: 'PUT', headers: authH(token, { 'Content-Type': 'application/json' }), body: JSON.stringify({ songs }),
-      });
-      if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return false; }
-      if (!res.ok) return false;
-      meta.lib = h; saveMeta();
-      if (sameSession(token)) set.cloudLibrary(songs);
-      return true;
-    } catch { return false; }
-  }
-
+  // Para diagnosticar desde la consola del navegador (metalSync.debug())
   const debug = () => ({ ready, pushing, dirty, user: meta.user, ts: { ...meta.ts }, pendiente: SYNC_SECTIONS.filter(k => meta.ts[k] && meta.hash[k] === undefined) });
-  return { debug, start, stop, refresh, flush, onChange, schedulePush, push, pull, pullLibrary, pushLibrary, isReady: () => ready, getMeta: () => meta };
+
+  return { debug, start, stop, refresh, flush, onChange, schedulePush, push, pull, isReady: () => ready, getMeta: () => meta };
 }
 // SYNC-END
 
@@ -2633,6 +2604,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
   const [showResults, setShowResults] = useState(false);
   const [showEditArtist, setShowEditArtist] = useState(false);
   const [editImage, setEditImage] = useState('');
+  const [editCoverAlbum, setEditCoverAlbum] = useState('');   // disco cuya portada se eligió para el perfil del artista
   const [editDesc, setEditDesc] = useState('');
   const editImgInput = useRef(null);
   const detailThumbRef = useRef(null);
@@ -2795,13 +2767,16 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
 
   // Función para guardar la edición del artista
   const saveArtistEdit = () => {
-    onUpdateArtistMeta && onUpdateArtistMeta(cat, { image: editImage || meta.image, description: editDesc });
+    onUpdateArtistMeta && onUpdateArtistMeta(cat, { image: editCoverAlbum ? '' : (editImage || meta.image), coverAlbum: editCoverAlbum, description: editDesc });   // con disco elegido el perfil guarda el disco, no una copia de la imagen
     setShowEditArtist(false);
   };
 
   // Imagen del artista: meta personalizada > portada de un disco
   const defaultCover = list.find(f => f.thumbnail || f.coverArt);
-  const artistImage = meta.image || defaultCover?.thumbnail || defaultCover?.coverArt || null;
+  const coverAlbumFile = meta.coverAlbum ? albumObjects.find(a => a.name === meta.coverAlbum)?.cover : null;   // portada del disco elegido, de la biblioteca de este dispositivo
+  const artistImage = meta.coverAlbum
+    ? (coverAlbumFile?.thumbnail || coverAlbumFile?.coverArt || albumCoverUrl(cat, meta.coverAlbum))   // disco elegido: de la biblioteca local, o de R2 si no está aquí
+    : (meta.image || defaultCover?.thumbnail || defaultCover?.coverArt || null);
 
   return (
     <div>
@@ -2820,11 +2795,11 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                       : <div className="thumb-empty"><IconGlyph iconId="usuario" size={40} /></div>}
                     <input ref={editImgInput} type="file" accept="image/*" style={{display:'none'}} onChange={async e => {
                       const f = e.target.files[0]; if (!f) return;
-                      const url = await readAsDataURL(f); setEditImage(url);
+                      const url = await readAsDataURL(f); setEditImage(url); setEditCoverAlbum('');
                     }} />
                   </div>
                   {(editImage || meta.image) && (
-                    <button className="mini-btn alt" style={{marginTop:6}} onClick={() => setEditImage('')}>✕ QUITAR</button>
+                    <button className="mini-btn alt" style={{marginTop:6}} onClick={() => { setEditImage(''); setEditCoverAlbum(''); }}>✕ QUITAR</button>
                   )}
                 </div>
                 <div style={{flex:1}}>
@@ -2840,10 +2815,10 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                   <div style={{display:'flex', gap:6, flexWrap:'wrap'}}>
                     {albumObjects.filter(a => a.cover?.thumbnail || a.cover?.coverArt).map(a => {
                       const src = a.cover.thumbnail || a.cover.coverArt;
-                      const active = editImage === src;
+                      const active = editCoverAlbum ? editCoverAlbum === a.name : editImage === src;
                       return (
                         <div key={a.name} title={a.name}
-                          onClick={() => setEditImage(active ? '' : src)}
+                          onClick={() => { setEditImage(active ? '' : src); setEditCoverAlbum(active ? '' : a.name); }}
                           style={{width:52, height:52, flexShrink:0, cursor:'pointer', overflow:'hidden',
                             border: active ? '2px solid var(--fg-primary)' : '2px solid transparent',
                             outline: active ? '1px solid rgba(214,31,31,0.4)' : 'none', borderRadius:2}}>
@@ -2881,7 +2856,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
           )}
           <div style={{padding:'8px 12px', display:'flex', gap:8}}>
             <button className="mini-btn alt" onClick={() => onNav({ page: 'BANDAS' })}>◀ VOLVER</button>
-            <button className="mini-btn alt" onClick={() => { setEditImage(meta.image||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
+            <button className="mini-btn alt" onClick={() => { setEditImage((meta.coverAlbum && (coverAlbumFile?.thumbnail || coverAlbumFile?.coverArt)) || meta.image || ''); setEditCoverAlbum(meta.coverAlbum||''); setEditDesc(meta.description||''); setShowEditArtist(true); }}>
               ✎ EDITAR
             </button>
           </div>
@@ -7661,7 +7636,6 @@ function App() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [syncReady, setSyncReady] = useState(false);       // la primera carga desde R2 ha terminado
-  const [cloudLibrary, setCloudLibrary] = useState([]);       // canciones de la cuenta (índice en R2), de cualquier dispositivo
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 700);
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 700);
@@ -7900,7 +7874,6 @@ function App() {
             setListenSecs(next);
           }
         },
-        cloudLibrary: songs => setCloudLibrary(songs),
       },
       // Otra cuenta usó antes este dispositivo: se vacían sus datos para no mezclarlos con los de la nueva
       resetUserData: () => {
@@ -7979,28 +7952,6 @@ function App() {
       else setPlaylists(prev => prev.map(p => (p.id === j.key && p.coverArt === j.src) ? { ...p, coverArt: url } : p));
     });
   }, [artistMeta, playlists, authToken, syncReady]);
-
-  // Índice de canciones escaneadas → R2 (solo metadatos), para que STATS coincida en todos los dispositivos
-  useEffect(() => {
-    if (!authToken || !syncReady || localScanning) return;
-    const t = setTimeout(() => {
-      const songs = localFilesAll.filter(isAudioFile).map(f => ({
-        id: f.id, name: f.name, artist: f.artist, category: f.category, album: f.album, track: f.track, year: f.year,
-        genre: f.genre, fileName: f.fileName, fileType: f.fileType, fileSize: f.fileSize, duration: f.duration, uploadedAt: f.uploadedAt,
-      }));
-      if (songs.length) cloudSyncRef.current.pushLibrary(songs);
-    }, 3000);
-    return () => clearTimeout(t);
-  }, [authToken, syncReady, localScanning, localFilesAll]);
-
-  // Canciones de la cuenta que NO están en este dispositivo (escaneadas en otro): solo cuentan en STATS
-  const cloudOnlySongs = useMemo(() => {
-    if (!cloudLibrary.length) return [];
-    const have = new Set([...filesAll, ...localFilesAll].map(f => f.id));
-    return cloudLibrary.filter(s => !have.has(s.id)).map(s => ({
-      ...s, fileType: s.fileType || 'audio/mpeg', thumbnail: null, coverArt: null, isLocal: true, isCloudOnly: true, fileData: null,
-    }));
-  }, [cloudLibrary, filesAll, localFilesAll]);
 
   // Cargar biblioteca de Cloudflare R2 al arrancar
   useEffect(() => {
@@ -8135,6 +8086,21 @@ function App() {
   // Artistas derivados del vault y de la carpeta local
   const allArtists = useMemo(() => [...new Set([...files, ...localFiles].map(f => f.category || f.artist).filter(Boolean))].sort(), [files, localFiles]);
   const allCats = allArtists;
+
+  // Foto de perfil del artista = portada del disco elegido en EDITAR ARTISTA (artistMeta[a].coverAlbum, se sincroniza con la cuenta).
+  // Se toma de ese disco en ESTE dispositivo; si no lo tiene escaneado, de R2 (_covers/Artista/Disco.jpg, vía /api/cover).
+  const artistMetaView = useMemo(() => {
+    const out = {};
+    let all = null;
+    for (const [a, m] of Object.entries(artistMeta)) {
+      if (m && m.coverAlbum) {
+        all = all || [...files, ...localFiles];
+        const f = all.find(x => (x.category || x.artist) === a && (x.album || 'SINGLE') === m.coverAlbum && (x.thumbnail || x.coverArt));
+        out[a] = { ...m, image: f ? (f.thumbnail || f.coverArt) : albumCoverUrl(a, m.coverAlbum) };
+      } else out[a] = m;
+    }
+    return out;
+  }, [artistMeta, files, localFiles]);
 
   const addToLog = (entry) => setLog((p) => [{ ...entry, ts: Date.now() }, ...p].slice(0, 200));
 
@@ -9376,7 +9342,7 @@ function App() {
                           onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                           localFiles={localFiles} localDirName={localDirName}
                           onPickFolder={pickLocalFolder} onDisconnectFolder={disconnectLocalFolder}
-                          artistMeta={artistMeta} playlists={playlistsView} />
+                          artistMeta={artistMetaView} playlists={playlistsView} />
               )}
               {route.page === 'TODO' && (
                 <AllSongsPage files={files} localFiles={localFiles}
@@ -9399,7 +9365,7 @@ function App() {
                             onNav={navigateTo} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={smartPlayArtist}
-                            artistMeta={artistMeta} playlists={playlistsView} />
+                            artistMeta={artistMetaView} playlists={playlistsView} />
               )}
               {route.page === 'MESGUSTA' && (
                 <MeGustaPage
@@ -9466,7 +9432,7 @@ function App() {
                 />
               )}
               {route.page === 'STATS' && (
-                <StatsPage files={files} localFiles={[...localFiles, ...cloudOnlySongs]} playCounts={playCountsView} log={log} likedIds={likedIdsView} playLog={playLog} artistMeta={artistMeta} />
+                <StatsPage files={files} localFiles={localFiles} playCounts={playCountsView} log={log} likedIds={likedIdsView} playLog={playLog} artistMeta={artistMetaView} />
               )}
               {route.page === 'LOCAL' && (
                 <LocalPage
