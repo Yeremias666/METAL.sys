@@ -62,7 +62,9 @@ const MARQUEE_LINES = [
 // ──── ALMACENAMIENTO ────────────────────────────────────────────
 // Funciones simples de lectura/escritura de localStorage.
 // Todos los datos del vault, categorías, likes, etc. viven aquí.
-function loadVault() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
+// La música ya NO viene de R2 (solo se escanea en local): se descartan las canciones 'r2:' que versiones anteriores
+// dejaron guardadas aquí, para que no sigan apareciendo cuando ya no las tienes en la carpeta.
+function loadVault() { try { const v = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); return Array.isArray(v) ? v.filter(f => !(f && typeof f.id === 'string' && f.id.startsWith('r2:'))) : []; } catch { return []; } }
 function saveVault(f) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(f)); return true; } catch { return false; } }
 function loadCats() {
   try {
@@ -6141,7 +6143,7 @@ function AcercaPage() {
     {
       id: '02', title: 'BIBLIOTECA EN LA NUBE (CLOUDFLARE R2)', icon: '◈',
       items: [
-        'Al arrancar, carga automáticamente los MP3 del bucket R2 vía /api/files',
+        'La música ya no se carga de R2: la biblioteca sale solo de la carpeta local escaneada',
         'Streaming directo desde R2 mediante URLs presignadas AWS Signature V4 (TTL 1 hora)',
         'Portadas extraídas de los MP3 y cacheadas en R2 como _covers/Artista/Album.jpg',
         'Índice de metadatos ID3 en _meta/index.json — se actualiza con el panel de mantenimiento',
@@ -7953,25 +7955,7 @@ function App() {
     });
   }, [artistMeta, playlists, authToken, syncReady]);
 
-  // Cargar biblioteca de Cloudflare R2 al arrancar
-  useEffect(() => {
-    fetch('/api/files')
-      .then(r => r.ok ? r.json() : [])
-      .then(r2 => {
-        if (!Array.isArray(r2) || !r2.length) return;
-
-        setFiles(prev => {
-          const nonR2 = prev.filter(f => !f.id.startsWith('r2:'));
-          // Propagar coverUrl a thumbnail/coverArt para que funcionen todos los componentes
-          const withCovers = r2.map(f => f.coverUrl
-            ? { ...f, thumbnail: f.coverUrl, coverArt: f.coverUrl }
-            : f
-          );
-          return [...nonR2, ...withCovers];
-        });
-      })
-      .catch(() => {});
-  }, []);
+  // (Antes aquí se cargaba la música de R2. Ya no: la biblioteca sale solo de la carpeta local escaneada.)
 
 
   useEffect(() => {
