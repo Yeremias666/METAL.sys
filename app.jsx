@@ -3942,19 +3942,15 @@ function ScrollText({ className, children, ...rest }) {
 }
 
 // ─── PLAYER ICON SVGs ───────────────────────────────────────────
-function IconShuffle({ active }) {
+function IconShuffle({ active = true }) {
+  // Mismo estilo que los iconos de repetir: viewBox 24, trazo 2, extremos redondeados, puntas en "V"
   const s = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' };
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" style={{ opacity: active ? 1 : 0.6 }}>
-      {/* arrow 1: left→right (top path) */}
-      <polyline points="16,3 21,3 21,8" {...s} />
-      <path d="M3 12 Q3 3 12 3 L21 3" {...s} />
-      {/* arrow 2: right→left (bottom path) */}
-      <polyline points="8,21 3,21 3,16" {...s} />
-      <path d="M21 12 Q21 21 12 21 L3 21" {...s} />
-      {/* crossing tick marks */}
-      <line x1="3" y1="3" x2="9" y2="9" {...s} />
-      <line x1="15" y1="15" x2="21" y2="21" {...s} />
+      <polyline points="17,2 21,6 17,10" {...s} />
+      <path d="M3 6h3c5 0 7 12 12 12h3" {...s} />
+      <polyline points="17,14 21,18 17,22" {...s} />
+      <path d="M3 18h3c5 0 7-12 12-12h3" {...s} />
     </svg>
   );
 }
