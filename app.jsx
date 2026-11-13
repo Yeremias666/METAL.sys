@@ -272,6 +272,13 @@ function createCloudSync(deps) {
   const saveMeta = () => { try { store.setItem(SYNC_META_KEY, JSON.stringify(meta)); } catch {} };
 
   let ready = false, pushing = false, pushAgain = false, dirty = false, timer = null, lastPull = 0, pulling = null;
+  // Estado visible para el usuario (menú de la cuenta): state = 'idle' | 'syncing' | 'ok' | 'error'
+  let status = { state: 'idle', at: 0, error: '' };
+  const setStatus = (patch) => { status = { ...status, ...patch }; if (deps.onStatus) { try { deps.onStatus({ ...status }); } catch {} } };
+  const errText = async (res, what) => {
+    let body = ''; try { body = (await res.text()).slice(0, 160); } catch {}
+    return `${what} ${res.status}${body ? ': ' + body : ''}`;
+  };
   const authH = (token, extra) => ({ Authorization: `Bearer ${token}`, ...(extra || {}) });
   const sameSession = (token) => deps.getAuth().token === token;
 
@@ -361,14 +368,18 @@ function createCloudSync(deps) {
     pulling = (async () => {
       const { token, username } = deps.getAuth();
       if (!token || !username) return false;
-      const res = await doFetch('/api/userdata', { headers: authH(token) });
-      if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return false; }
-      if (!res.ok) throw new Error('userdata ' + res.status);
-      const d = await res.json();
-      if (!sameSession(token)) return false;
-      applyCloud(d, username);
-      lastPull = Date.now();
-      return true;
+      setStatus({ state: 'syncing' });
+      try {
+        const res = await doFetch('/api/userdata', { headers: authH(token) });
+        if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return false; }
+        if (!res.ok) throw new Error(await errText(res, 'al leer la cuenta (GET /api/userdata)'));
+        const d = await res.json();
+        if (!sameSession(token)) return false;
+        applyCloud(d, username);
+        lastPull = Date.now();
+        setStatus({ state: 'ok', at: Date.now(), error: '' });
+        return true;
+      } catch (e) { setStatus({ state: 'error', error: (e && e.message) || String(e) }); throw e; }
     })();
     try { return await pulling; } finally { pulling = null; }
   }
@@ -393,10 +404,11 @@ function createCloudSync(deps) {
         method: 'PUT', headers: authH(token, { 'Content-Type': 'application/json' }), body: JSON.stringify(body),
       });
       if (res.status === 401) { deps.onAuthError && deps.onAuthError(); return; }
-      if (!res.ok) throw new Error('userdata ' + res.status);
+      if (!res.ok) throw new Error(await errText(res, 'al guardar la cuenta (PUT /api/userdata)'));
       const merged = await res.json();
       if (sameSession(token)) applyCloud(merged, username);
-    } catch (e) { dirty = true; console.warn('[sync] no se pudo guardar la cuenta en R2:', e && e.message); }   // se reintenta con el siguiente cambio / al volver a la pestaña
+      setStatus({ state: 'ok', at: Date.now(), error: '' });
+    } catch (e) { dirty = true; setStatus({ state: 'error', error: (e && e.message) || String(e) }); console.warn('[sync] no se pudo guardar la cuenta en R2:', e && e.message); }   // se reintenta con el siguiente cambio / al volver a la pestaña
     finally { pushing = false; if (pushAgain) { pushAgain = false; schedulePush(500); } }
   }
 
@@ -446,10 +458,22 @@ function createCloudSync(deps) {
     timer = null; ready = false; pushAgain = false;
   }
 
+  // Botón "sincronizar ahora": trae lo de la nube y sube lo pendiente; devuelve el estado final.
+  async function syncNow() {
+    const { token, username } = deps.getAuth();
+    if (!token) return status;
+    if (!username) { setStatus({ state: 'error', error: 'todavía no se conoce el usuario de la sesión: recarga la página' }); return status; }
+    try {
+      if (!ready) await start(); else await pull();
+      if (ready) { dirty = true; if (timer) { tmClear(timer); timer = null; } await push(); }
+    } catch {}
+    return status;
+  }
+
   // Para diagnosticar desde la consola del navegador (metalSync.debug())
   const debug = () => ({ ready, pushing, dirty, user: meta.user, ts: { ...meta.ts }, pendiente: SYNC_SECTIONS.filter(k => meta.ts[k] && meta.hash[k] === undefined) });
 
-  return { debug, start, stop, refresh, flush, onChange, schedulePush, push, pull, isReady: () => ready, getMeta: () => meta };
+  return { debug, start, stop, refresh, flush, onChange, schedulePush, push, pull, syncNow, getStatus: () => ({ ...status }), isReady: () => ready, getMeta: () => meta };
 }
 // SYNC-END
 
@@ -1437,7 +1461,7 @@ function NavGlyph({ kind }) {
 }
 
 // ─── CHROME ────────────────────────────────────────────────────
-function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf }) {
+function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf, syncStatus, onSyncNow }) {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const id = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(id); }, []);
   const pad = (n) => String(n).padStart(2, '0');
@@ -1457,7 +1481,7 @@ function StatusBar({ count, totalBytes, localCount = 0, localBytes = 0, authUser
       <div className="right">
         <span>{dateStr}</span>
         <span className="chroma">{timeStr}</span>
-        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} onOpenAdmin={onOpenAdmin} perf={perf} setPerf={setPerf} />
+        <UserButton authUser={authUser} onOpenAuth={onOpenAuth} onLogout={onLogout} onOpenProfile={onOpenProfile} onOpenAdmin={onOpenAdmin} perf={perf} setPerf={setPerf} syncStatus={syncStatus} onSyncNow={onSyncNow} />
       </div>
     </div>
   );
@@ -5186,7 +5210,27 @@ function PerfToggle({ label, value, onChange }) {
   );
 }
 
-function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf }) {
+// Estado de la sincronización de la cuenta con R2 + botón para forzarla (y ver el error si falla)
+function SyncStatusLine({ status, onSyncNow }) {
+  const st = status || { state: 'idle', at: 0, error: '' };
+  const label = st.state === 'ok' ? `OK · ${new Date(st.at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`
+              : st.state === 'syncing' ? 'SINCRONIZANDO…'
+              : st.state === 'error' ? 'ERROR' : 'SIN SINCRONIZAR';
+  const color = st.state === 'ok' ? '#4ade80' : st.state === 'error' ? 'var(--fg-primary)' : 'var(--fg-dim)';
+  return (
+    <div style={{ padding: '6px 12px' }}>
+      <div style={{ fontFamily: 'var(--pixel)', fontSize: 9, letterSpacing: '0.08em', color }}>☁ CUENTA: {label}</div>
+      {st.state === 'error' && st.error && (
+        <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--fg-dim)', marginTop: 3, wordBreak: 'break-word' }}>{st.error}</div>
+      )}
+      {onSyncNow && (
+        <button style={{ marginTop: 6, padding: '4px 8px' }} disabled={st.state === 'syncing'} onClick={onSyncNow}>↻ SINCRONIZAR AHORA</button>
+      )}
+    </div>
+  );
+}
+
+function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin, perf, setPerf, syncStatus, onSyncNow }) {
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [showPerf, setShowPerf] = React.useState(false);
   const ref = React.useRef(null);
@@ -5219,6 +5263,8 @@ function UserButton({ authUser, onOpenAuth, onLogout, onOpenProfile, onOpenAdmin
             <div style={{fontFamily:'var(--mono)', fontSize:12, color:'var(--fg-dim)', marginTop:2}}>{authUser.email}</div>
           </div>
           <button onClick={() => { setMenuOpen(false); setShowPerf(false); onOpenProfile(); }}>⚙ PERFIL</button>
+          <div className="user-menu-sep" />
+          <SyncStatusLine status={syncStatus} onSyncNow={onSyncNow} />
           <div className="user-menu-sep" />
           <button className={showPerf ? 'active' : ''} onClick={() => setShowPerf(p => !p)}>
             ▸ RENDIMIENTO
@@ -7854,6 +7900,7 @@ function App() {
 
   // ── Sincronización de la cuenta con R2 (stats, likes, playlists, portadas…) ─────────────────────────
   // El motor (createCloudSync) está definido arriba; aquí solo se le conecta el estado de la app.
+  const [syncStatus, setSyncStatus] = useState({ state: 'idle', at: 0, error: '' });
   const stateRef = useRef(null);
   stateRef.current = { likedIds, playlists, bookmarks, clipStore, artistMeta, perf, playCounts, playLog, log, listenSecs };
   const authRef = useRef({ token: null, username: null });
@@ -7888,6 +7935,7 @@ function App() {
         try { localStorage.setItem('metalsys_listen_secs_v1', '0'); } catch {}
       },
       onReady: () => setSyncReady(true),
+      onStatus: (st) => setSyncStatus(st),
       onAuthError: () => {                                    // sesión caducada o invalidada en el servidor
         setAuthUser(null); setAuthToken(null); setSyncReady(false);
         try { localStorage.removeItem('metalsys_auth_token'); localStorage.removeItem('metalsys_auth_user'); } catch {}
@@ -7906,9 +7954,12 @@ function App() {
           const updated = { username: d.username, email: d.email, avatar: d.avatar || null, role: d.role || 'user' };
           setAuthUser(updated);
           localStorage.setItem('metalsys_auth_user', JSON.stringify(updated));
+          authRef.current = { token: authToken, username: d.username };   // el motor ya conoce el usuario aunque React aún no haya repintado
         }
-      }).catch(() => {});
-    cloudSyncRef.current.start();
+      }).catch(() => {})
+      // La carga de la cuenta espera a saber quién es el usuario (antes podía arrancar sin él y quedarse
+      // sin sincronizar hasta el siguiente refresco)
+      .finally(() => { cloudSyncRef.current.start(); });
   }, []);
 
   // Para diagnosticar desde la consola del navegador: metalSync.debug()
@@ -9295,7 +9346,7 @@ function App() {
     <div className={`crt-stage ${phosphorClass}`}>
       <div className="crt-screen" style={{ animationPlayState: (perf.flicker && t.flicker) ? 'running' : 'paused' }}>
         <div className="crt-content" style={{ animationPlayState: (perf.jitter && t.jitter) ? 'running' : 'paused' }}>
-          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} onOpenAdmin={() => navigateTo({ page: 'DEBUG' })} perf={perf} setPerf={setPerf} />
+          <StatusBar count={files.filter(isAudioFile).length} totalBytes={totalBytes} localCount={localFiles.filter(isAudioFile).length} localBytes={localFiles.reduce((a,f)=>a+(f.fileSize||0),0)} authUser={authUser} onOpenAuth={() => setShowAuthModal(true)} onLogout={handleLogout} onOpenProfile={() => setShowProfileModal(true)} onOpenAdmin={() => navigateTo({ page: 'DEBUG' })} perf={perf} setPerf={setPerf} syncStatus={syncStatus} onSyncNow={() => cloudSyncRef.current.syncNow()} />
           <div className="page">
             {/* Left sidebar */}
             {!isMobile && (
