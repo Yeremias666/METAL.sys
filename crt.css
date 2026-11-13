@@ -1330,6 +1330,8 @@ input:not([type=range]), textarea {
   box-shadow: 0 0 14px rgba(214,31,31,0.8);
 }
 }
+/* Botón aleatorio: a la izquierda del de reproducir (36px + 10px de margen + 8px de hueco) */
+.cat-card-shuffle { right: 54px; }
 .cat-card-info {
   padding: 10px 12px 12px;
   background: rgba(0,0,0,0.55);

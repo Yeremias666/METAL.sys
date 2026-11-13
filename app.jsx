@@ -1548,7 +1548,7 @@ function CoverImg({ src, alts = [], alt, className, fallback = null }) {
   return <img className={className} src={list[i]} alt={alt} onError={() => setI(n => n + 1)} />;
 }
 
-function ArtistCard({ artist, cover, coverAlts = [], subtitle, onNav, onPlayArtist, index = 0 }) {
+function ArtistCard({ artist, cover, coverAlts = [], subtitle, onNav, onPlayArtist, onShuffleArtist, index = 0 }) {
   const cardRef = useRef(null);
 
   const onMove = useCallback((e) => {
@@ -1577,6 +1577,10 @@ function ArtistCard({ artist, cover, coverAlts = [], subtitle, onNav, onPlayArti
       <div className="cat-card-img">
         <CoverImg src={cover} alts={coverAlts} alt={artist}
                   fallback={<div className="cat-card-no-cover"><IconGlyph iconId="nota" size={52} /></div>} />
+        {onShuffleArtist && (
+          <button className="cat-card-play cat-card-shuffle" title="Reproducir aleatorio" aria-label={`Reproducir ${artist} en aleatorio`}
+                  onClick={(e) => { e.stopPropagation(); onShuffleArtist(artist); }}><IconShuffle active /></button>
+        )}
         <button className="cat-card-play" onClick={(e) => { e.stopPropagation(); onPlayArtist(artist); }}>▶</button>
       </div>
       <div className="cat-card-info">
@@ -1588,7 +1592,7 @@ function ArtistCard({ artist, cover, coverAlts = [], subtitle, onNav, onPlayArti
 }
 
 // ─── PAGE: INICIO ──────────────────────────────────────────────
-function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, onPlayAllShuffle, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
+function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onShuffleArtist, onPlayAll, onPlayAllShuffle, localFiles = [], localDirName = '', onPickFolder, onDisconnectFolder, artistMeta = {}, playlists = [] }) {
   const total      = files.reduce((a, f) => a + f.fileSize, 0);
   const localTotal = localFiles.reduce((a, f) => a + (f.fileSize || 0), 0);
   const localSongCount = localFiles.filter(isAudioFile).length;
@@ -1785,7 +1789,7 @@ function HomePage({ files, allCats, onOpenFile, onNav, onPlayArtist, onPlayAll, 
                     return (
                       <ArtistCard key={artist} artist={artist} cover={coverSrc} coverAlts={coverAlts}
                         subtitle={`${allSongs.length} tema${allSongs.length===1?'':'s'} · ${albums.length} disco${albums.length===1?'':'s'}`}
-                        onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
+                        onNav={onNav} onPlayArtist={onPlayArtist} onShuffleArtist={onShuffleArtist} index={idx} />
                     );
                   })}
                 </div>
@@ -9322,6 +9326,7 @@ function App() {
               {route.page === 'INICIO' && (
                 <HomePage files={files} allCats={allCats} onOpenFile={openFile} onNav={navigateTo}
                           onPlayArtist={(artist) => playScope({ type: 'artist', artist }, false)}
+                          onShuffleArtist={(artist) => playScope({ type: 'artist', artist }, true)}
                           onPlayAll={() => playScope({ type: 'all' }, false)}
                           onPlayAllShuffle={() => playScope({ type: 'all' }, true)}
                           localFiles={localFiles} localDirName={localDirName}
