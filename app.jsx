@@ -2073,7 +2073,7 @@ function AllSongsPage({ files, localFiles = [], allCats = [], onOpenFile, onPlay
   );
 }
 
-function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, onOpenFile, artistMeta = {}, playlists = [] }) {
+function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayArtist, onShuffleArtist, onOpenFile, artistMeta = {}, playlists = [] }) {
   const [query, setQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles].filter(isAudioFile), [files, localFiles]);
   const gq = normStr(query.trim());
@@ -2164,7 +2164,7 @@ function BandasPage({ artists, files, localFiles = [], onNav, onPlayAll, onPlayA
           return (
             <ArtistCard key={artist} artist={artist} cover={artistImg} coverAlts={coverAlts}
               subtitle={`${songs.length} tema${songs.length===1?'':'s'}`}
-              onNav={onNav} onPlayArtist={onPlayArtist} index={idx} />
+              onNav={onNav} onPlayArtist={onPlayArtist} onShuffleArtist={onShuffleArtist} index={idx} />
           );
         })}
       </div>
@@ -2512,7 +2512,7 @@ function FolderImportSection({ vault, onUpload }) {
 }
 
 // ─── ALBUM CARD con parallax 3D ───────────────────────────────
-function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = false, index = 0 }) {
+function AlbumCard({ album, cat, onOpen, onPlay, onShuffle, rowMode = false, searchMode = false, index = 0 }) {
   const cardRef = useRef(null);
   // Vinilo: reposo = centrado detrás de la portada (tapado por la imagen)
   // Hover  = desliza hacia la derecha y asoma fuera del frame
@@ -2587,6 +2587,10 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
       <div className={thumbClass}>
         {vinylEl}
         {coverEl}
+        {onShuffle && (
+          <button className="ac-play-btn ac-shuffle-btn" title="Reproducir aleatorio" aria-label={`Reproducir ${album.name} en aleatorio`}
+                  onClick={(e) => { e.stopPropagation(); onShuffle(cat, album.name); }}><IconShuffle active /></button>
+        )}
         <button className="ac-play-btn" onClick={(e) => { e.stopPropagation(); onPlay(cat, album.name); }}>▶</button>
       </div>
       <div className="album-card-body">
@@ -2600,7 +2604,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, rowMode = false, searchMode = f
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onShuffleAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const list = files.filter((f) => (f.category || f.artist) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -2988,7 +2992,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
                         {searchAlbums.map((album, i) => (
                           <AlbumCard key={`${album.artist}::${album.name}`} album={album} cat={album.artist}
                                      onOpen={(name) => { clearSearch(); onNav({ page: 'CAT', cat: album.artist, album: name }); }}
-                                     onPlay={onPlayAlbum}
+                                     onPlay={onPlayAlbum} onShuffle={onShuffleAlbum}
                                      searchMode index={i} />
                         ))}
                       </div>
@@ -3011,7 +3015,7 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               <div className="album-grid" style={{padding:'12px'}}>
                 {albumObjects.map((album, i) => (
                   <AlbumCard key={album.name} album={album} cat={cat}
-                             onOpen={openAlbum} onPlay={onPlayAlbum} index={i} />
+                             onOpen={openAlbum} onPlay={onPlayAlbum} onShuffle={onShuffleAlbum} index={i} />
                 ))}
               </div>
             )}
@@ -9350,6 +9354,7 @@ function App() {
                             onNav={navigateTo} onOpenFile={openFile}
                             onPlayAll={() => playScope({ type: 'all' }, false)}
                             onPlayArtist={smartPlayArtist}
+                            onShuffleArtist={(artist) => playScope({ type: 'artist', artist }, true)}
                             artistMeta={artistMetaView} playlists={playlistsView} />
               )}
               {route.page === 'MESGUSTA' && (
@@ -9450,6 +9455,7 @@ function App() {
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayArtist={smartPlayArtist}
                               onPlayAlbum={smartPlayAlbum}
+                              onShuffleAlbum={(artist, album) => playScope({ type: 'album', artist, album }, true)}
                               onPlayFile={(f) => {
                                 const artist = f.category || f.artist;
                                 const ctx = f.album

@@ -4356,6 +4356,8 @@ input:not([type=range]), textarea {
 .ac-play-btn:active {
   transform: scale(0.95);
 }
+/* Aleatorio del disco: a la izquierda del ▶ (36px + 8px de margen + 8px de hueco) */
+.ac-shuffle-btn { right: 52px; padding-left: 0; }
 
 
 /* ─── Invertir colores lib-play al hover (item 24) ─────────────── */
