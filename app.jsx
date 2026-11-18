@@ -5642,7 +5642,7 @@ function PlaylistAutoGrid({ playlist, allFiles }) {
   );
 }
 
-function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
+function PlaylistCard({ playlist, allFiles, onOpen, onPlay, onShuffle, index = 0 }) {
   const cardRef = useRef(null);
   const SLIDE_OUT = 'translateY(-50%)';
   const SLIDE_IN  = 'translateY(-50%) translateX(54%)';
@@ -5688,6 +5688,10 @@ function PlaylistCard({ playlist, allFiles, onOpen, onPlay, index = 0 }) {
       <div className="album-card-thumb">
         <div className="album-card-vinyl"><div className="ac-vinyl-disc" /></div>
         {coverEl}
+        {onShuffle && songCount > 0 && (
+          <button className="ac-play-btn ac-shuffle-btn" title="Reproducir aleatorio" aria-label={`Reproducir ${playlist.name} en aleatorio`}
+                  onClick={e => { e.stopPropagation(); onShuffle(playlist.id); }}><IconShuffle active /></button>
+        )}
         {onPlay && songCount > 0 && (
           <button className="ac-play-btn" onClick={e => { e.stopPropagation(); onPlay(playlist.id); }}>▶</button>
         )}
@@ -5887,7 +5891,7 @@ function PlaylistDetailPage({ playlist, allFiles, onBack, onPlayAll, onPlayAllSh
 }
 
 // ─── PLAYLIST PAGE ──────────────────────────────────────────
-function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist, onNav, onOpenFile, allCats = [], onOpenCreatePlaylist }) {
+function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlaylist, onPlayPlaylist, onShufflePlaylist, onNav, onOpenFile, allCats = [], onOpenCreatePlaylist }) {
   const [sort, setSort] = useState('alpha');
   const [gQuery, setGQuery] = useState('');
   const allFiles = useMemo(() => [...files, ...localFiles], [files, localFiles]);
@@ -6019,6 +6023,7 @@ function PlaylistPage({ playlists = [], files = [], localFiles = [], onOpenPlayl
                 <PlaylistCard key={pl.id} playlist={pl} allFiles={allFiles}
                               onOpen={onOpenPlaylist || (() => {})}
                               onPlay={onPlayPlaylist}
+                              onShuffle={onShufflePlaylist}
                               index={i} />
               ))}
             </div>
@@ -9470,6 +9475,7 @@ function App() {
                 <PlaylistPage playlists={playlistsView} files={files} localFiles={localFiles}
                               onOpenPlaylist={(id) => navigateTo({ page: 'PLAYLIST', playlistId: id })}
                               onPlayPlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, false)}
+                              onShufflePlaylist={(id) => playScope({ type: 'playlist', playlistId: id }, true)}
                               onNav={navigateTo} onOpenFile={openFile} allCats={allCats}
                               onOpenCreatePlaylist={() => setShowCreatePlaylistModal(true)} />
               )}
