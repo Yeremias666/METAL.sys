@@ -9607,7 +9607,9 @@ function App() {
         <VUBackdrop analyser={analyserRef} isPlaying={isPlaying} vuEnabled={perf.vuMeter} />
       )}
       {currentTrack && playerMin && !isMobile && (
-        <button className="mp-restore-btn" onClick={() => setPlayerMin(false)} title="Mostrar reproductor" aria-label="Mostrar reproductor">^</button>
+        <button className="mp-restore-btn" onClick={() => setPlayerMin(false)} title="Mostrar reproductor" aria-label="Mostrar reproductor">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true"><polyline points="2.5,11 8,5.5 13.5,11" /></svg>
+        </button>
       )}
 
       <MusicPlayer track={currentTrack} queue={effectiveQueue} isPlaying={isPlaying}
