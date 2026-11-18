@@ -4168,7 +4168,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
       )}
       {onMinimize ? (
         <div className="mp-win-btns">
-          <button className="mp-close mp-min-btn" onClick={onMinimize} title="Minimizar" aria-label="Minimizar reproductor">▁</button>
+          <button className="mp-close mp-min-btn" onClick={onMinimize} title="Minimizar" aria-label="Minimizar reproductor"><span className="mp-min-icon" /></button>
           <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
         </div>
       ) : (
@@ -7841,7 +7841,7 @@ function App() {
     const update = () => {
       const player = document.querySelector('.music-player');
       if (player && player.classList.contains('mp-minimized')) {
-        document.documentElement.style.setProperty('--vu-bottom', '12px');
+        document.documentElement.style.setProperty('--vu-bottom', '0px');
       } else if (player) {
         const fromBottom = window.innerHeight - player.getBoundingClientRect().top;
         document.documentElement.style.setProperty('--vu-bottom', fromBottom + 'px');

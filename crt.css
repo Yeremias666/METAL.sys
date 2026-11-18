@@ -3205,9 +3205,15 @@ input:not([type=range]), textarea {
 .mp-win-btns { display: flex; gap: 8px; align-items: center; }
 /* Reproductor minimizado: se oculta la barra (sigue montada) y solo quedan las barras VU */
 .music-player.mp-minimized { display: none; }
+/* Minimizado: las barras VU ocupan todo el ancho y van pegadas al borde inferior de la pantalla */
+body:has(.music-player.mp-minimized) .vu-backdrop { left: 0; right: 0; bottom: 0; }
+/* Icono "–" de minimizar dibujado con CSS para que quede centrado igual que la ✕ */
+.mp-min-btn { display: inline-flex; align-items: center; justify-content: center; }
+.mp-min-icon { display: block; width: 14px; height: 2px; background: currentColor; box-shadow: 0 0 6px var(--fg-primary); }
+.mp-min-btn:hover .mp-min-icon { box-shadow: none; }
 .mp-restore-btn {
   position: fixed;
-  right: 18px; bottom: 18px;
+  right: 10px; bottom: 10px;
   z-index: 2147483640;
   font-family: var(--mono);
   font-size: 18px;
