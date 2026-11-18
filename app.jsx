@@ -2628,7 +2628,7 @@ function AlbumCard({ album, cat, onOpen, onPlay, onShuffle, rowMode = false, sea
 }
 
 // ─── PAGE: ARTIST (category = artist) ─────────────────────────
-function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onPlayAlbum, onShuffleAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
+function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, clearSel, onBulkDownload, onBulkDelete, busy, onPlayArtist, onShuffleArtist, onPlayAlbum, onShuffleAlbum, onPlayFile, prefillAlbum, artistMeta = {}, onUpdateArtistMeta, playlists = [], likedIds = new Set(), onToggleLike, onAddToPlaylist, onOpenCreatePlaylist }) {
   const list = files.filter((f) => (f.category || f.artist) === cat);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState('track-asc');
@@ -2910,6 +2910,12 @@ function CategoryPage({ cat, files, onOpenFile, onNav, selectedIds, toggleSel, c
               <div className="artist-meta" style={{marginTop:12}}>
                 <div className="artist-name">{cat}</div>
                 <div className="artist-stats">{(albumObjects || []).length} DISCOS · {list.length} CANCIONES</div>
+                {list.length > 0 && onPlayArtist && (
+                  <div className="artist-play-row" style={{display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap', marginTop:14}}>
+                    <button className="big-btn" onClick={() => onPlayArtist(cat)}>▶ REPRODUCIR</button>
+                    {onShuffleArtist && <button className="big-btn" onClick={() => onShuffleArtist(cat)}>▶ ALEATORIO</button>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -9526,6 +9532,7 @@ function App() {
                               onAddToPlaylist={addSongToPlaylist}
                               onOpenCreatePlaylist={(fileId) => { if (fileId) setPlaylistSongToAdd(fileId); setShowCreatePlaylistModal(true); }}
                               onPlayArtist={smartPlayArtist}
+                              onShuffleArtist={(artist) => playScope({ type: 'artist', artist }, true)}
                               onPlayAlbum={smartPlayAlbum}
                               onShuffleAlbum={(artist, album) => playScope({ type: 'album', artist, album }, true)}
                               onPlayFile={(f) => {
