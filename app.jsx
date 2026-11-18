@@ -4035,7 +4035,7 @@ function IconVolume({ level }) {
 }
 
 // ─── MUSIC PLAYER (persistent bottom bar) ──────────────────────
-function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile, onToggleQueue, queueOpen }) {
+function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPlayPause, onSeek, onPrev, onNext, onShuffle, shuffleActive, onRepeat, repeatMode, onVolume, onClose, tags, analyser, onOpenMenu, showMenu, onCloseMenu, onCreateBookmark, onCreateClip, waveform, likedIds, onToggleLike, vuEnabled = true, playlists, onAddToPlaylist, onOpenCreatePlaylist, currentTrackId, onNav, onOpenFile, onToggleQueue, queueOpen, minimized = false, onMinimize }) {
   if (!track) return null;
   const cover = track.coverArt || track.thumbnail || (tags && tags.coverArt) || null;
   const barRef = useRef(null);
@@ -4081,7 +4081,7 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
   }, [seekFromClientX]);
 
   return (
-    <div className="music-player">
+    <div className={`music-player${minimized ? ' mp-minimized' : ''}`}>
       <div className="mp-cover">
         {cover
           ? <img src={cover} alt={track.name} />
@@ -4160,13 +4160,20 @@ function MusicPlayer({ track, queue, isPlaying, position, duration, volume, onPl
           else { onVolume(prevVolumeRef.current); }
         }}><IconVolume level={volume} /></span>
         <input type="range" min="0" max="1" step="0.01" value={volume}
-               onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) prevVolumeRef.current = v; onVolume(v); }}
+               onChange={(e) => { const v = parseFloat(e.target.value); if (v > 0) prevVolumeRef.current = v; onVolume(v, true); }}
                style={{cursor:'pointer'}} />
       </div>
       {onToggleQueue && (
         <button className={`mp-queue-btn${queueOpen ? ' active' : ''}`} onClick={onToggleQueue} title="Cola">☰</button>
       )}
-      <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
+      {onMinimize ? (
+        <div className="mp-win-btns">
+          <button className="mp-close mp-min-btn" onClick={onMinimize} title="Minimizar" aria-label="Minimizar reproductor">▁</button>
+          <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
+        </div>
+      ) : (
+        <button className="mp-close" onClick={onClose} title="Cerrar">✕</button>
+      )}
     </div>
   );
 }
@@ -7670,7 +7677,19 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  // Volumen: empieza siempre al máximo salvo que lo hayas cambiado a mano con el deslizador; entonces se recuerda.
+  const [volume, setVolume] = useState(() => {
+    try {
+      const v = parseFloat(localStorage.getItem('metalsys_volume_v1'));
+      return Number.isFinite(v) && v >= 0 && v <= 1 ? v : 1;
+    } catch { return 1; }
+  });
+  const setVolumeManual = useCallback((v) => {
+    setVolume(v);
+    try { localStorage.setItem('metalsys_volume_v1', String(v)); } catch {}
+  }, []);
+  // Reproductor minimizado (solo PC): se oculta la barra y quedan las barras VU abajo + botón ^
+  const [playerMin, setPlayerMin] = useState(false);
   const [playContext, setPlayContext] = useState({ type: 'all', shuffle: false });
   const [detailOriginQueue, setDetailOriginQueue] = useState(null);
   const [repeatMode, setRepeatMode] = useState('off');
@@ -7821,7 +7840,9 @@ function App() {
   useEffect(() => {
     const update = () => {
       const player = document.querySelector('.music-player');
-      if (player) {
+      if (player && player.classList.contains('mp-minimized')) {
+        document.documentElement.style.setProperty('--vu-bottom', '12px');
+      } else if (player) {
         const fromBottom = window.innerHeight - player.getBoundingClientRect().top;
         document.documentElement.style.setProperty('--vu-bottom', fromBottom + 'px');
       }
@@ -7830,7 +7851,7 @@ function App() {
     const id = setInterval(update, 500); // re-check until player appears
     window.addEventListener('resize', update);
     return () => { clearInterval(id); window.removeEventListener('resize', update); };
-  }, [currentTrackId]);
+  }, [currentTrackId, playerMin]);
 
   // Detect touch device once on mount — used by CSS to suppress sticky hover
   useEffect(() => {
@@ -9585,6 +9606,9 @@ function App() {
       {currentTrack && (
         <VUBackdrop analyser={analyserRef} isPlaying={isPlaying} vuEnabled={perf.vuMeter} />
       )}
+      {currentTrack && playerMin && !isMobile && (
+        <button className="mp-restore-btn" onClick={() => setPlayerMin(false)} title="Mostrar reproductor" aria-label="Mostrar reproductor">^</button>
+      )}
 
       <MusicPlayer track={currentTrack} queue={effectiveQueue} isPlaying={isPlaying}
                    position={position} duration={duration} volume={volume}
@@ -9592,8 +9616,10 @@ function App() {
                    onPrev={playPrev} onNext={playNext}
                    onShuffle={toggleShuffle} shuffleActive={playContext.shuffle}
                    onRepeat={toggleRepeat} repeatMode={repeatMode}
-                   onVolume={setVolume}
+                   onVolume={(v, manual) => (manual ? setVolumeManual(v) : setVolume(v))}
                    onClose={stopMusic}
+                   minimized={playerMin && !isMobile}
+                   onMinimize={isMobile ? null : () => setPlayerMin(true)}
                    tags={currentTrackId ? id3Cache[currentTrackId] : null}
                    analyser={analyserRef}
                    onOpenMenu={() => setShowPlayerMenu(prev => !prev)}
